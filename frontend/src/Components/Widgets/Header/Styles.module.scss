@@ -1,0 +1,180 @@
+@use "../../../Styles/mixins.scss" as mixins;
+
+.header {
+  display: flex;
+  max-width: 100%;
+  justify-content: space-between;
+  align-items: center;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 100px;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+  }
+
+  &__logo {
+    width: 113px;
+    height: 30px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  &__button {
+    background: #2f7efd;
+    font-size: 15px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    color: white;
+    padding: 0 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #1a6ae0;
+    }
+  }
+
+  &__city {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    color: black;
+    cursor: pointer;
+    width: 120px;
+
+    &:hover {
+      color: red;
+    }
+  }
+
+  &__cityIcon {
+    flex-shrink: 0;
+    width: 11px;
+    height: 10px;
+    margin-right: 3px;
+    pointer-events: none;
+
+    &:hover {
+      color: red;
+    }
+  }
+
+  &__citySelect {
+    width: fit-content;
+    padding: 0;
+    font-size: 15px;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+
+    &:hover {
+      color: red;
+    }
+  }
+
+  &__button_add {
+    @include mixins.button-reset;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+    white-space: nowrap;
+    transition: color 0.2s;
+
+    &::before {
+      content: "+";
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    &:hover {
+      color: #ff4d4f;
+    }
+  }
+
+  &__button_login {
+    @include mixins.button-reset;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: #333;
+    white-space: nowrap;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #4285f4;
+    }
+  }
+
+  &__dropMenu {
+    position: relative;
+    display: inline-block;
+  }
+
+  &__profile {
+    display: flex;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  &__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    width: 180px;
+    border-radius: 8px;
+    box-shadow: 0 2px 7px rgba(0.15, 0, 0, 0.15);
+    padding: 8px 0;
+    z-index: 1000;
+    animation: slideDown 0.1s ease;
+    background: white;
+  }
+
+  &__menu_item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s;
+    color: #2f7efd;
+    font-size: 15px;
+
+    &:hover {
+      color: red;
+    }
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

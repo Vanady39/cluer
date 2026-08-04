@@ -1,0 +1,9 @@
+.home {
+  margin-top: 50px;
+  &__cards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    justify-items: center;
+  }
+}
