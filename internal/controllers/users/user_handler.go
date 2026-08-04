@@ -10,15 +10,15 @@ import (
 	userresponse "github.com/Vanady39/cluer/internal/models/response/users"
 )
 
-type Handler struct {
-	service domainusers.Service
+type UserHandler struct {
+	service domainusers.UserService
 }
 
-func New(service domainusers.Service) *Handler {
-	return &Handler{service: service}
+func NewUserHandler(service domainusers.UserService) *UserHandler {
+	return &UserHandler{service: service}
 }
 
-func (h *Handler) GetCurrentUser(c *gin.Context) {
+func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	user, err := h.service.GetCurrentUser(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, apiresponse.ErrorResponse{

@@ -2,6 +2,6 @@ package users
 
 import "context"
 
-type Repository interface {
+type UserRepository interface {
 	GetCurrentUser(ctx context.Context) (User, error)
 }

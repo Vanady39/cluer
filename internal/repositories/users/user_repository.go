@@ -6,12 +6,12 @@ import (
 	domainusers "github.com/Vanady39/cluer/internal/domains/users"
 )
 
-type MockRepository struct {
+type UserRepository struct {
 	user domainusers.User
 }
 
-func NewMockRepository() *MockRepository {
-	return &MockRepository{
+func NewUserRepository() *UserRepository {
+	return &UserRepository{
 		user: domainusers.User{
 			ID:        1,
 			Name:      "Иванов Иван",
@@ -20,6 +20,6 @@ func NewMockRepository() *MockRepository {
 	}
 }
 
-func (r *MockRepository) GetCurrentUser(_ context.Context) (domainusers.User, error) {
+func (r *UserRepository) GetCurrentUser(_ context.Context) (domainusers.User, error) {
 	return r.user, nil
 }
