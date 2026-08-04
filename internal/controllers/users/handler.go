@@ -1,7 +1,6 @@
 package users
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,15 +10,11 @@ import (
 	userresponse "github.com/Vanady39/cluer/internal/models/response/users"
 )
 
-type Service interface {
-	GetCurrentUser(ctx context.Context) (domainusers.User, error)
-}
-
 type Handler struct {
-	service Service
+	service domainusers.Service
 }
 
-func New(service Service) *Handler {
+func New(service domainusers.Service) *Handler {
 	return &Handler{service: service}
 }
 
