@@ -1,0 +1,378 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API for managing onboarding tours and hints",
+        "title": "Cluer Onboarding API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/tours": {
+            "post": {
+                "description": "Creates a new onboarding tour draft",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tours"
+                ],
+                "summary": "Create a new tour",
+                "parameters": [
+                    {
+                        "description": "Tour object",
+                        "name": "tour",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/published": {
+            "get": {
+                "description": "Returns published tours with hints for a specific target path",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tours"
+                ],
+                "summary": "Get published tours by path",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "/dashboard",
+                        "description": "Target path",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/hints": {
+            "post": {
+                "description": "Creates a new hint for a specific tour",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Create a hint for a tour",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hint object",
+                        "name": "hint",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_Vanady39_cluer_internal_domains_onboarding.Audience": {
+            "type": "object",
+            "properties": {
+                "max_shows": {
+                    "type": "integer"
+                },
+                "only_new": {
+                    "type": "boolean"
+                },
+                "show_once": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains_onboarding.Hint": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "Здесь вы можете изменить параметры аккаунта"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
+                },
+                "expected_input": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c"
+                },
+                "input_placeholder": {
+                    "type": "string",
+                    "example": "Введите ваше имя"
+                },
+                "media_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/onboarding/settings.mp4"
+                },
+                "placement": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Placement"
+                        }
+                    ],
+                    "example": "bottom"
+                },
+                "required": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "selector": {
+                    "type": "string",
+                    "example": "#settings-btn"
+                },
+                "spotlight": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "step": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Нажмите кнопку настроек"
+                },
+                "tour_id": {
+                    "type": "string",
+                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
+                },
+                "wait_for_selector": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains_onboarding.Placement": {
+            "type": "string",
+            "enum": [
+                "top",
+                "bottom",
+                "center",
+                "left-top",
+                "right-top",
+                "left",
+                "right"
+            ],
+            "x-enum-varnames": [
+                "PlacementTop",
+                "PlacementBottom",
+                "PlacementCenter",
+                "PlacementLeftTop",
+                "PlacementRightTop",
+                "PlacementLeft",
+                "PlacementRight"
+            ]
+        },
+        "github_com_Vanady39_cluer_internal_domains_onboarding.Tour": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Audience"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Тур по основным функциям дашборда"
+                },
+                "hints": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint"
+                    }
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b"
+                },
+                "priority": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TourStatus"
+                        }
+                    ],
+                    "example": "draft"
+                },
+                "target_path": {
+                    "type": "string",
+                    "example": "/dashboard"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Добро пожаловать в систему"
+                },
+                "trigger_type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TriggerType"
+                        }
+                    ],
+                    "example": "on_load"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains_onboarding.TourStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "published",
+                "archived"
+            ],
+            "x-enum-varnames": [
+                "TourDraft",
+                "TourPublished",
+                "TourArchived"
+            ]
+        },
+        "github_com_Vanady39_cluer_internal_domains_onboarding.TriggerType": {
+            "type": "string",
+            "enum": [
+                "on_load",
+                "delay",
+                "exit_intent",
+                "manual"
+            ],
+            "x-enum-varnames": [
+                "TriggerOnLoad",
+                "TriggerDelay",
+                "TriggerExitIntent",
+                "TriggerManual"
+            ]
+        },
+        "internal_controllers_onboarding.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
