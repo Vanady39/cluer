@@ -40,6 +40,6 @@ type Hint struct {
 	WaitForSelector  bool      `json:"wait_for_selector" db:"wait_for_selector" example:"true"`
 	InputPlaceHolder string    `json:"input_placeholder" db:"input_placeholder" example:"Введите ваше имя"`
 	ExpectedInput    string    `json:"expected_input" db:"expected_input" example:"John Doe"`
-	CreatedAt        time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at" format:"date-time" example:"2026-08-05T12:00:00Z"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at" format:"date-time" example:"2026-08-05T12:00:00Z"`
 }
