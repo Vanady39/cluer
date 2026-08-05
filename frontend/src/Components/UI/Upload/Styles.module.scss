@@ -1,0 +1,141 @@
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+
+  &__label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1a1a1a;
+  }
+
+  &__dropzone {
+    border: 2px dashed #d9d9d9;
+    border-radius: 12px;
+    padding: 24px;
+    background: #fafafa;
+    transition: all 0.2s ease;
+    min-height: 120px;
+
+    &:hover:not(.upload__dropzone--disabled) {
+      border-color: #2f7efd;
+      background: rgba(47, 126, 253, 0.04);
+    }
+
+    &--error {
+      border-color: #ff4d4f;
+      background: rgba(255, 77, 79, 0.04);
+    }
+
+    &--disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__previewList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  &__previewItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px 8px 8px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f0f0f0;
+    position: relative;
+    max-width: 100%;
+  }
+
+  &__previewImage {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  &__previewName {
+    font-size: 13px;
+    color: #1a1a1a;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__previewRemove {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #8c8c8c;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &:hover {
+      background: #ff4d4f;
+      color: #ffffff;
+    }
+  }
+
+  &__area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 16px;
+    cursor: pointer;
+    min-height: 80px;
+
+    &:hover .upload__icon {
+      transform: scale(1.1);
+    }
+  }
+
+  &__icon {
+    font-size: 32px;
+    transition: transform 0.2s ease;
+  }
+
+  &__text {
+    font-size: 14px;
+    color: #1a1a1a;
+    font-weight: 500;
+  }
+
+  &__hint {
+    font-size: 12px;
+    color: #8c8c8c;
+  }
+
+  &__counter {
+    text-align: right;
+    font-size: 12px;
+    color: #8c8c8c;
+    margin-top: 8px;
+  }
+
+  &__input {
+    display: none;
+  }
+
+  &__error {
+    font-size: 13px;
+    color: #ff4d4f;
+  }
+}

@@ -1,0 +1,53 @@
+.header {
+  display: flex;
+  max-width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 100px;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+  }
+
+  &__logo {
+    width: 113px;
+    height: 30px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  &__button_add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color 0.2s;
+    color: #1a1a1a;
+
+    &::before {
+      content: "+";
+      font-size: 23px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    &:hover {
+      color: #ff4d4f;
+    }
+  }
+}
