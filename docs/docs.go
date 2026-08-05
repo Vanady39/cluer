@@ -192,49 +192,70 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "content": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Здесь вы можете изменить параметры аккаунта"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
                 },
                 "expected_input": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "John Doe"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c"
                 },
                 "input_placeholder": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Введите ваше имя"
                 },
                 "media_url": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "https://cdn.example.com/onboarding/settings.mp4"
                 },
                 "placement": {
-                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Placement"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Placement"
+                        }
+                    ],
+                    "example": "bottom"
                 },
                 "required": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": false
                 },
                 "selector": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "#settings-btn"
                 },
                 "spotlight": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 },
                 "step": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Нажмите кнопку настроек"
                 },
                 "tour_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
                 },
                 "wait_for_selector": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
@@ -266,10 +287,13 @@ const docTemplate = `{
                     "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Audience"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Тур по основным функциям дашборда"
                 },
                 "hints": {
                     "type": "array",
@@ -278,25 +302,42 @@ const docTemplate = `{
                     }
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b"
                 },
                 "priority": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "status": {
-                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TourStatus"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TourStatus"
+                        }
+                    ],
+                    "example": "draft"
                 },
                 "target_path": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "/dashboard"
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Добро пожаловать в систему"
                 },
                 "trigger_type": {
-                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TriggerType"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TriggerType"
+                        }
+                    ],
+                    "example": "on_load"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-08-05T12:00:00Z"
                 }
             }
         },
