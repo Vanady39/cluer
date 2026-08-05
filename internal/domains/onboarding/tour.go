@@ -38,13 +38,13 @@ type Audience struct {
 }
 
 type Tour struct {
-	Id          uuid.UUID   `json:"id" db:"id"`
-	Title       string      `json:"title" db:"title"`
-	Description string      `json:"description" db:"description"`
-	Status      TourStatus  `json:"status" db:"status"`
-	TriggerType TriggerType `json:"trigger_type" db:"trigger_type"`
-	TargetPath  string      `json:"target_path" db:"target_path"`
-	Priority    int         `json:"priority" db:"priority"`
+	Id          uuid.UUID   `json:"id" db:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title       string      `json:"title" db:"title" example:"Добро пожаловать в систему"`
+	Description string      `json:"description" db:"description" example:"Тур по основным функциям дашборда"`
+	Status      TourStatus  `json:"status" db:"status" example:"draft"`
+	TriggerType TriggerType `json:"trigger_type" db:"trigger_type" example:"on_load"`
+	TargetPath  string      `json:"target_path" db:"target_path" example:"/dashboard"`
+	Priority    int         `json:"priority" db:"priority" example:"1"`
 	Audience    Audience    `json:"audience" db:"audience"`
 	Hints       []Hint      `json:"hints" db:"hints"`
 	CreatedAt   time.Time   `json:"created_at" db:"created_at"`
