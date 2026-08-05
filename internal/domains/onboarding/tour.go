@@ -38,7 +38,7 @@ type Audience struct {
 }
 
 type Tour struct {
-	Id          uuid.UUID   `json:"id" db:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Id          uuid.UUID   `json:"id" db:"id" format:"uuid" example:"01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b"`
 	Title       string      `json:"title" db:"title" example:"Добро пожаловать в систему"`
 	Description string      `json:"description" db:"description" example:"Тур по основным функциям дашборда"`
 	Status      TourStatus  `json:"status" db:"status" example:"draft"`
@@ -47,6 +47,6 @@ type Tour struct {
 	Priority    int         `json:"priority" db:"priority" example:"1"`
 	Audience    Audience    `json:"audience" db:"audience"`
 	Hints       []Hint      `json:"hints" db:"hints"`
-	CreatedAt   time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at" db:"updated_at"`
+	CreatedAt   time.Time   `json:"created_at" db:"created_at" format:"date-time" example:"2026-08-05T12:00:00Z"`
+	UpdatedAt   time.Time   `json:"updated_at" db:"updated_at" format:"date-time" example:"2026-08-05T12:00:00Z"`
 }
