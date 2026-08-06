@@ -1,131 +1,178 @@
 import { memo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import styles from "./Styles.module.scss";
-
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
-
-interface Step {
-  id: number;
-  title: string;
-  content: string;
-  selector: string;
-  placement: string;
-  spotlight: boolean;
-  path: string;
-}
-
-interface Tour {
-  id: string;
-  title: string;
-  description: string;
-  status: "draft" | "published";
-  target_path: string;
-  priority: number;
-  hints: Step[];
-}
+import type { TourHint, Tour, CreateTourRequest, CreateHintRequest } from "../../../../types/sdk";
+import { onboardingAPI } from "../../../../Api/onboarding";
 
 function CreateScenariosComponent() {
   const navigate = useNavigate();
+  const editId = new URLSearchParams(window.location.search).get("id");
+  const queryClient = useQueryClient();
+  const USE_API = true; 
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [targetPath, setTargetPath] = useState("/");
-  const [status, setStatus] = useState<"draft" | "published">("published");
-  const [steps, setSteps] = useState<Step[]>([
+  const [hints, setHints] = useState<TourHint[]>([
     {
-      id: 1,
+      id: String(Date.now()),
+      tour_id: "",
+      step: 1,
       title: "Первый шаг",
       content: "",
       selector: "",
       placement: "bottom",
+      target_path: "/",
       spotlight: true,
-      path: "/",
+      required: false,
+      wait_for_selector: false,
     },
   ]);
 
-  const addStep = () => {
-    setSteps((prev) => [
+  const { data: loadedTour } = useQuery({
+    queryKey: ["tour", editId],
+    queryFn: async () => {
+      if (!editId) return null;
+      
+      if (USE_API) {
+        const tours = JSON.parse(localStorage.getItem("tours") || "[]");
+        return tours.find((item: Tour) => item.id === editId) || null;
+      } else {
+        const tours = JSON.parse(localStorage.getItem("tours") || "[]");
+        return tours.find((item: Tour) => item.id === editId) || null;
+      }
+    },
+    enabled: !!editId, 
+  });
+
+  useEffect(() => {
+    if (loadedTour) {
+      setTitle(loadedTour.title);
+      setDescription(loadedTour.description);
+      setHints(loadedTour.hints);
+    }
+  }, [loadedTour]);
+
+  const addHint = () => {
+    setHints((prev) => [
       ...prev,
       {
-        id: Date.now(),
+        id: String(Date.now()),
+        tour_id: "",
+        step: prev.length + 1,
         title: `Шаг ${prev.length + 1}`,
         content: "",
         selector: "",
         placement: "bottom",
+        target_path: "/",
         spotlight: true,
-        path: "/",
+        required: false,
+        wait_for_selector: false,
       },
     ]);
   };
 
-  const updateStep = (
-    id: number,
-    field: keyof Step,
+  const updateHint = (
+    id: string,
+    field: keyof TourHint,
     value: string | boolean,
   ) => {
-    setSteps((prev) =>
-      prev.map((step) =>
-        step.id === id
+    setHints((prev) =>
+      prev.map((hint) =>
+        hint.id === id
           ? {
-              ...step,
+              ...hint,
               [field]: value,
             }
-          : step,
+          : hint,
       ),
     );
   };
 
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "SELECTOR_SELECTED") {
-        const selector = event.data.selector;
-        if (!selector) return;
-
-        if (steps.length === 0) {
-          alert("Сначала добавьте хотя бы один шаг!");
-          return;
-        }
-
-        const currentStep = steps[steps.length - 1];
-        updateStep(currentStep.id, "selector", selector);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [steps]);
-
-  const removeStep = (id: number) => {
-    setSteps((prev) => prev.filter((step) => step.id !== id));
+  const removeHint = (id: string) => {
+    setHints((prev) => prev.filter((hint) => hint.id !== id));
   };
 
-  const saveScenario = () => {
-    const scenario: Tour = {
-      id: String(Date.now()),
-      title,
-      description,
-      status,
-      target_path: targetPath,
-      priority: 1,
-      hints: steps.map((step, index) => ({
-        id: step.id,
-        title: step.title || `Шаг ${index + 1}`,
-        content: step.content,
-        selector: step.selector,
-        placement: step.placement,
-        spotlight: step.spotlight,
-        path: step.path,
-      })),
-    };
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "SELECTOR_SELECTED") return;
 
-    const oldTours = JSON.parse(localStorage.getItem("tours") || "[]");
-    localStorage.setItem("tours", JSON.stringify([...oldTours, scenario]));
-    navigate("/admin/scenarios");
+      const selector = event.data.selector;
+      if (!selector) return;
+
+      if (hints.length === 0) {
+        alert("Сначала добавьте хотя бы один шаг!");
+        return;
+      }
+
+      const currentHint = hints[hints.length - 1];
+      updateHint(currentHint.id, "selector", selector);
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [hints]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (scenarioStatus: "draft" | "published") => {
+      const tourData: CreateTourRequest = {
+        title,
+        target_path: "/",
+        description,
+        priority: 1,
+        trigger_type: "on_load",
+        audience: {
+          show_once: true,
+          max_shows: 1,
+          only_new: false,
+        },
+      };
+
+      let tourId = editId;
+
+      if (!tourId) {
+        tourId = await onboardingAPI.createTour(tourData);
+      } else {
+        await onboardingAPI.updateTour(tourId, tourData);
+      }
+
+      for (const hint of hints) {
+        const hintData: CreateHintRequest = {
+          title: hint.title,
+          content: hint.content,
+          placement: hint.placement,
+          selector: hint.selector || undefined,
+          spotlight: hint.spotlight,
+          required: hint.required,
+          wait_for_selector: hint.wait_for_selector,
+        };
+
+        if (hint.id.startsWith("new-") || !hint.id) {
+          await onboardingAPI.createHint(tourId, hintData);
+        } else {
+          await onboardingAPI.updateHint(tourId, hint.id, hintData);
+        }
+      }
+
+      if (scenarioStatus === "published") {
+        await onboardingAPI.publishTour(tourId);
+      }
+
+      return tourId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tours"] });
+      navigate("/admin/scenarios");
+    },
+    onError: (error) => {
+      console.error("Ошибка сохранения:", error);
+      alert("Не удалось сохранить сценарий через API.");
+    },
+  });
+
+  const saveScenario = (scenarioStatus: "draft" | "published") => {
+    saveMutation.mutate(scenarioStatus);
   };
 
   return (
@@ -155,15 +202,6 @@ function CreateScenariosComponent() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Зачем нужен этот сценарий"
           />
-          <label className={styles.label}>Статус</label>
-          <select
-            className={styles.select}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-          >
-            <option value="draft">Черновик</option>
-            <option value="published">Опубликован</option>
-          </select>
         </section>
 
         <section className={styles.card}>
@@ -173,21 +211,21 @@ function CreateScenariosComponent() {
               size="main"
               color="primary"
               className={styles.addButton}
-              onClick={addStep}
+              onClick={addHint}
             >
               + Добавить шаг
             </Button>
           </div>
 
-          {steps.map((step, index) => (
-            <div className={styles.step} key={step.id}>
+          {hints.map((hint, index) => (
+            <div className={styles.step} key={hint.id}>
               <div className={styles.stepTitle}>
                 Шаг {index + 1}
                 <Button
                   size="min"
                   color="transparent"
                   className={styles.removeButton}
-                  onClick={() => removeStep(step.id)}
+                  onClick={() => removeHint(hint.id)}
                 >
                   ×
                 </Button>
@@ -195,9 +233,9 @@ function CreateScenariosComponent() {
 
               <label className={styles.label}>Название подсказки</label>
               <Input
-                value={step.title}
+                value={hint.title}
                 onChange={(value) =>
-                  updateStep(step.id, "title", String(value))
+                  updateHint(hint.id, "title", String(value))
                 }
                 placeholder="Например: Создайте объявление"
               />
@@ -205,29 +243,43 @@ function CreateScenariosComponent() {
               <label className={styles.label}>Текст подсказки</label>
               <textarea
                 className={styles.textarea}
-                value={step.content}
+                value={hint.content}
                 placeholder="Нажмите сюда..."
-                onChange={(e) => updateStep(step.id, "content", e.target.value)}
+                onChange={(e) => updateHint(hint.id, "content", e.target.value)}
               />
 
               <label className={styles.label}>Страница элемента</label>
               <select
                 className={styles.select}
-                value={step.path}
-                onChange={(e) => updateStep(step.id, "path", e.target.value)}
+                value={hint.target_path}
+                onChange={(e) => updateHint(hint.id, "target_path", e.target.value)}
               >
                 <option value="/">Главная</option>
                 <option value="/addItem">Создание объявления</option>
                 <option value="/profile">Профиль</option>
               </select>
+
+              <label className={styles.label}>Позиция подсказки</label>
+              <select
+                className={styles.select}
+                value={hint.placement}
+                onChange={(e) => updateHint(hint.id, "placement", e.target.value)}
+              >
+                <option value="bottom">Снизу</option>
+                <option value="top">Сверху</option>
+                <option value="left">Слева</option>
+                <option value="right">Справа</option>
+                <option value="center">По центру</option>
+              </select>
+
               <label className={styles.label}>Элемент сайта</label>
               <div className={styles.selectorRow}>
                 <Input
                   className={styles.selectorInput}
-                  value={step.selector}
+                  value={hint.selector || ""}
                   placeholder="[data-onboarding='create-ad']"
                   onChange={(value) =>
-                    updateStep(step.id, "selector", String(value))
+                    updateHint(hint.id, "selector", String(value))
                   }
                 />
                 <Button
@@ -235,7 +287,7 @@ function CreateScenariosComponent() {
                   color="primary"
                   className={styles.pickButton}
                   onClick={() => {
-                    const page = step.path || "/";
+                    const page = hint.target_path || "/";
                     const builderUrl = `${window.location.origin}${page}?builder=true`;
                     window.open(builderUrl, "_blank");
                   }}
@@ -243,20 +295,6 @@ function CreateScenariosComponent() {
                   Выбрать
                 </Button>
               </div>
-
-              <label className={styles.label}>Позиция подсказки</label>
-              <select
-                className={styles.select}
-                value={step.placement}
-                onChange={(e) =>
-                  updateStep(step.id, "placement", e.target.value)
-                }
-              >
-                <option value="bottom">Снизу</option>
-                <option value="top">Сверху</option>
-                <option value="left">Слева</option>
-                <option value="right">Справа</option>
-              </select>
             </div>
           ))}
         </section>
@@ -268,11 +306,19 @@ function CreateScenariosComponent() {
         </Button>
         <Button
           size="main"
+          onClick={() => saveScenario("draft")}
+          disabled={saveMutation.isPending}
+        >
+          {saveMutation.isPending ? "Сохранение..." : "Сохранить черновик"}
+        </Button>
+        <Button
+          size="main"
           color="primary"
           className={styles.save}
-          onClick={saveScenario}
+          onClick={() => saveScenario("published")}
+          disabled={saveMutation.isPending}
         >
-          Опубликовать
+          {saveMutation.isPending ? "Сохранение..." : "Опубликовать"}
         </Button>
       </div>
     </div>

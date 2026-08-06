@@ -21,7 +21,7 @@ export function TourRunner({ tour, onClose }: Props) {
   const [element, setElement] = useState<HTMLElement | null>(null);
 
   const changeStep = (newStep: number) => {
-    sessionStorage.setItem(`tour_step_${tour.id}`, String(newStep));
+    sessionStorage.setItem(storageKey, String(newStep));
     setStep(newStep);
   };
 
@@ -36,21 +36,20 @@ export function TourRunner({ tour, onClose }: Props) {
     const nextHint = tour.hints[nextStep];
     changeStep(nextStep);
 
-    if (nextHint.path && nextHint.path !== window.location.pathname) {
-      navigate(nextHint.path);
+    if (nextHint.target_path && nextHint.target_path !== window.location.pathname) {
+      navigate(nextHint.target_path);
     }
   };
 
   useEffect(() => {
     let interval: number;
     const findElement = () => {
-      const target = document.querySelector(
-        hint.selector,
-      ) as HTMLElement | null;
+      const target = hint.selector
+        ? (document.querySelector(hint.selector) as HTMLElement | null)
+        : null;
 
       if (target) {
         console.log("Элемент найден:", target);
-
         setElement(target);
         clearInterval(interval);
       }
@@ -72,9 +71,7 @@ export function TourRunner({ tour, onClose }: Props) {
 
       if (nextStep >= tour.hints.length) {
         sessionStorage.removeItem(`tour_step_${tour.id}`);
-
         onClose();
-
         return;
       }
 
@@ -82,8 +79,8 @@ export function TourRunner({ tour, onClose }: Props) {
 
       changeStep(nextStep);
 
-      if (nextHint.path && nextHint.path !== window.location.pathname) {
-        navigate(nextHint.path);
+      if (nextHint.target_path && nextHint.target_path !== window.location.pathname) {
+        navigate(nextHint.target_path);
       }
     };
 
@@ -102,15 +99,12 @@ export function TourRunner({ tour, onClose }: Props) {
     }
 
     const rect = element.getBoundingClientRect();
-
     const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
 
     if (!isVisible) {
       element.scrollIntoView({
         behavior: "smooth",
-
         block: "center",
-
         inline: "nearest",
       });
     }

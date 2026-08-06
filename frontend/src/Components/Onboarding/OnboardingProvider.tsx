@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { TourRunner } from "./TourRunner";
 import { Builder } from "./Builder";
+import type { Tour } from "../../types/sdk";
 
 export function OnboardingProvider() {
   const [isOpen, setIsOpen] = useState(true);
+
   const params = new URLSearchParams(window.location.search);
+
   const tourId = params.get("tour");
   const isPreview = params.get("preview") === "true";
   const isBuilder = params.get("builder") === "true";
@@ -37,28 +40,34 @@ export function OnboardingProvider() {
     const tours = JSON.parse(localStorage.getItem("tours") || "[]");
 
     if (tourId) {
-      return tours.find((tour: any) => tour.id === tourId);
+      const tour = tours.find((tour: Tour) => tour.id === tourId);
+      if (isPreview) return tour;
+      return tour?.status === "published" ? tour : null;
     }
 
-    return tours.find(
-      (tour: any) =>
-        tour.status === "published" &&
-        tour.target_path === window.location.pathname,
+    return tours.find((tour: Tour) => 
+      tour.status === "published" && 
+      (!tour.target_path || tour.target_path === window.location.pathname)
     );
   };
 
   const tour = getTour();
+
+  if (!tour) {
+    return null;
+  }
+
+  const completedKey = `onboarding_completed_${tour.id}`;
+  const completed = localStorage.getItem(completedKey);
+
   const closeTour = () => {
     setIsOpen(false);
-
     if (!isPreview) {
-      localStorage.setItem("onboarding_completed", "true");
+      localStorage.setItem(completedKey, "true");
     }
   };
 
-  const completed = localStorage.getItem("onboarding_completed");
-
-  if (!tour || !isOpen || (completed && !isPreview)) {
+  if (!isOpen || (completed && !isPreview)) {
     return null;
   }
 

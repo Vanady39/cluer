@@ -1,47 +1,73 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import styles from "./Styles.module.scss";
-
 import { Button } from "../../../UI/Button";
 import logo from "/logo.svg";
-
-interface Scenario {
-  id: string;
-  title: string;
-  status: "draft" | "published";
-  hints: unknown[];
-  updated?: string;
-}
+import { onboardingAPI } from "../../../../Api/onboarding";
+import type { Tour } from "../../../../types/sdk";
 
 function ScenariosComponent() {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const queryClient = useQueryClient();
+  const {
+    data: scenarios = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["tours"],
+    queryFn: async () => {
+      // Если API готово — раскомментируйте:
+      // return await onboardingAPI.getAll();
+      
+      // Пока используем localStorage
+      const data = JSON.parse(localStorage.getItem("tours") || "[]");
+      return data as Tour[];
+    },
+  });
 
-  useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("tours") || "[]");
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // Если API готово — раскомментируйте:
+      // await onboardingAPI.deleteTour(id);
+      
+      // Пока через localStorage
+      const updated = scenarios.filter((item) => item.id !== id);
+      localStorage.setItem("tours", JSON.stringify(updated));
+      return updated;
+    },
+    onSuccess: (updatedScenarios) => {
+      queryClient.setQueryData(["tours"], updatedScenarios);
+      setOpenMenu(null);
+    },
+    onError: (error) => {
+      console.error("Ошибка удаления:", error);
+      alert("Не удалось удалить сценарий");
+    },
+  });
 
-    setScenarios(data);
-  }, []);
+  if (isLoading) {
+    return (
+        <div className={styles.loading}>Загрузка сценариев...</div>
+    );
+  }
 
-  const deleteScenario = (id: string) => {
-    const updated = scenarios.filter((item) => item.id !== id);
-
-    localStorage.setItem("tours", JSON.stringify(updated));
-
-    setScenarios(updated);
-  };
+  if (error) {
+    return (
+        <div className={styles.error}>
+          Ошибка загрузки сценариев: {error.message}
+        </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <img src={logo} className={styles.logo} />
-
         <div>
           <h1>Сценарии</h1>
         </div>
-
         <Button
           className={styles.createButton}
           size="main"
@@ -55,13 +81,9 @@ function ScenariosComponent() {
       <div className={styles.table}>
         <div className={styles.rowHeader}>
           <span>Название</span>
-
           <span>Статус</span>
-
           <span>Шагов</span>
-
           <span>Обновлен</span>
-
           <span>Действия</span>
         </div>
 
@@ -72,31 +94,32 @@ function ScenariosComponent() {
             <span>
               <span
                 className={`
-                    ${styles.status}
-                    ${
-                      item.status === "published"
-                        ? styles.success
-                        : styles.warning
-                    }
-                  `}
+                  ${styles.status}
+                  ${item.status === "published" ? styles.success : styles.warning}
+                `}
               />
-
               {item.status === "published" ? "Опубликован" : "Черновик"}
             </span>
 
             <span>{item.hints.length}</span>
 
-            <span>{new Date().toLocaleDateString()}</span>
+            <span>
+              {item.updated_at
+                ? new Date(item.updated_at).toLocaleDateString()
+                : "—"}
+            </span>
 
             <div className={styles.actions}>
-              <Button
-                size="min"
-                onClick={() => {
-                  window.open(`/?tour=${item.id}&preview=true`, "_blank");
-                }}
-              >
-                Предпросмотр
-              </Button>
+              {item.status === "published" && (
+                <Button
+                  size="min"
+                  onClick={() => {
+                    window.open(`/?tour=${item.id}&preview=true`, "_blank");
+                  }}
+                >
+                  Предпросмотр
+                </Button>
+              )}
 
               <div className={styles.menuWrapper}>
                 <Button
@@ -113,13 +136,18 @@ function ScenariosComponent() {
                   <div className={styles.dropdown}>
                     <button
                       className={styles.deleteButton}
-                      onClick={() => {
-                        deleteScenario(item.id);
-                        setOpenMenu(null);
-                      }}
+                      onClick={() => deleteMutation.mutate(item.id)}
                     >
                       Удалить
                     </button>
+                    <Button
+                      size="min"
+                      onClick={() =>
+                        navigate(`/admin/scenarios/create?id=${item.id}`)
+                      }
+                    >
+                      Редактировать
+                    </Button>
                   </div>
                 )}
               </div>

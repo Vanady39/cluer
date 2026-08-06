@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import styles from "./Styles.module.scss";
-import type { Hint as HintType } from "../../types/sdk";
+import type { TourHint } from "../../types/sdk";
 import { Button } from "../UI/Button";
 
 interface Props {
-  hint: HintType;
+  hint: TourHint;
   element: HTMLElement;
   step: number;
   total: number;
@@ -62,7 +62,7 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
             Пропустить
           </button>
 
-          <Button onClick={step === total - 1 ? skip : next}>
+          <Button onClick={next}>
             {step === total - 1 ? "Закрыть" : "Далее"}
           </Button>
         </div>

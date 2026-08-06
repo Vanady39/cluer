@@ -4,4 +4,6 @@ export interface Listing {
   description: string;
   price: number;
   imageUrl: string;
+  city?: string;
+  category?: string;
 }
