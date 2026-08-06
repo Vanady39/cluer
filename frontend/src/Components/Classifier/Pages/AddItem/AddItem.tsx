@@ -5,10 +5,10 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import type { InferType } from "yup";
 import { createAdSchema } from "./schema";
 import { Input } from "../../../UI/Input";
-import { Button } from "../../..//UI//Button";
+import { Button } from "../../../UI/Button";
 import { CitySelect } from "../../../UI/CitySelect/CitySelect";
 import { Categories } from "../../../UI/CategoriesSelect/CategoriesSelect";
-import { PhotoUpload } from "./Components/PhotoUpload/PhotoUpload";
+import { Upload } from "../../../UI/Upload/Upload";
 import { PreviewModal } from "../../Layouts/PreviewModal/PreviewModal";
 import styles from "./Styles.module.scss";
 
@@ -64,7 +64,10 @@ function AddItemComponent() {
       <section className={styles.card}>
         <h1 className={styles.title}>Создать объявление</h1>
 
-        <form className={styles.form} onSubmit={createForm.handleSubmit(onSubmit)}>
+        <form
+          className={styles.form}
+          onSubmit={createForm.handleSubmit(onSubmit)}
+        >
           <Controller
             name="category"
             control={createForm.control}
@@ -97,11 +100,7 @@ function AddItemComponent() {
               name="description"
               control={createForm.control}
               render={({ field }) => (
-                <textarea
-                  {...field}
-                  className={styles.textarea}
-                  rows={6}
-                />
+                <textarea {...field} className={styles.textarea} rows={6} />
               )}
             />
           </div>
@@ -136,17 +135,30 @@ function AddItemComponent() {
               )}
             />
           </div>
-
-          <PhotoUpload
+          <div data-onboarding='photo-upload'>
+               <Upload
             fileList={fileList}
             onFileChange={setFileList}
             openPreview={openPreview}
           />
+          </div>
+
           <div className={styles.actions}>
-            <Button type="button" size="main" onClick={() => navigate("/")} className={styles.button}>
+            <Button
+              type="button"
+              size="main"
+              onClick={() => navigate("/")}
+              className={styles.button}
+            >
               Отмена
             </Button>
-            <Button type="submit" disabled={loading} color="primary" size="main" className={styles.button_pub}>
+            <Button
+              type="submit"
+              disabled={loading}
+              color="primary"
+              size="main"
+              className={styles.button_pub}
+            >
               {loading ? "Публикация..." : "Опубликовать"}
             </Button>
           </div>

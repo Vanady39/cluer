@@ -27,7 +27,7 @@ function HeaderComponent() {
         {!isCreateAdPage && (
           <>
             <Link to={"/addItem"}>
-              <Button className={styles.header__button_add} color="transparent" size='nav'>
+              <Button data-onboarding="create-ad" className={styles.header__button_add} color="transparent" size='nav'>
                 Разместить объявление
               </Button>
             </Link>

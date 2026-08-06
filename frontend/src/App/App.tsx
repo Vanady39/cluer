@@ -10,11 +10,13 @@ import { Store } from "../Store/Store";
 import { Admin } from "../Components/Admin/Admin";
 import { Scenarios } from "../Components/Admin/Pages/Scenarios";
 import { CreateScenarios } from "../Components/Admin/Pages/AddScenarios/AddScenarios";
+import { OnboardingProvider } from "../Components/Onboarding/OnboardingProvider";
 
 function App() {
   return (
     <Provider store={Store}>
       <BrowserRouter>
+      <OnboardingProvider/>
         <Routes>
           <Route path="/" element={<WrappPages />}>
             <Route index element={<Home />} />
