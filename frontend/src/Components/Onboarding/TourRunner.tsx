@@ -53,6 +53,7 @@ export function TourRunner({ tour, onClose }: Props) {
         onClose();
       }
     };
+    
 
     element.addEventListener("click", handleAction);
 

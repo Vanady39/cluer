@@ -13,17 +13,19 @@ export function Builder({ onSelect }: Props) {
       const element = event.target as HTMLElement;
       const selector = createSelector(element);
 
-      console.log("Выбран элемент:", element);
-      console.log("Селектор:", selector);
-
       if (window.opener) {
         window.opener.postMessage(
-          { type: "SELECTOR_SELECTED", selector },
-          "*"
+          {
+            type: "SELECTOR_SELECTED",
+            selector,
+          },
+          "*",
         );
+
         window.close();
         return;
       }
+
       onSelect?.(selector);
     };
 
@@ -34,33 +36,23 @@ export function Builder({ onSelect }: Props) {
     };
   }, [onSelect]);
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 20,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "#1677ff",
-        color: "#fff",
-        padding: "12px 20px",
-        borderRadius: 12,
-        zIndex: 99999,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-        pointerEvents: "none",
-      }}
-    >
-      Нажмите на любой элемент на этой странице, чтобы выбрать его
-    </div>
-  );
+  return null;
 }
 
 function createSelector(element: HTMLElement) {
-  if (element.dataset.onboardingId) {
-    return `[data-onboarding-id="${element.dataset.onboardingId}"]`;
+  if (element.id) {
+    return `#${element.id}`;
   }
 
-  const id = `element-${Date.now()}`;
-  element.dataset.onboardingId = id;
-  return `[data-onboarding-id="${id}"]`;
+  if (element.dataset.testid) {
+    return `[data-testid="${element.dataset.testid}"]`;
+  }
+
+  if (typeof element.className === "string" && element.className.trim()) {
+    const className = element.className.split(" ").filter(Boolean).join(".");
+
+    return `${element.tagName.toLowerCase()}.${className}`;
+  }
+
+  return element.tagName.toLowerCase();
 }
