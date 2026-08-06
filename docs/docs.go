@@ -15,6 +15,32 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/listings": {
+            "get": {
+                "description": "Returns every available listing",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Listings"
+                ],
+                "summary": "Get all listings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.GetListingsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/tours": {
             "post": {
                 "description": "Creates a new onboarding tour draft",
@@ -35,7 +61,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
                         }
                     }
                 ],
@@ -46,13 +72,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     }
                 }
@@ -60,7 +86,7 @@ const docTemplate = `{
         },
         "/tours/published": {
             "get": {
-                "description": "Returns published tours with hints for a specific target path",
+                "description": "Returns published tours with their hints for a specific target path",
                 "produces": [
                     "application/json"
                 ],
@@ -84,20 +110,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour"
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     }
                 }
@@ -131,7 +157,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
                         }
                     }
                 ],
@@ -142,25 +168,51 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/internal_controllers_onboarding.ErrorResponse"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "description": "Returns the currently authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get the current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.GetCurrentUserResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     }
                 }
@@ -168,7 +220,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_Vanady39_cluer_internal_domains_onboarding.Audience": {
+        "github_com_Vanady39_cluer_internal_domains.Audience": {
             "type": "object",
             "properties": {
                 "max_shows": {
@@ -182,7 +234,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Vanady39_cluer_internal_domains_onboarding.Hint": {
+        "github_com_Vanady39_cluer_internal_domains.Hint": {
             "type": "object",
             "properties": {
                 "content": {
@@ -213,7 +265,7 @@ const docTemplate = `{
                 "placement": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Placement"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Placement"
                         }
                     ],
                     "example": "bottom"
@@ -253,7 +305,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Vanady39_cluer_internal_domains_onboarding.Placement": {
+        "github_com_Vanady39_cluer_internal_domains.Placement": {
             "type": "string",
             "enum": [
                 "top",
@@ -274,11 +326,11 @@ const docTemplate = `{
                 "PlacementRight"
             ]
         },
-        "github_com_Vanady39_cluer_internal_domains_onboarding.Tour": {
+        "github_com_Vanady39_cluer_internal_domains.Tour": {
             "type": "object",
             "properties": {
                 "audience": {
-                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Audience"
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Audience"
                 },
                 "created_at": {
                     "type": "string",
@@ -292,7 +344,7 @@ const docTemplate = `{
                 "hints": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint"
+                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
                     }
                 },
                 "id": {
@@ -307,7 +359,7 @@ const docTemplate = `{
                 "status": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TourStatus"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourStatus"
                         }
                     ],
                     "example": "draft"
@@ -323,7 +375,7 @@ const docTemplate = `{
                 "trigger_type": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.TriggerType"
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType"
                         }
                     ],
                     "example": "on_load"
@@ -335,7 +387,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_Vanady39_cluer_internal_domains_onboarding.TourStatus": {
+        "github_com_Vanady39_cluer_internal_domains.TourStatus": {
             "type": "string",
             "enum": [
                 "draft",
@@ -348,7 +400,7 @@ const docTemplate = `{
                 "TourArchived"
             ]
         },
-        "github_com_Vanady39_cluer_internal_domains_onboarding.TriggerType": {
+        "github_com_Vanady39_cluer_internal_domains.TriggerType": {
             "type": "string",
             "enum": [
                 "on_load",
@@ -363,10 +415,68 @@ const docTemplate = `{
                 "TriggerManual"
             ]
         },
-        "internal_controllers_onboarding.ErrorResponse": {
+        "github_com_Vanady39_cluer_internal_models.HTTPError": {
             "type": "object",
             "properties": {
                 "error": {
+                    "description": "Shorthand error",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "Pretty error message",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_models_response.GetCurrentUserResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.User"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_models_response.GetListingsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.Listing"
+                    }
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_models_response.Listing": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imageUrl": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_models_response.User": {
+            "type": "object",
+            "properties": {
+                "avatarUrl": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -376,12 +486,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "0.0.1",
 	Host:             "localhost:8080",
-	BasePath:         "/api/v1",
-	Schemes:          []string{"http"},
-	Title:            "Cluer Onboarding API",
-	Description:      "API for managing onboarding tours and hints",
+	BasePath:         "/v1",
+	Schemes:          []string{},
+	Title:            "Cluer",
+	Description:      "Onboarding tours and listings API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
