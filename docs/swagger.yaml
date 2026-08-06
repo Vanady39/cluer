@@ -170,8 +170,6 @@ paths:
       responses:
         "201":
           description: Created
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour'
         "400":
           description: Bad Request
           schema:
@@ -206,8 +204,6 @@ paths:
       responses:
         "201":
           description: Created
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint'
         "400":
           description: Bad Request
           schema:
