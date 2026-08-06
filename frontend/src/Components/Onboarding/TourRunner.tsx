@@ -25,21 +25,25 @@ export function TourRunner({ tour, onClose }: Props) {
   };
 
   useEffect(() => {
-    const update = () => {
-      const target = document.querySelector(hint.selector) as HTMLElement;
-      setElement(target);
+    let interval: number;
+    const findElement = () => {
+      const target = document.querySelector(
+        hint.selector,
+      ) as HTMLElement | null;
+
+      if (target) {
+        console.log("Элемент найден:", target);
+
+        setElement(target);
+        clearInterval(interval);
+      }
     };
-
-    update();
-
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update);
-
+    findElement();
+    interval = window.setInterval(findElement, 200);
     return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update);
+      clearInterval(interval);
     };
-  }, [step, hint.selector]); 
+  }, [step, hint.selector]);
 
   useEffect(() => {
     if (!element) return;
@@ -53,7 +57,6 @@ export function TourRunner({ tour, onClose }: Props) {
         onClose();
       }
     };
-    
 
     element.addEventListener("click", handleAction);
 
@@ -61,7 +64,6 @@ export function TourRunner({ tour, onClose }: Props) {
       element.removeEventListener("click", handleAction);
     };
   }, [element, step]);
-
 
   useEffect(() => {
     if (!element) return;
