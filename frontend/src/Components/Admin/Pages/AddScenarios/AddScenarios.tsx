@@ -4,14 +4,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import styles from "./Styles.module.scss";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
-import type { TourHint, Tour, CreateTourRequest, CreateHintRequest } from "../../../../types/sdk";
-import { onboardingAPI } from "../../../../Api/onboarding";
+import type { TourHint, Tour } from "../../../../types/sdk";
+
+// API импорт закомментирован
+// import { onboardingAPI } from "../../../../Api/onboarding";
+// import type { CreateTourRequest, CreateHintRequest } from "../../../../types/sdk";
 
 function CreateScenariosComponent() {
   const navigate = useNavigate();
   const editId = new URLSearchParams(window.location.search).get("id");
   const queryClient = useQueryClient();
-  const USE_API = true; 
+  const USE_API = false; 
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -36,13 +39,13 @@ function CreateScenariosComponent() {
     queryFn: async () => {
       if (!editId) return null;
       
-      if (USE_API) {
-        const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-        return tours.find((item: Tour) => item.id === editId) || null;
-      } else {
-        const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-        return tours.find((item: Tour) => item.id === editId) || null;
-      }
+      //API-ветка закомментирована
+      // if (USE_API) {
+      //   return await onboardingAPI.getTourById(editId);
+      // }
+      
+      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
+      return tours.find((item: Tour) => item.id === editId) || null;
     },
     enabled: !!editId, 
   });
@@ -116,10 +119,51 @@ function CreateScenariosComponent() {
 
   const saveMutation = useMutation({
     mutationFn: async (scenarioStatus: "draft" | "published") => {
-      const tourData: CreateTourRequest = {
+      // API-логика закомментирована
+      // const tourData: CreateTourRequest = {
+      //   title,
+      //   target_path: "/",
+      //   description,
+      //   priority: 1,
+      //   trigger_type: "on_load",
+      //   audience: {
+      //     show_once: true,
+      //     max_shows: 1,
+      //     only_new: false,
+      //   },
+      // };
+      // let tourId = editId;
+      // if (!tourId) {
+      //   tourId = await onboardingAPI.createTour(tourData);
+      // } else {
+      //   await onboardingAPI.updateTour(tourId, tourData);
+      // }
+      // for (const hint of hints) {
+      //   const hintData: CreateHintRequest = {
+      //     title: hint.title,
+      //     content: hint.content,
+      //     placement: hint.placement,
+      //     selector: hint.selector || undefined,
+      //     spotlight: hint.spotlight,
+      //     required: hint.required,
+      //     wait_for_selector: hint.wait_for_selector,
+      //   };
+      //   if (hint.id.startsWith("new-") || !hint.id) {
+      //     await onboardingAPI.createHint(tourId, hintData);
+      //   } else {
+      //     await onboardingAPI.updateHint(tourId, hint.id, hintData);
+      //   }
+      // }
+      // if (scenarioStatus === "published") {
+      //   await onboardingAPI.publishTour(tourId);
+      // }
+      
+      const scenario = {
+        id: editId || String(Date.now()),
         title,
-        target_path: "/",
         description,
+        status: scenarioStatus,
+        target_path: "/",
         priority: 1,
         trigger_type: "on_load",
         audience: {
@@ -127,39 +171,17 @@ function CreateScenariosComponent() {
           max_shows: 1,
           only_new: false,
         },
+        hints,
+        updated_at: new Date().toISOString()
       };
 
-      let tourId = editId;
+      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
+      const updatedTours = editId
+        ? tours.map((tour: Tour) => tour.id === editId ? scenario : tour)
+        : [...tours, scenario];
 
-      if (!tourId) {
-        tourId = await onboardingAPI.createTour(tourData);
-      } else {
-        await onboardingAPI.updateTour(tourId, tourData);
-      }
-
-      for (const hint of hints) {
-        const hintData: CreateHintRequest = {
-          title: hint.title,
-          content: hint.content,
-          placement: hint.placement,
-          selector: hint.selector || undefined,
-          spotlight: hint.spotlight,
-          required: hint.required,
-          wait_for_selector: hint.wait_for_selector,
-        };
-
-        if (hint.id.startsWith("new-") || !hint.id) {
-          await onboardingAPI.createHint(tourId, hintData);
-        } else {
-          await onboardingAPI.updateHint(tourId, hint.id, hintData);
-        }
-      }
-
-      if (scenarioStatus === "published") {
-        await onboardingAPI.publishTour(tourId);
-      }
-
-      return tourId;
+      localStorage.setItem("tours", JSON.stringify(updatedTours));
+      return scenario.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tours"] });
@@ -167,7 +189,7 @@ function CreateScenariosComponent() {
     },
     onError: (error) => {
       console.error("Ошибка сохранения:", error);
-      alert("Не удалось сохранить сценарий через API.");
+      alert("Не удалось сохранить сценарий");
     },
   });
 

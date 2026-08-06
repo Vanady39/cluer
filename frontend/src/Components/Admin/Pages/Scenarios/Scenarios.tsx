@@ -11,6 +11,7 @@ function ScenariosComponent() {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
   const {
     data: scenarios = [],
     isLoading,
@@ -48,16 +49,14 @@ function ScenariosComponent() {
   });
 
   if (isLoading) {
-    return (
-        <div className={styles.loading}>Загрузка сценариев...</div>
-    );
+    return <div className={styles.loading}>Загрузка сценариев...</div>;
   }
 
   if (error) {
     return (
-        <div className={styles.error}>
-          Ошибка загрузки сценариев: {error.message}
-        </div>
+      <div className={styles.error}>
+        Ошибка загрузки сценариев: {error.message}
+      </div>
     );
   }
 
@@ -110,7 +109,6 @@ function ScenariosComponent() {
             </span>
 
             <div className={styles.actions}>
-              {item.status === "published" && (
                 <Button
                   size="min"
                   onClick={() => {
@@ -119,7 +117,6 @@ function ScenariosComponent() {
                 >
                   Предпросмотр
                 </Button>
-              )}
 
               <div className={styles.menuWrapper}>
                 <Button
@@ -140,14 +137,17 @@ function ScenariosComponent() {
                     >
                       Удалить
                     </button>
-                    <Button
-                      size="min"
-                      onClick={() =>
-                        navigate(`/admin/scenarios/create?id=${item.id}`)
-                      }
-                    >
-                      Редактировать
-                    </Button>
+
+                    {item.status !== "published" && (
+                      <Button
+                        size="min"
+                        onClick={() =>
+                          navigate(`/admin/scenarios/create?id=${item.id}`)
+                        }
+                      >
+                        Редактировать
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
