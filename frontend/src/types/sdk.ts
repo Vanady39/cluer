@@ -3,8 +3,9 @@ export interface Hint {
   title: string;
   content: string;
   selector: string;
-  placement: "top" | "bottom" | "left" | "right";
+  placement: "top" | "bottom" | "left" | "right" | "center";
   spotlight: boolean;
+  path: string;
 }
 
 export interface Tour {

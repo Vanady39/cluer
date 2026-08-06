@@ -40,6 +40,10 @@ export function Builder({ onSelect }: Props) {
 }
 
 function createSelector(element: HTMLElement) {
+  if (element.dataset.tour) {
+    return `[data-tour="${element.dataset.tour}"]`;
+  }
+
   if (element.id) {
     return `#${element.id}`;
   }
@@ -48,11 +52,41 @@ function createSelector(element: HTMLElement) {
     return `[data-testid="${element.dataset.testid}"]`;
   }
 
-  if (typeof element.className === "string" && element.className.trim()) {
-    const className = element.className.split(" ").filter(Boolean).join(".");
+  const path: string[] = [];
 
-    return `${element.tagName.toLowerCase()}.${className}`;
+  let current: HTMLElement | null = element;
+
+  while (current && current !== document.body) {
+    let selector = current.tagName.toLowerCase();
+
+    // классы
+    if (typeof current.className === "string" && current.className.trim()) {
+      const classes = current.className.split(" ").filter(Boolean).slice(0, 2);
+
+      if (classes.length) {
+        selector += "." + classes.join(".");
+      }
+    }
+
+    // если одинаковые элементы среди братьев
+    const parent = current.parentElement;
+
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(
+        (child) => child.tagName === current!.tagName,
+      );
+
+      if (siblings.length > 1) {
+        const index = siblings.indexOf(current) + 1;
+
+        selector += `:nth-of-type(${index})`;
+      }
+    }
+
+    path.unshift(selector);
+
+    current = current.parentElement;
   }
 
-  return element.tagName.toLowerCase();
+  return path.join(" > ");
 }

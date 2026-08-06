@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import styles from "./Styles.module.scss";
 import type { Hint as HintType } from "../../types/sdk";
+import { Button } from "../UI/Button";
 
 interface Props {
   hint: HintType;
@@ -47,7 +48,6 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
         className={styles.tooltip}
         style={{ top: position.top, left: position.left }}
       >
-        {/* Оборачиваем заголовок и счетчик в header */}
         <div className={styles.header}>
           <h3>{hint.title}</h3>
           <span className={styles.stepCounter}>
@@ -58,15 +58,13 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
         <p>{hint.content}</p>
 
         <div className={styles.footer}>
-          {step === total - 1 ? (
-            <button className={styles.next} onClick={next}>
-              Завершить
-            </button>
-          ) : (
-            <button className={styles.skip} onClick={skip}>
-              Пропустить
-            </button>
-          )}
+          <button className={styles.skip} onClick={skip}>
+            Пропустить
+          </button>
+
+          <Button onClick={step === total - 1 ? skip : next}>
+            {step === total - 1 ? "Закрыть" : "Далее"}
+          </Button>
         </div>
       </div>
     </>

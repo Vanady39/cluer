@@ -13,7 +13,7 @@ interface Step {
   selector: string;
   placement: string;
   spotlight: boolean;
-  targetPage: string;
+  path: string;
 }
 
 interface Tour {
@@ -41,7 +41,7 @@ function CreateScenariosComponent() {
       selector: "",
       placement: "bottom",
       spotlight: true,
-      targetPage: "/",
+      path: "/",
     },
   ]);
 
@@ -55,7 +55,7 @@ function CreateScenariosComponent() {
         selector: "",
         placement: "bottom",
         spotlight: true,
-        targetPage: "/",
+        path: "/",
       },
     ]);
   };
@@ -119,7 +119,7 @@ function CreateScenariosComponent() {
         selector: step.selector,
         placement: step.placement,
         spotlight: step.spotlight,
-        targetPage: step.targetPage, 
+        path: step.path,
       })),
     };
 
@@ -213,10 +213,8 @@ function CreateScenariosComponent() {
               <label className={styles.label}>Страница элемента</label>
               <select
                 className={styles.select}
-                value={step.targetPage || "/"}
-                onChange={(e) =>
-                  updateStep(step.id, "targetPage", e.target.value)
-                }
+                value={step.path}
+                onChange={(e) => updateStep(step.id, "path", e.target.value)}
               >
                 <option value="/">Главная</option>
                 <option value="/addItem">Создание объявления</option>
@@ -237,7 +235,7 @@ function CreateScenariosComponent() {
                   color="primary"
                   className={styles.pickButton}
                   onClick={() => {
-                    const page = step.targetPage || "/";
+                    const page = step.path || "/";
                     const builderUrl = `${window.location.origin}${page}?builder=true`;
                     window.open(builderUrl, "_blank");
                   }}

@@ -11,6 +11,7 @@ export const mockTour: Tour = {
             selector: "[data-onboarding='create-ad']",
             placement: "bottom",
             spotlight: true,
+            path: ""
         },
 
         {
@@ -20,6 +21,7 @@ export const mockTour: Tour = {
             selector: "[data-onboarding='photo-upload']",
             placement: "right",
             spotlight: true,
+            path: ""
         },
     ],
     description: "",
