@@ -3,6 +3,7 @@ package onboarding
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	domains "github.com/Vanady39/cluer/internal/domains/onboarding"
@@ -40,16 +41,16 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 
 // CreateTour godoc
 //
-//	@Summary      Create a new tour
-//	@Description  Creates a new onboarding tour draft
-//	@Tags         Tours
-//	@Accept       json
-//	@Produce      json
-//	@Param        tour  body      domains.Tour  true  "Tour object"
-//	@Success      201   {object}  domains.Tour
-//	@Failure      400   {object}  ErrorResponse
-//	@Failure      500   {object}  ErrorResponse
-//	@Router       /tours [post]
+//		@Summary      Create a new tour
+//		@Description  Creates a new onboarding tour draft
+//		@Tags         Tours
+//		@Accept       json
+//		@Produce      json
+//		@Param        tour  body      domains.Tour  true  "Tour object"
+//	 	@Success 	  201   "Created"
+//		@Failure      400   {object}  ErrorResponse
+//		@Failure      500   {object}  ErrorResponse
+//		@Router       /tours [post]
 func (h *Handler) CreateTour(w http.ResponseWriter, r *http.Request) {
 	var tour domains.Tour
 	if err := json.NewDecoder(r.Body).Decode(&tour); err != nil {
@@ -70,24 +71,25 @@ func (h *Handler) CreateTour(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, createdTour)
+	w.Header().Set("Location", "/api/v1/tours/"+createdTour.Id.String())
+	w.WriteHeader(http.StatusCreated)
 }
 
 // CreateHint godoc
 //
-//	@Summary      Create a hint for a tour
-//	@Description  Creates a new hint for a specific tour
-//	@Tags         Hints
-//	@Accept       json
-//	@Produce      json
-//	@Param        tourId  path    string         true  "Tour ID"  format(uuid)
-//	@Param        hint    body    domains.Hint   true  "Hint object"
-//	@Success      201     {object}  domains.Hint
-//	@Failure      400     {object}  ErrorResponse
-//	@Failure      404     {object}  ErrorResponse
-//	@Failure      409     {object}  ErrorResponse
-//	@Failure      500     {object}  ErrorResponse
-//	@Router       /tours/{tourId}/hints [post]
+//		@Summary      Create a hint for a tour
+//		@Description  Creates a new hint for a specific tour
+//		@Tags         Hints
+//		@Accept       json
+//		@Produce      json
+//		@Param        tourId  path    string         true  "Tour ID"  format(uuid)
+//		@Param        hint    body    domains.Hint   true  "Hint object"
+//	 @Success 	  201     "Created"
+//		@Failure      400     {object}  ErrorResponse
+//		@Failure      404     {object}  ErrorResponse
+//		@Failure      409     {object}  ErrorResponse
+//		@Failure      500     {object}  ErrorResponse
+//		@Router       /tours/{tourId}/hints [post]
 func (h *Handler) CreateHint(w http.ResponseWriter, r *http.Request) {
 	tourIdStr := r.PathValue("tourId")
 	tourId, err := uuid.Parse(tourIdStr)
@@ -119,7 +121,8 @@ func (h *Handler) CreateHint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, createdHint)
+	w.Header().Set("Location", fmt.Sprintf("/api/v1/tours/%s/hints/%s", tourId, createdHint.Id.String()))
+	w.WriteHeader(http.StatusCreated)
 }
 
 // GetPublishedTours godoc
