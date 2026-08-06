@@ -41,10 +41,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Tour"
-                        }
+                        "description": "Created"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -140,10 +137,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains_onboarding.Hint"
-                        }
+                        "description": "Created"
                     },
                     "400": {
                         "description": "Bad Request",
