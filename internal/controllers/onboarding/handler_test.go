@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -206,15 +207,24 @@ func TestHandler_CreateTour_Success(t *testing.T) {
 	s.handler.CreateTour(rr, req)
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
+	assert.Empty(t, rr.Body.Bytes(), "response body should be empty on 201")
 
-	var created onboarding.Tour
-	err := json.Unmarshal(rr.Body.Bytes(), &created)
+	location := rr.Header().Get("Location")
+	require.NotEmpty(t, location, "Location header must be set")
+	assert.True(t, strings.HasPrefix(location, "/api/v1/tours/"),
+		"Location should point to created tour, got: %s", location)
+
+	idStr := strings.TrimPrefix(location, "/api/v1/tours/")
+	id, err := uuid.Parse(idStr)
 	require.NoError(t, err)
-	assert.Equal(t, "My Tour", created.Title)
-	assert.Equal(t, "/home", created.TargetPath)
-	assert.Equal(t, 1, created.Priority)
-	assert.Equal(t, onboarding.TourDraft, created.Status)
-	assert.NotEqual(t, uuid.UUID{}, created.Id)
+
+	saved, err := s.tourRepo.GetById(context.Background(), id)
+	require.NoError(t, err)
+	require.NotNil(t, saved)
+	assert.Equal(t, "My Tour", saved.Title)
+	assert.Equal(t, "/home", saved.TargetPath)
+	assert.Equal(t, 1, saved.Priority)
+	assert.Equal(t, onboarding.TourDraft, saved.Status)
 }
 
 func TestHandler_CreateTour_ValidationError(t *testing.T) {
@@ -277,13 +287,11 @@ func TestHandler_CreateHint_Success(t *testing.T) {
 	s.handler.CreateHint(rr, req)
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
+	assert.Empty(t, rr.Body.Bytes(), "response body should be empty on 201")
 
-	var created onboarding.Hint
-	err = json.Unmarshal(rr.Body.Bytes(), &created)
-	require.NoError(t, err)
-	assert.Equal(t, "Step 1", created.Title)
-	assert.Equal(t, 1, created.Step)
-	assert.Equal(t, tour.Id, created.TourId)
+	location := rr.Header().Get("Location")
+	require.NotEmpty(t, location, "Location header must be set")
+	assert.Contains(t, location, "/api/v1/tours/"+tour.Id.String()+"/hints/")
 }
 
 func TestHandler_CreateHint_InvalidTourId(t *testing.T) {
