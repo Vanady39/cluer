@@ -3,7 +3,6 @@ package domains
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -15,16 +14,21 @@ type (
 	}
 
 	HintDomainInterface interface {
-		Create(context.Context, uuid.UUID, *Hint) (*Hint, error)
+		Create(ctx context.Context, tourId uuid.UUID, h *Hint) (*Hint, error)
+		Update(ctx context.Context, tourId, hintId uuid.UUID, h *Hint) (*Hint, error)
+		Delete(ctx context.Context, tourId, hintId uuid.UUID) error
+		Reorder(ctx context.Context, tourId uuid.UUID, ids []uuid.UUID) ([]Hint, error)
+		ListByTour(ctx context.Context, tourId uuid.UUID) ([]Hint, error)
 	}
 
 	HintRepositoryInterface interface {
-		CreateHint(ctx context.Context, h *Hint) error
+		Create(ctx context.Context, h *Hint) error
 		GetById(ctx context.Context, id uuid.UUID) (*Hint, error)
-		ListByTour(ctx context.Context, tourId uuid.UUID) ([]Hint, error)
-		UpdateHint(ctx context.Context, h *Hint) error
-		DeleteHint(ctx context.Context, tourId, id uuid.UUID) error
-		ReorderHint(ctx context.Context, tourId uuid.UUID, ids []uuid.UUID) error
+		ListByVersion(ctx context.Context, versionId uuid.UUID) ([]Hint, error)
+		Update(ctx context.Context, h *Hint) error
+		// Delete removes the hint and closes the gap it leaves in the numbering.
+		Delete(ctx context.Context, versionId, id uuid.UUID) error
+		Reorder(ctx context.Context, versionId uuid.UUID, ids []uuid.UUID) error
 	}
 )
 
@@ -32,15 +36,19 @@ func NewHintDomain(tours TourRepositoryInterface, hints HintRepositoryInterface)
 	return &HintDomain{tours: tours, hints: hints}
 }
 
+// Create appends a hint to the tour's draft. The route still addresses a tour,
+// as it always did — the draft is found from it, so callers never have to know
+// which version they are editing.
 func (hd *HintDomain) Create(ctx context.Context, tourId uuid.UUID, h *Hint) (*Hint, error) {
-	if err := hd.ensureTourEditable(ctx, tourId); err != nil {
+	draft, err := hd.draftOf(ctx, tourId)
+	if err != nil {
 		return nil, err
 	}
 	if err := validateHint(h); err != nil {
 		return nil, err
 	}
 
-	existing, err := hd.hints.ListByTour(ctx, tourId)
+	existing, err := hd.hints.ListByVersion(ctx, draft.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -52,42 +60,88 @@ func (hd *HintDomain) Create(ctx context.Context, tourId uuid.UUID, h *Hint) (*H
 		}
 	}
 
-	h.Id = uuid.Must(uuid.NewV7())
-	h.TourId = tourId
+	h.TourVersionId = draft.Id
 	h.Step = maxStep + 1
-	h.CreatedAt = time.Now()
-	h.UpdatedAt = time.Now()
 
-	if err := hd.hints.CreateHint(ctx, h); err != nil {
+	if err := hd.hints.Create(ctx, h); err != nil {
 		return nil, err
 	}
 	return h, nil
 }
 
-func (hd *HintDomain) ensureTourEditable(ctx context.Context, tourId uuid.UUID) error {
-	tour, err := hd.tours.GetById(ctx, tourId)
+func (hd *HintDomain) Update(ctx context.Context, tourId, hintId uuid.UUID, h *Hint) (*Hint, error) {
+	draft, err := hd.draftOf(ctx, tourId)
+	if err != nil {
+		return nil, err
+	}
+
+	current, err := hd.hints.GetById(ctx, hintId)
+	if err != nil {
+		return nil, err
+	}
+	// Editing a hint of the published version is the exact thing versioning
+	// exists to prevent; the database would refuse it too, but a 409 explains
+	// itself better than a driver error.
+	if current.TourVersionId != draft.Id {
+		return nil, logicErr(ErrVersionImmutable, "hint update", http.StatusConflict)
+	}
+	if err := validateHint(h); err != nil {
+		return nil, err
+	}
+
+	h.Id = hintId
+	h.TourVersionId = draft.Id
+	h.Step = current.Step // order is changed through Reorder, not here
+
+	if err := hd.hints.Update(ctx, h); err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+func (hd *HintDomain) Delete(ctx context.Context, tourId, hintId uuid.UUID) error {
+	draft, err := hd.draftOf(ctx, tourId)
 	if err != nil {
 		return err
 	}
-	if tour == nil {
-		return &RepositoryError{
-			Err:       ErrTourNotFound,
-			EntityRef: tourId.String(),
-			Operation: Retrieve,
-			Reason:    NoRecord,
-		}
-	}
+	return hd.hints.Delete(ctx, draft.Id, hintId)
+}
 
-	var reason error
-	switch tour.Status {
-	case TourPublished:
-		reason = ErrTourIsPublished
-	case TourArchived:
-		reason = ErrTourIsArchived
-	default:
-		return nil
+// Reorder takes the full list in its new order. A full list rather than a
+// move-one-item call because the result is unambiguous: there is no state where
+// the client and the server disagree about what the other half looks like.
+func (hd *HintDomain) Reorder(ctx context.Context, tourId uuid.UUID, ids []uuid.UUID) ([]Hint, error) {
+	draft, err := hd.draftOf(ctx, tourId)
+	if err != nil {
+		return nil, err
 	}
-	return &LogicError{Err: reason, Stage: "tour edit", Code: http.StatusConflict}
+	if len(ids) == 0 {
+		return nil, logicErr(ErrReorderMismatch, "hint reorder", http.StatusBadRequest)
+	}
+	if err := hd.hints.Reorder(ctx, draft.Id, ids); err != nil {
+		return nil, err
+	}
+	return hd.hints.ListByVersion(ctx, draft.Id)
+}
+
+// ListByTour returns the draft's hints — the editor's working set.
+func (hd *HintDomain) ListByTour(ctx context.Context, tourId uuid.UUID) ([]Hint, error) {
+	draft, err := hd.draftOf(ctx, tourId)
+	if err != nil {
+		return nil, err
+	}
+	return hd.hints.ListByVersion(ctx, draft.Id)
+}
+
+func (hd *HintDomain) draftOf(ctx context.Context, tourId uuid.UUID) (*TourVersion, error) {
+	draft, err := hd.tours.VersionByStatus(ctx, tourId, TourDraft)
+	if err != nil {
+		if IsNotFound(err) {
+			return nil, logicErr(ErrNoDraft, "hint edit", http.StatusConflict)
+		}
+		return nil, err
+	}
+	return draft, nil
 }
 
 func validateHint(h *Hint) error {
@@ -104,5 +158,5 @@ func validateHint(h *Hint) error {
 	default:
 		return nil
 	}
-	return &LogicError{Err: err, Stage: "hint validation", Code: http.StatusBadRequest}
+	return logicErr(err, "hint validation", http.StatusBadRequest)
 }

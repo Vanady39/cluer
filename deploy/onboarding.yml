@@ -1,0 +1,22 @@
+server:
+  address: 0.0.0.0:8080
+
+postgres:
+  address: postgres:5432
+  user: cluer
+  password: cluer_local_dev
+  dbname: cluer
+  sslmode: disable
+
+# User authentication is deferred; nothing reads this yet. Left in place so the
+# shape is ready. In any real deployment the token comes from a secret, not from
+# a file in the repository.
+# auth:
+#   admin_token: dev-admin-token-change-me
+
+logger:
+  default:
+    level: info
+  modules:
+    server:
+      level: debug

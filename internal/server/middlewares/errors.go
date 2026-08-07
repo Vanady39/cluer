@@ -1,6 +1,12 @@
 package middlewares
 
-import "github.com/Vanady39/cluer/internal/models"
+import (
+	"errors"
+
+	"github.com/Vanady39/cluer/internal/models"
+)
+
+var errUnauthorized = errors.New("missing or invalid admin credentials")
 
 // Authorization error
 type (

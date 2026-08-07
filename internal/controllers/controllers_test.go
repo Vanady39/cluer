@@ -58,13 +58,16 @@ func doRaw(router *gin.Engine, method, target, body string) *httptest.ResponseRe
 	return rec
 }
 
-// decodeHTTPError asserts the body is the standard error envelope and returns it.
-func decodeHTTPError(t *testing.T, rec *httptest.ResponseRecorder) models.HTTPError {
+// decodeHTTPError asserts the body is the standard error envelope and returns
+// its contents. Every failure the API reports goes through this shape, so a
+// handler answering with some other structure fails here rather than at the
+// client that has to parse it.
+func decodeHTTPError(t *testing.T, rec *httptest.ResponseRecorder) models.ErrorBody {
 	t.Helper()
 
-	var payload models.HTTPError
+	var payload models.ErrorEnvelope
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
-	require.NotEmpty(t, payload.Error, "error field must be populated")
-	require.NotEmpty(t, payload.Message, "message field must be populated")
-	return payload
+	require.NotEmpty(t, payload.Error.Code, "code field must be populated")
+	require.NotEmpty(t, payload.Error.Message, "message field must be populated")
+	return payload.Error
 }

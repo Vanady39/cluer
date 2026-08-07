@@ -3,7 +3,7 @@ package domains
 import (
 	"context"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -15,18 +15,54 @@ type (
 	}
 
 	TourDomainInterface interface {
-		Create(context.Context, *Tour) (*Tour, error)
-		ListPublished(context.Context, string) ([]*Tour, error)
+		Create(ctx context.Context, appId uuid.UUID, t *Tour) (*Tour, error)
+		List(ctx context.Context, appId uuid.UUID) ([]*Tour, error)
+		Card(ctx context.Context, tourId uuid.UUID) (*TourCard, error)
+		UpdateMeta(ctx context.Context, tourId uuid.UUID, p TourMetaPatch) (*Tour, error)
+		Archive(ctx context.Context, tourId uuid.UUID) error
+
+		ListVersions(ctx context.Context, tourId uuid.UUID) ([]*TourVersion, error)
+		GetVersion(ctx context.Context, versionId uuid.UUID) (*TourVersion, error)
+		CreateDraft(ctx context.Context, tourId uuid.UUID) (*TourVersion, error)
+		UpdateDraft(ctx context.Context, tourId uuid.UUID, p DraftPatch) (*TourVersion, error)
+		Publish(ctx context.Context, tourId uuid.UUID) (*TourVersion, error)
+		Rollback(ctx context.Context, tourId, toVersionId uuid.UUID) (*TourVersion, error)
+
+		ListPublished(ctx context.Context, appId uuid.UUID, path string) ([]*Tour, error)
 	}
 
 	TourRepositoryInterface interface {
-		CreateTour(ctx context.Context, t *Tour) error
+		CreateWithDraft(ctx context.Context, t *Tour) (*Tour, error)
 		GetById(ctx context.Context, id uuid.UUID) (*Tour, error)
-		ListTour(ctx context.Context) ([]*Tour, error)
-		UpdateTour(ctx context.Context, tour *Tour) error
-		DeleteTour(ctx context.Context, id uuid.UUID) error
-		SetStatus(ctx context.Context, id uuid.UUID, s TourStatus) error
-		ListPublished(ctx context.Context, path string) ([]*Tour, error)
+		List(ctx context.Context, appId uuid.UUID) ([]*Tour, error)
+		UpdateMeta(ctx context.Context, id uuid.UUID, p TourMetaPatch) (*Tour, error)
+		Archive(ctx context.Context, id uuid.UUID) error
+
+		GetVersion(ctx context.Context, versionId uuid.UUID) (*TourVersion, error)
+		ListVersions(ctx context.Context, tourId uuid.UUID) ([]*TourVersion, error)
+		VersionByStatus(ctx context.Context, tourId uuid.UUID, s TourStatus) (*TourVersion, error)
+		UpdateDraft(ctx context.Context, versionId uuid.UUID, p DraftPatch) (*TourVersion, error)
+		// CopyToDraft clones a version and its hint rows into a new draft.
+		CopyToDraft(ctx context.Context, tourId, sourceVersionId uuid.UUID) (*TourVersion, error)
+		Publish(ctx context.Context, tourId uuid.UUID) (*TourVersion, error)
+
+		ResolveCandidates(ctx context.Context, appId uuid.UUID) ([]*Tour, error)
+	}
+
+	// TourMetaPatch changes only what is not part of the published content.
+	// Turning a tour off must not create a version: it is a switch, not an edit.
+	TourMetaPatch struct {
+		Title       *string `json:"title"`
+		Description *string `json:"description"`
+		Enabled     *bool   `json:"enabled"`
+		Priority    *int    `json:"priority"`
+	}
+
+	// DraftPatch changes the content of the draft version.
+	DraftPatch struct {
+		TriggerType *TriggerType `json:"trigger_type"`
+		TargetPath  *string      `json:"target_path"`
+		Audience    *Audience    `json:"audience"`
 	}
 )
 
@@ -34,37 +70,219 @@ func NewTourDomain(tours TourRepositoryInterface, hints HintRepositoryInterface)
 	return &TourDomain{tours: tours, hints: hints}
 }
 
-func (td *TourDomain) Create(ctx context.Context, t *Tour) (*Tour, error) {
+// Create makes the tour and its first draft in one transaction. A tour with no
+// version at all would be a state the editor cannot render.
+func (td *TourDomain) Create(ctx context.Context, appId uuid.UUID, t *Tour) (*Tour, error) {
 	if err := validateTour(t); err != nil {
 		return nil, err
 	}
 
-	t.Id = uuid.Must(uuid.NewV7())
+	t.AppId = appId
 	t.Status = TourDraft
-	t.CreatedAt = time.Now()
-	t.UpdatedAt = time.Now()
-
-	if err := td.tours.CreateTour(ctx, t); err != nil {
-		return nil, err
+	if t.TriggerType == "" {
+		t.TriggerType = TriggerOnLoad
 	}
-	return t, nil
+
+	return td.tours.CreateWithDraft(ctx, t)
 }
 
-func (td *TourDomain) ListPublished(ctx context.Context, path string) ([]*Tour, error) {
-	tours, err := td.tours.ListPublished(ctx, path)
+func (td *TourDomain) List(ctx context.Context, appId uuid.UUID) ([]*Tour, error) {
+	return td.tours.List(ctx, appId)
+}
+
+func (td *TourDomain) Card(ctx context.Context, tourId uuid.UUID) (*TourCard, error) {
+	tour, err := td.tours.GetById(ctx, tourId)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, t := range tours {
-		hints, err := td.hints.ListByTour(ctx, t.Id)
-		if err != nil {
-			return nil, err
-		}
-		t.Hints = hints
+	published, err := td.versionWithHints(ctx, tourId, TourPublished)
+	if err != nil {
+		return nil, err
+	}
+	draft, err := td.versionWithHints(ctx, tourId, TourDraft)
+	if err != nil {
+		return nil, err
 	}
 
-	return tours, nil
+	return &TourCard{Tour: tour, Published: published, Draft: draft}, nil
+}
+
+// versionWithHints is for the editor, which needs the hints to render. The
+// lookups on the hot paths use versionOrNil and skip that second query.
+func (td *TourDomain) versionWithHints(ctx context.Context, tourId uuid.UUID, s TourStatus) (*TourVersion, error) {
+	v, err := td.versionOrNil(ctx, tourId, s)
+	if err != nil || v == nil {
+		return nil, err
+	}
+	hints, err := td.hints.ListByVersion(ctx, v.Id)
+	if err != nil {
+		return nil, err
+	}
+	v.Hints = hints
+	return v, nil
+}
+
+func (td *TourDomain) UpdateMeta(ctx context.Context, tourId uuid.UUID, p TourMetaPatch) (*Tour, error) {
+	if p.Title != nil && *p.Title == "" {
+		return nil, logicErr(ErrTitleRequired, "tour update", http.StatusBadRequest)
+	}
+	if p.Priority != nil && *p.Priority < 0 {
+		return nil, logicErr(ErrPriorityNegative, "tour update", http.StatusBadRequest)
+	}
+	return td.tours.UpdateMeta(ctx, tourId, p)
+}
+
+// Archive is a soft delete. A hard one would take the analytics history with it,
+// and the schema forbids it anyway through ON DELETE RESTRICT.
+func (td *TourDomain) Archive(ctx context.Context, tourId uuid.UUID) error {
+	return td.tours.Archive(ctx, tourId)
+}
+
+func (td *TourDomain) ListVersions(ctx context.Context, tourId uuid.UUID) ([]*TourVersion, error) {
+	return td.tours.ListVersions(ctx, tourId)
+}
+
+// GetVersion returns a version with its hints. The hints are the point: this is
+// what the editor opens to diff an old edition against the current one, and a
+// version without them shows nothing that changed.
+func (td *TourDomain) GetVersion(ctx context.Context, versionId uuid.UUID) (*TourVersion, error) {
+	version, err := td.tours.GetVersion(ctx, versionId)
+	if err != nil {
+		return nil, err
+	}
+
+	hints, err := td.hints.ListByVersion(ctx, versionId)
+	if err != nil {
+		return nil, err
+	}
+	version.Hints = hints
+
+	return version, nil
+}
+
+// CreateDraft forks the published version into an editable copy. This is the
+// entry point to editing: the published version itself is never touched.
+func (td *TourDomain) CreateDraft(ctx context.Context, tourId uuid.UUID) (*TourVersion, error) {
+	if existing, err := td.versionOrNil(ctx, tourId, TourDraft); err != nil {
+		return nil, err
+	} else if existing != nil {
+		return nil, logicErr(ErrDraftAlreadyExists, "draft creation", http.StatusConflict)
+	}
+
+	source, err := td.versionOrNil(ctx, tourId, TourPublished)
+	if err != nil {
+		return nil, err
+	}
+	if source == nil {
+		return nil, logicErr(ErrNoVersionToCopy, "draft creation", http.StatusConflict)
+	}
+
+	return td.tours.CopyToDraft(ctx, tourId, source.Id)
+}
+
+// UpdateDraft saves work in progress. Validation runs at publish time, not here:
+// an admin must be able to save a half-finished tour and come back to it.
+func (td *TourDomain) UpdateDraft(ctx context.Context, tourId uuid.UUID, p DraftPatch) (*TourVersion, error) {
+	draft, err := td.requireDraft(ctx, tourId)
+	if err != nil {
+		return nil, err
+	}
+	if p.TriggerType != nil && !p.TriggerType.Valid() {
+		return nil, logicErr(ErrInvalidTriggerType, "draft update", http.StatusBadRequest)
+	}
+	return td.tours.UpdateDraft(ctx, draft.Id, p)
+}
+
+// Publish is the main operation. Everything that can be rejected is rejected
+// before the transaction opens, so the transaction itself only flips statuses.
+func (td *TourDomain) Publish(ctx context.Context, tourId uuid.UUID) (*TourVersion, error) {
+	draft, err := td.requireDraft(ctx, tourId)
+	if err != nil {
+		return nil, err
+	}
+
+	hints, err := td.hints.ListByVersion(ctx, draft.Id)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateForPublish(draft, hints); err != nil {
+		return nil, err
+	}
+
+	return td.tours.Publish(ctx, tourId)
+}
+
+// Rollback does not rewrite history, it appends to it: the chosen version is
+// copied into a new one which is then published normally. Restoring the old
+// row's status instead would merge the traffic from before and after the
+// rollback into a single sample, and version 5's numbers would stop meaning
+// version 5.
+func (td *TourDomain) Rollback(ctx context.Context, tourId, toVersionId uuid.UUID) (*TourVersion, error) {
+	source, err := td.tours.GetVersion(ctx, toVersionId)
+	if err != nil {
+		return nil, err
+	}
+	if source.TourId != tourId {
+		return nil, logicErr(ErrVersionNotInTour, "rollback", http.StatusBadRequest)
+	}
+
+	// A pending draft would collide with the copy we are about to make, and
+	// silently discarding the admin's unsaved work is worse than refusing.
+	if draft, err := td.versionOrNil(ctx, tourId, TourDraft); err != nil {
+		return nil, err
+	} else if draft != nil {
+		return nil, logicErr(ErrDraftBlocksRollback, "rollback", http.StatusConflict)
+	}
+
+	if _, err := td.tours.CopyToDraft(ctx, tourId, toVersionId); err != nil {
+		return nil, err
+	}
+	return td.tours.Publish(ctx, tourId)
+}
+
+// ListPublished answers "what is live on this path" for the admin and the
+// preview. The SDK uses Resolve instead, which also knows about the subject.
+func (td *TourDomain) ListPublished(ctx context.Context, appId uuid.UUID, path string) ([]*Tour, error) {
+	candidates, err := td.tours.ResolveCandidates(ctx, appId)
+	if err != nil {
+		return nil, err
+	}
+
+	matched := make([]*Tour, 0, len(candidates))
+	for _, c := range candidates {
+		if MatchPath(c.TargetPath, path) {
+			hints, err := td.hints.ListByVersion(ctx, c.VersionId)
+			if err != nil {
+				return nil, err
+			}
+			c.Hints = hints
+			matched = append(matched, c)
+		}
+	}
+	return matched, nil
+}
+
+func (td *TourDomain) versionOrNil(ctx context.Context, tourId uuid.UUID, s TourStatus) (*TourVersion, error) {
+	v, err := td.tours.VersionByStatus(ctx, tourId, s)
+	if err != nil {
+		if IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return v, nil
+}
+
+func (td *TourDomain) requireDraft(ctx context.Context, tourId uuid.UUID) (*TourVersion, error) {
+	draft, err := td.versionOrNil(ctx, tourId, TourDraft)
+	if err != nil {
+		return nil, err
+	}
+	if draft == nil {
+		return nil, logicErr(ErrNoDraft, "draft lookup", http.StatusConflict)
+	}
+	return draft, nil
 }
 
 func validateTour(t *Tour) error {
@@ -78,8 +296,66 @@ func validateTour(t *Tour) error {
 		err = ErrPriorityNegative
 	case t.TriggerType != "" && !t.TriggerType.Valid():
 		err = ErrInvalidTriggerType
+	case t.Audience.MaxShows < 0:
+		err = ErrMaxShowsNegative
 	default:
 		return nil
 	}
-	return &LogicError{Err: err, Stage: "tour validation", Code: http.StatusBadRequest}
+	return logicErr(err, "tour validation", http.StatusBadRequest)
+}
+
+// validateForPublish is the gate the case asks for: one typo in the editor must
+// not be able to take the onboarding down in production, and finding out from
+// users is not a monitoring strategy.
+func validateForPublish(v *TourVersion, hints []Hint) error {
+	details := make([]ErrorDetail, 0)
+
+	if v.TargetPath == "" {
+		details = append(details, ErrorDetail{Path: "target_path", Message: "must not be empty"})
+	}
+	if !v.TriggerType.Valid() {
+		details = append(details, ErrorDetail{Path: "trigger_type", Message: "unknown trigger type"})
+	}
+	if len(hints) == 0 {
+		details = append(details, ErrorDetail{Path: "hints", Message: "a tour with no hints has nothing to show"})
+	}
+
+	seen := make(map[int]bool, len(hints))
+	for i, h := range hints {
+		field := func(name string) string {
+			return "hints[" + strconv.Itoa(i) + "]." + name
+		}
+		if h.Title == "" {
+			details = append(details, ErrorDetail{Path: field("title"), Message: "must not be empty"})
+		}
+		if h.Content == "" {
+			details = append(details, ErrorDetail{Path: field("content"), Message: "must not be empty"})
+		}
+		if !h.Placement.Valid() {
+			details = append(details, ErrorDetail{Path: field("placement"), Message: "unknown placement"})
+		}
+		// A centred hint floats in the middle of the screen and needs no anchor;
+		// every other placement is positioned relative to an element.
+		if h.Placement != PlacementCenter && h.Selector == "" {
+			details = append(details, ErrorDetail{Path: field("selector"), Message: "required unless placement is center"})
+		}
+		if seen[h.Step] {
+			details = append(details, ErrorDetail{Path: field("step"), Message: "duplicate step number"})
+		}
+		seen[h.Step] = true
+	}
+
+	// Gaps mean a hint was deleted without renumbering; the SDK would stop at
+	// the hole and the rest of the tour would never be shown.
+	for n := 1; n <= len(hints); n++ {
+		if !seen[n] {
+			details = append(details, ErrorDetail{Path: "hints", Message: "step numbers must be contiguous starting at 1"})
+			break
+		}
+	}
+
+	if len(details) > 0 {
+		return &ValidationError{Err: ErrTourNotPublishable, Details: details}
+	}
+	return nil
 }
