@@ -1,25 +1,21 @@
 export interface TourHint {
   id: string;
-  tour_id?: string;
-  step?: number;
+  step: number;
   title: string;
   content: string;
   selector?: string;
-  placement: "top" | "bottom" | "center" | "left" | "right";
-  target_path: string;
+  placement: "top" | "bottom" | "left" | "right" | "center" | "left-top" | "right-top";
+  page_path: string;
   spotlight: boolean;
-  required: boolean;
   wait_for_selector: boolean;
   media_url?: string;
-  input_placeholder?: string;
-  expected_input?: string;
 }
 
 export interface Tour {
   id: string;
   title: string;
   description: string;
-  status: "draft" | "published" | "archived";
+  status: "draft" | "published";
   target_path: string;
   priority: number;
   trigger_type: "on_load" | "delay" | "exit_intent" | "manual";
@@ -28,9 +24,8 @@ export interface Tour {
     max_shows: number;
     only_new: boolean;
   };
-  created_at: string; 
-  updated_at: string
   hints: TourHint[];
+  updated_at: string;
 }
 
 export interface CreateTourRequest {
@@ -50,11 +45,9 @@ export interface CreateHintRequest {
   title: string;
   content: string;
   placement: "top" | "bottom" | "center" | "left" | "right" | "left-top" | "right-top";
+  page_path: string;
   selector?: string;
   spotlight: boolean;
-  required: boolean;
   wait_for_selector: boolean;
   media_url?: string;
-  input_placeholder?: string;
-  expected_input?: string;
 }

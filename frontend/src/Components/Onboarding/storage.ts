@@ -10,30 +10,25 @@ export function getTours(): Tour[] {
 export function saveTour(tour: Tour) {
   const tours = getTours();
   const existingIndex = tours.findIndex((t) => t.id === tour.id);
-
   if (existingIndex !== -1) {
     tours[existingIndex] = tour;
   } else {
     tours.push(tour);
   }
-
   localStorage.setItem(KEY, JSON.stringify(tours));
 }
 
 export function deleteTour(id: string) {
-  const tours = getTours();
-  const updated = tours.filter((t) => t.id !== id);
+  const updated = getTours().filter((t) => t.id !== id);
   localStorage.setItem(KEY, JSON.stringify(updated));
   return updated;
 }
 
 export function getPublishedTour(path?: string) {
-  const tours = getTours();
-  
-  return tours.find((tour) => {
+  return getTours().find((tour) => {
     if (tour.status !== "published") return false;
     if (path) {
-      return tour.target_path === path;
+      return !tour.target_path || tour.target_path === path;
     }
     return true;
   });

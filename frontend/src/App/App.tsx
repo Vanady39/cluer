@@ -2,8 +2,7 @@ import { Header } from "../Components/Classifier/Widgets/Header";
 import { Home } from "../Components/Classifier/Pages/Home/Home";
 import { Profile } from "../Components/Classifier/Pages/Profile/Profile";
 import { AddItem } from "../Components/Classifier/Pages/AddItem/AddItem";
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
-import "../Styles/index.scss";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./Styles.scss";
 import { Provider } from "react-redux";
 import { Store } from "../Store/Store";
@@ -19,7 +18,6 @@ function App() {
       <QueryClientProvider client={new QueryClient()}> 
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/admin/scenarios" replace />} />
             <Route path="/" element={<WrappPages />}>
               <Route index element={<Home />} />
               <Route path="/profile" element={<Profile />} />

@@ -1,102 +1,31 @@
 import { memo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import styles from "./Styles.module.scss";
 import { Input } from "../../../UI/Input/Input";
 import { Button } from "../../../UI/Button/Button";
-import type { TourHint, Tour } from "../../../../types/sdk";
-
-// API импорт закомментирован
-// import { onboardingAPI } from "../../../../Api/onboarding";
-// import type { CreateTourRequest, CreateHintRequest } from "../../../../types/sdk";
+import { useTourLoader } from "../../../../Hooks/useTourLoader";
+import { useHintManager } from "../../../../Hooks/useHintManager";
+import { useSaveScenario } from "../../../../Hooks/useSaveScenario";
 
 function CreateScenariosComponent() {
   const navigate = useNavigate();
   const editId = new URLSearchParams(window.location.search).get("id");
-  const queryClient = useQueryClient();
-  const USE_API = false; 
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [hints, setHints] = useState<TourHint[]>([
-    {
-      id: String(Date.now()),
-      tour_id: "",
-      step: 1,
-      title: "Первый шаг",
-      content: "",
-      selector: "",
-      placement: "bottom",
-      target_path: "/",
-      spotlight: true,
-      required: false,
-      wait_for_selector: false,
-    },
-  ]);
-
-  const { data: loadedTour } = useQuery({
-    queryKey: ["tour", editId],
-    queryFn: async () => {
-      if (!editId) return null;
-      
-      //API-ветка закомментирована
-      // if (USE_API) {
-      //   return await onboardingAPI.getTourById(editId);
-      // }
-      
-      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-      return tours.find((item: Tour) => item.id === editId) || null;
-    },
-    enabled: !!editId, 
-  });
+  const { data: loadedTour } = useTourLoader(editId);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const { hints, addHint, updateHint, removeHint, setHints } = useHintManager([]);
 
   useEffect(() => {
-    if (loadedTour) {
-      setTitle(loadedTour.title);
-      setDescription(loadedTour.description);
+  if (loadedTour && !hasLoaded) {
+    setTitle(loadedTour.title);
+    setDescription(loadedTour.description);
+    if (loadedTour.hints?.length) {
       setHints(loadedTour.hints);
     }
-  }, [loadedTour]);
-
-  const addHint = () => {
-    setHints((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        tour_id: "",
-        step: prev.length + 1,
-        title: `Шаг ${prev.length + 1}`,
-        content: "",
-        selector: "",
-        placement: "bottom",
-        target_path: "/",
-        spotlight: true,
-        required: false,
-        wait_for_selector: false,
-      },
-    ]);
-  };
-
-  const updateHint = (
-    id: string,
-    field: keyof TourHint,
-    value: string | boolean,
-  ) => {
-    setHints((prev) =>
-      prev.map((hint) =>
-        hint.id === id
-          ? {
-              ...hint,
-              [field]: value,
-            }
-          : hint,
-      ),
-    );
-  };
-
-  const removeHint = (id: string) => {
-    setHints((prev) => prev.filter((hint) => hint.id !== id));
-  };
+    setHasLoaded(true);
+  }
+}, [loadedTour, hasLoaded]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -109,92 +38,21 @@ function CreateScenariosComponent() {
         alert("Сначала добавьте хотя бы один шаг!");
         return;
       }
-
       const currentHint = hints[hints.length - 1];
       updateHint(currentHint.id, "selector", selector);
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [hints]);
+  }, [hints, updateHint]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (scenarioStatus: "draft" | "published") => {
-      // API-логика закомментирована
-      // const tourData: CreateTourRequest = {
-      //   title,
-      //   target_path: "/",
-      //   description,
-      //   priority: 1,
-      //   trigger_type: "on_load",
-      //   audience: {
-      //     show_once: true,
-      //     max_shows: 1,
-      //     only_new: false,
-      //   },
-      // };
-      // let tourId = editId;
-      // if (!tourId) {
-      //   tourId = await onboardingAPI.createTour(tourData);
-      // } else {
-      //   await onboardingAPI.updateTour(tourId, tourData);
-      // }
-      // for (const hint of hints) {
-      //   const hintData: CreateHintRequest = {
-      //     title: hint.title,
-      //     content: hint.content,
-      //     placement: hint.placement,
-      //     selector: hint.selector || undefined,
-      //     spotlight: hint.spotlight,
-      //     required: hint.required,
-      //     wait_for_selector: hint.wait_for_selector,
-      //   };
-      //   if (hint.id.startsWith("new-") || !hint.id) {
-      //     await onboardingAPI.createHint(tourId, hintData);
-      //   } else {
-      //     await onboardingAPI.updateHint(tourId, hint.id, hintData);
-      //   }
-      // }
-      // if (scenarioStatus === "published") {
-      //   await onboardingAPI.publishTour(tourId);
-      // }
-      
-      const scenario = {
-        id: editId || String(Date.now()),
-        title,
-        description,
-        status: scenarioStatus,
-        target_path: "/",
-        priority: 1,
-        trigger_type: "on_load",
-        audience: {
-          show_once: true,
-          max_shows: 1,
-          only_new: false,
-        },
-        hints,
-        updated_at: new Date().toISOString()
-      };
-
-      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-      const updatedTours = editId
-        ? tours.map((tour: Tour) => tour.id === editId ? scenario : tour)
-        : [...tours, scenario];
-
-      localStorage.setItem("tours", JSON.stringify(updatedTours));
-      return scenario.id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tours"] });
-      navigate("/admin/scenarios");
-    },
-    onError: (error) => {
-      console.error("Ошибка сохранения:", error);
-      alert("Не удалось сохранить сценарий");
-    },
-  });
-
+  const saveMutation = useSaveScenario(editId);
   const saveScenario = (scenarioStatus: "draft" | "published") => {
-    saveMutation.mutate(scenarioStatus);
+    saveMutation.mutate({
+      title,
+      description,
+      hints,
+      status: scenarioStatus,
+    });
   };
 
   return (
@@ -273,9 +131,9 @@ function CreateScenariosComponent() {
               <label className={styles.label}>Страница элемента</label>
               <select
                 className={styles.select}
-                value={hint.target_path}
-                onChange={(e) => updateHint(hint.id, "target_path", e.target.value)}
-              >
+                value={hint.page_path}
+                onChange={(e)=>updateHint(hint.id,"page_path",e.target.value)}
+                >
                 <option value="/">Главная</option>
                 <option value="/addItem">Создание объявления</option>
                 <option value="/profile">Профиль</option>
@@ -309,7 +167,7 @@ function CreateScenariosComponent() {
                   color="primary"
                   className={styles.pickButton}
                   onClick={() => {
-                    const page = hint.target_path || "/";
+                    const page = hint.page_path || "/";
                     const builderUrl = `${window.location.origin}${page}?builder=true`;
                     window.open(builderUrl, "_blank");
                   }}

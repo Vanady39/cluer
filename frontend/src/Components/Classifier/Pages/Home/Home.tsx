@@ -1,52 +1,50 @@
-import styles from './Styles.module.scss';
-import { memo, useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { useQuery } from '@tanstack/react-query';
-import { Card } from '../../Layouts/Card';
-import { type RootState } from '../../../../Store/Store';
-import { listingsAPI } from '../../../../Api/listings';
+import styles from "./Styles.module.scss";
+import { memo, useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { Card } from "../../Layouts/Card";
+import { type RootState } from "../../../../Store/Store";
+import { listingsAPI } from "../../../../Api/listings";
 
 function HomeComponent() {
   const [searchParams] = useSearchParams();
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const searchQuery = useSelector((state: RootState) => state.search.search);
 
-  const { 
-    data: listings = [], 
-    isLoading, 
-    error 
+  const {
+    data: listings = [],
+    isLoading,
+    error,
   } = useQuery({
-    queryKey: ['listings'],
+    queryKey: ["listings"],
     queryFn: listingsAPI.getAll,
   });
 
   useEffect(() => {
-    const category = searchParams.get('category') || 'all';
+    const category = searchParams.get("category") || "all";
     setSelectedCategory(category);
   }, [searchParams]);
 
   const filteredListings = listings.filter((item) => {
-    if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+    if (selectedCategory !== "all" && item.category !== selectedCategory) {
       return false;
     }
-    if (searchQuery.trim() && !item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())) {
+    if (
+      searchQuery.trim() &&
+      !item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+    ) {
       return false;
     }
     return true;
   });
 
   if (isLoading) {
-    return (
-        <div className={styles.home__loading}>Загрузка объявлений...</div>
-    );
+    return <div className={styles.home__loading}>Загрузка объявлений...</div>;
   }
 
   if (error) {
-    return (
-        <div className={styles.home__error}>Ошибка загрузки объявлений</div>
-    );
+    return <div className={styles.home__error}>Ошибка загрузки объявлений</div>;
   }
 
   return (
@@ -58,7 +56,7 @@ function HomeComponent() {
               title={listing.title}
               price={listing.price}
               imageUrl={listing.imageUrl}
-              city={listing.city || 'Город не указан'}
+              city={listing.city || "Город не указан"}
               onClick={() => console.log(`Открыть объявление ${listing.id}`)}
             />
           </div>

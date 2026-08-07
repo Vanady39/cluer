@@ -36,8 +36,8 @@ export function TourRunner({ tour, onClose }: Props) {
     const nextHint = tour.hints[nextStep];
     changeStep(nextStep);
 
-    if (nextHint.target_path && nextHint.target_path !== window.location.pathname) {
-      navigate(nextHint.target_path);
+    if (nextHint.page_path && nextHint.page_path !== window.location.pathname) {
+      navigate(nextHint.page_path);
     }
   };
 
@@ -79,8 +79,8 @@ export function TourRunner({ tour, onClose }: Props) {
 
       changeStep(nextStep);
 
-      if (nextHint.target_path && nextHint.target_path !== window.location.pathname) {
-        navigate(nextHint.target_path);
+      if (nextHint.page_path && nextHint.page_path !== window.location.pathname) {
+        navigate(nextHint.page_path);
       }
     };
 
