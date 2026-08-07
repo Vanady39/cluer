@@ -1,0 +1,47 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  color: inherit;
+  transition: color 0.2s ease;
+  border-radius: 12px;
+
+  &__primary {
+    background: #00aaff;
+    color: #FFFFFF;
+
+    &:hover {
+      background: #1a6ae0;
+    }
+  }
+
+  &__transparent {
+    background: transparent;
+    border: none;
+    color: #000000;
+
+    &:hover {
+      color: #ff4d4f;
+    }
+  }
+
+  &__nav {
+    width: 200px;
+    padding: 5px;
+  }
+
+  &__main {
+    width: 160px;
+    height: 40px;
+    padding: 5px 5px;
+  }
+
+  &__min {
+    width: fit-content;
+    padding: 5px;
+  }
+}

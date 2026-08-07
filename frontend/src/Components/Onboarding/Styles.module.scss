@@ -1,0 +1,79 @@
+.spotlight {
+  position: fixed;
+  z-index: 999;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: 320px;
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+}
+
+.tooltip h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.tooltip p {
+  color: #555;
+  font-size: 14px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end; 
+  gap: 12px; 
+  margin-top: 16px;
+}
+
+.footer button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.skip {
+  background: transparent;
+  color: #777;
+}
+
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.header h3 {
+  margin: 0;
+}
+
+.stepCounter {
+  font-size: 14px;
+  color: #888;
+  font-weight: 500;
+}
+
+.next {
+  background: #007bff;
+  color: white;
+  transition: background 0.2s;
+}
+
+.next:hover {
+  background: #0056b3;
+}
+
+.skip:hover {
+  color: #333;
+}
