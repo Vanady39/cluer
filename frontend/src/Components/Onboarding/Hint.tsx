@@ -18,7 +18,40 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
   useEffect(() => {
     const updatePosition = () => {
       const rect = element.getBoundingClientRect();
-      setPosition({ top: rect.bottom + 12, left: rect.left });
+      const width = 320;
+      const height = 120;
+
+      let top = rect.bottom + 12;
+      let left = rect.left;
+
+      switch (hint.placement) {
+        case "top":
+          top = rect.top - height - 12;
+          left = rect.left;
+          break;
+
+        case "left":
+          top = rect.top;
+          left = rect.left - width - 12;
+          break;
+
+        case "right":
+          top = rect.top;
+          left = rect.right + 12;
+          break;
+
+        case "center":
+          top = window.innerHeight / 2 - height / 2;
+          left = window.innerWidth / 2 - width / 2;
+          break;
+
+        case "bottom":
+        default:
+          top = rect.bottom + 12;
+          left = rect.left;
+      }
+
+      setPosition({ top, left });
     };
     updatePosition();
     window.addEventListener("scroll", updatePosition);

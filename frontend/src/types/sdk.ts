@@ -1,10 +1,19 @@
+export type TriggerType = "on_load" | "delay" | "exit_intent" | "manual";
+export type Placement = "top" | "bottom" | "left" | "right" | "center";
+
+export interface Audience {
+  show_once: boolean;
+  max_shows: number;
+  only_new: boolean;
+}
+
 export interface TourHint {
   id: string;
   step: number;
   title: string;
   content: string;
   selector?: string;
-  placement: "top" | "bottom" | "left" | "right" | "center" | "left-top" | "right-top";
+  placement: Placement;
   page_path: string;
   spotlight: boolean;
   wait_for_selector: boolean;
@@ -18,14 +27,11 @@ export interface Tour {
   status: "draft" | "published";
   target_path: string;
   priority: number;
-  trigger_type: "on_load" | "delay" | "exit_intent" | "manual";
-  audience: {
-    show_once: boolean;
-    max_shows: number;
-    only_new: boolean;
-  };
+  trigger_type: TriggerType;
+  audience: Audience;
   hints: TourHint[];
   updated_at: string;
+  created_at: string;
 }
 
 export interface CreateTourRequest {
@@ -33,18 +39,14 @@ export interface CreateTourRequest {
   target_path: string;
   description: string;
   priority: number;
-  trigger_type: "on_load" | "delay" | "exit_intent" | "manual";
-  audience: {
-    show_once: boolean;
-    max_shows: number;
-    only_new: boolean;
-  };
+  trigger_type: TriggerType;
+  audience: Audience;
 }
 
 export interface CreateHintRequest {
   title: string;
   content: string;
-  placement: "top" | "bottom" | "center" | "left" | "right" | "left-top" | "right-top";
+  placement: Placement;
   page_path: string;
   selector?: string;
   spotlight: boolean;

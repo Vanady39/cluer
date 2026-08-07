@@ -1,27 +1,49 @@
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import useOutsideClick from "../../../../../../Hooks/useClickOutside";
 import styles from "./Styles.module.scss";
 import { Button } from "../../../../../UI/Button";
+import type { Tour } from "../../../../../../types/sdk";
 
 function UserMenuComponent() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const isAuthenticated = true;
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null; // ✅ Заменили NodeJS.Timeout
 
-  useOutsideClick(ref, () => setIsOpen(false), ["button", "a[href]"], isOpen);
+  const handleMouseEnter = () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimer = setTimeout(() => {
+      setIsOpen(false);
+    }, 200); // Задержка 200мс
+  };
+
+  // Закрывать меню при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   return (
-    <div ref={ref} className={styles.userMenu}>
+    <div
+      ref={ref}
+      className={styles.userMenu}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {isAuthenticated ? (
         <>
           <Link to="/profile">
-            <button
-              type="button"
-              className={styles.userMenu__profile}
-              onClick={() => setIsOpen(!isOpen)}
-            >
+            <button type="button" className={styles.userMenu__profile}>
               <div className={styles.userMenu__avatar}>
                 <UserIcon size={20} />
               </div>
@@ -30,6 +52,23 @@ function UserMenuComponent() {
 
           {isOpen && (
             <div className={styles.userMenu__dropdown}>
+              <button
+                className={styles.userMenu__item}
+                onClick={() => {
+                  const tours = JSON.parse(
+                    localStorage.getItem("tours") || "[]",
+                  );
+                  const helpTour = tours.find(
+                    (tour: Tour) => tour.trigger_type === "manual",
+                  );
+
+                  if (helpTour) {
+                    window.startOnboarding(helpTour.id);
+                  }
+                }}
+              >
+                Помощь
+              </button>
               <button
                 className={styles.userMenu__item}
                 onClick={() => {
@@ -43,9 +82,7 @@ function UserMenuComponent() {
           )}
         </>
       ) : (
-        <Button className={styles.userMenu__login}>
-          Войти через Google
-        </Button>
+        <Button className={styles.userMenu__login}>Войти через Google</Button>
       )}
     </div>
   );
@@ -53,7 +90,14 @@ function UserMenuComponent() {
 
 function UserIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>

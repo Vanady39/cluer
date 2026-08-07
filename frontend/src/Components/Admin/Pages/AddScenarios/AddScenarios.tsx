@@ -6,26 +6,55 @@ import { Button } from "../../../UI/Button/Button";
 import { useTourLoader } from "../../../../Hooks/useTourLoader";
 import { useHintManager } from "../../../../Hooks/useHintManager";
 import { useSaveScenario } from "../../../../Hooks/useSaveScenario";
+import type { TriggerType, Audience } from "../../../../types/sdk";
 
 function CreateScenariosComponent() {
   const navigate = useNavigate();
   const editId = new URLSearchParams(window.location.search).get("id");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [triggerType, setTriggerType] = useState<TriggerType>("on_load");
+
+  const [audience, setAudience] = useState<Audience>({
+    show_once: true,
+    max_shows: 1,
+    only_new: false,
+  });
   const { data: loadedTour } = useTourLoader(editId);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const { hints, addHint, updateHint, removeHint, setHints } = useHintManager([]);
+  const { hints, addHint, updateHint, removeHint, setHints } = useHintManager([
+  {
+    id: String(Date.now()),
+    step: 1,
+    title: "Первый шаг",
+    content: "",
+    selector: "",
+    placement: "bottom",
+    page_path: "/",
+    spotlight: true,
+    wait_for_selector: false,
+    media_url: "",
+  },
+]);
 
   useEffect(() => {
-  if (loadedTour && !hasLoaded) {
-    setTitle(loadedTour.title);
-    setDescription(loadedTour.description);
-    if (loadedTour.hints?.length) {
-      setHints(loadedTour.hints);
+    if (loadedTour && !hasLoaded) {
+      setTitle(loadedTour.title);
+      setDescription(loadedTour.description);
+      setTriggerType(loadedTour.trigger_type || "on_load");
+      setAudience(
+        loadedTour.audience || {
+          show_once: true,
+          max_shows: 1,
+          only_new: false,
+        },
+      );
+      if (loadedTour.hints?.length) {
+        setHints(loadedTour.hints);
+      }
+      setHasLoaded(true);
     }
-    setHasLoaded(true);
-  }
-}, [loadedTour, hasLoaded]);
+  }, [loadedTour, hasLoaded]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -52,6 +81,8 @@ function CreateScenariosComponent() {
       description,
       hints,
       status: scenarioStatus,
+      trigger_type: triggerType,
+      audience,
     });
   };
 
@@ -82,19 +113,68 @@ function CreateScenariosComponent() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Зачем нужен этот сценарий"
           />
+          <div className={styles.settingsGroup}>
+            <label className={styles.label}>Тип запуска</label>
+
+            <select
+              className={styles.select}
+              value={triggerType}
+              onChange={(e) => setTriggerType(e.target.value as TriggerType)}
+            >
+              <option value="on_load">При загрузке</option>
+              <option value="delay">С задержкой</option>
+              <option value="exit_intent">При выходе</option>
+              <option value="manual">Вручную</option>
+            </select>
+
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={audience.show_once}
+                onChange={(e) =>
+                  setAudience({
+                    ...audience,
+                    show_once: e.target.checked,
+                  })
+                }
+              />
+              Показывать один раз
+            </label>
+
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={audience.only_new}
+                onChange={(e) =>
+                  setAudience({
+                    ...audience,
+                    only_new: e.target.checked,
+                  })
+                }
+              />
+              Только новым пользователям
+            </label>
+
+            <label className={styles.label}>
+              Максимальное количество показов
+            </label>
+
+            <Input
+              className={styles.numberInput}
+              value={String(audience.max_shows)}
+              onChange={(value) =>
+                setAudience({
+                  ...audience,
+                  max_shows: Number(value),
+                })
+              }
+            />
+          </div>
         </section>
 
         <section className={styles.card}>
           <div className={styles.stepHeader}>
             <h2>Шаги сценария</h2>
-            <Button
-              size="main"
-              color="primary"
-              className={styles.addButton}
-              onClick={addHint}
-            >
-              + Добавить шаг
-            </Button>
           </div>
 
           {hints.map((hint, index) => (
@@ -132,8 +212,10 @@ function CreateScenariosComponent() {
               <select
                 className={styles.select}
                 value={hint.page_path}
-                onChange={(e)=>updateHint(hint.id,"page_path",e.target.value)}
-                >
+                onChange={(e) =>
+                  updateHint(hint.id, "page_path", e.target.value)
+                }
+              >
                 <option value="/">Главная</option>
                 <option value="/addItem">Создание объявления</option>
                 <option value="/profile">Профиль</option>
@@ -143,13 +225,14 @@ function CreateScenariosComponent() {
               <select
                 className={styles.select}
                 value={hint.placement}
-                onChange={(e) => updateHint(hint.id, "placement", e.target.value)}
+                onChange={(e) =>
+                  updateHint(hint.id, "placement", e.target.value)
+                }
               >
                 <option value="bottom">Снизу</option>
                 <option value="top">Сверху</option>
                 <option value="left">Слева</option>
                 <option value="right">Справа</option>
-                <option value="center">По центру</option>
               </select>
 
               <label className={styles.label}>Элемент сайта</label>
@@ -177,6 +260,15 @@ function CreateScenariosComponent() {
               </div>
             </div>
           ))}
+          <div className={styles.addStepBottom}>
+            <Button
+              size="main"
+              color="primary"
+              onClick={addHint}
+            >
+              + Добавить шаг
+            </Button>
+          </div>
         </section>
       </div>
 

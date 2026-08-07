@@ -80,7 +80,10 @@ function ScenariosComponent() {
               <Button
                 size="min"
                 onClick={() => {
-                  window.open(`/?tour=${item.id}&preview=true`, "_blank");
+                  window.open(
+                    `${item.hints[0]?.page_path || "/"}?tour=${item.id}&preview=true`,
+                    "_blank",
+                  );
                 }}
               >
                 Предпросмотр

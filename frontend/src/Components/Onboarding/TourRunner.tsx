@@ -20,6 +20,10 @@ export function TourRunner({ tour, onClose }: Props) {
   const hint = tour.hints[step];
   const [element, setElement] = useState<HTMLElement | null>(null);
 
+  if (!hint) {
+    return null;
+  }
+
   const changeStep = (newStep: number) => {
     sessionStorage.setItem(storageKey, String(newStep));
     setStep(newStep);
@@ -28,7 +32,8 @@ export function TourRunner({ tour, onClose }: Props) {
   const next = () => {
     const nextStep = step + 1;
     if (nextStep >= tour.hints.length) {
-      sessionStorage.removeItem(storageKey);
+      sessionStorage.removeItem(`tour_step_${tour.id}`);
+      setElement(null);
       onClose();
       return;
     }
@@ -79,7 +84,10 @@ export function TourRunner({ tour, onClose }: Props) {
 
       changeStep(nextStep);
 
-      if (nextHint.page_path && nextHint.page_path !== window.location.pathname) {
+      if (
+        nextHint.page_path &&
+        nextHint.page_path !== window.location.pathname
+      ) {
         navigate(nextHint.page_path);
       }
     };
