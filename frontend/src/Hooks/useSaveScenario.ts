@@ -1,59 +1,47 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import type { Tour, TourHint, Audience, TriggerType } from "../types/sdk";
+import { onboardingAPI } from "../Api/onboarding";
 
-export function useSaveScenario(editId: string | null) {
-  const navigate = useNavigate();
+export function useSaveScenario(editId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      title,
-      description,
-      hints,
-      status,
-      trigger_type,
-      audience,
-    }: {
-      title: string;
-      description: string;
-      hints: TourHint[];
-      status: "draft" | "published";
-      trigger_type: TriggerType;
-      audience: Audience;
-    }) => {
-      const scenario = {
-        id: editId || String(Date.now()),
-        title,
-        description,
-        status,
-        target_path: "/",
-        priority: 1,
-        trigger_type,
-        audience,
-        hints,
-        updated_at: new Date().toISOString(),
-      };
+    mutationFn: async (data: any) => {
+      if (!editId) {
+        console.log("SAVE DATA", data);
+        const tourId = await onboardingAPI.createTour({
+          title: data.title,
+          description: data.description,
+          target_path: "/",
+          priority: 1,
+          trigger_type: data.trigger_type,
+          audience: data.audience,
+        });
 
-      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-
-      const updatedTours = editId
-        ? tours.map((tour: Tour) =>
-            tour.id === editId ? scenario : tour,
-          )
-        : [...tours, scenario];
-
-      localStorage.setItem("tours", JSON.stringify(updatedTours));
-
-      return scenario.id;
+        for (const hint of data.hints) {
+          await onboardingAPI.createHint(tourId, {
+            title: hint.title,
+            content: hint.content,
+            selector: hint.selector,
+            placement: hint.placement,
+            page_path: hint.page_path,
+            spotlight: hint.spotlight,
+            wait_for_selector: hint.wait_for_selector,
+            media_url: hint.media_url,
+          });
+        }
+        return tourId;
+      }
+      throw new Error("Редактирование пока не поддерживается API");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tours"] });
-      navigate("/admin/scenarios");
+
+    onSuccess() {
+      queryClient.invalidateQueries({
+        queryKey: ["tours"],
+      });
+      window.location.href = "/admin/scenarios";
     },
-    onError: (error) => {
-      console.error("Ошибка сохранения:", error);
-      alert("Не удалось сохранить сценарий");
+    onError(error) {
+      console.error("SAVE ERROR", error);
     },
   });
 }
