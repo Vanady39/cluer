@@ -1,0 +1,329 @@
+basePath: /v1
+definitions:
+  github_com_Vanady39_cluer_internal_domains.Audience:
+    properties:
+      max_shows:
+        type: integer
+      only_new:
+        type: boolean
+      show_once:
+        type: boolean
+    type: object
+  github_com_Vanady39_cluer_internal_domains.Hint:
+    properties:
+      content:
+        example: Здесь вы можете изменить параметры аккаунта
+        type: string
+      created_at:
+        example: "2026-08-05T12:00:00Z"
+        format: date-time
+        type: string
+      expected_input:
+        example: John Doe
+        type: string
+      id:
+        example: 01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c
+        type: string
+      input_placeholder:
+        example: Введите ваше имя
+        type: string
+      media_url:
+        example: https://cdn.example.com/onboarding/settings.mp4
+        type: string
+      placement:
+        allOf:
+        - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Placement'
+        example: bottom
+      required:
+        example: false
+        type: boolean
+      selector:
+        example: '#settings-btn'
+        type: string
+      spotlight:
+        example: true
+        type: boolean
+      step:
+        example: 1
+        type: integer
+      title:
+        example: Нажмите кнопку настроек
+        type: string
+      tour_id:
+        example: 01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b
+        type: string
+      updated_at:
+        example: "2026-08-05T12:00:00Z"
+        format: date-time
+        type: string
+      wait_for_selector:
+        example: true
+        type: boolean
+    type: object
+  github_com_Vanady39_cluer_internal_domains.Placement:
+    enum:
+    - top
+    - bottom
+    - center
+    - left-top
+    - right-top
+    - left
+    - right
+    type: string
+    x-enum-varnames:
+    - PlacementTop
+    - PlacementBottom
+    - PlacementCenter
+    - PlacementLeftTop
+    - PlacementRightTop
+    - PlacementLeft
+    - PlacementRight
+  github_com_Vanady39_cluer_internal_domains.Tour:
+    properties:
+      audience:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Audience'
+      created_at:
+        example: "2026-08-05T12:00:00Z"
+        format: date-time
+        type: string
+      description:
+        example: Тур по основным функциям дашборда
+        type: string
+      hints:
+        items:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+        type: array
+      id:
+        example: 01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b
+        format: uuid
+        type: string
+      priority:
+        example: 1
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourStatus'
+        example: draft
+      target_path:
+        example: /dashboard
+        type: string
+      title:
+        example: Добро пожаловать в систему
+        type: string
+      trigger_type:
+        allOf:
+        - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
+        example: on_load
+      updated_at:
+        example: "2026-08-05T12:00:00Z"
+        format: date-time
+        type: string
+    type: object
+  github_com_Vanady39_cluer_internal_domains.TourStatus:
+    enum:
+    - draft
+    - published
+    - archived
+    type: string
+    x-enum-varnames:
+    - TourDraft
+    - TourPublished
+    - TourArchived
+  github_com_Vanady39_cluer_internal_domains.TriggerType:
+    enum:
+    - on_load
+    - delay
+    - exit_intent
+    - manual
+    type: string
+    x-enum-varnames:
+    - TriggerOnLoad
+    - TriggerDelay
+    - TriggerExitIntent
+    - TriggerManual
+  github_com_Vanady39_cluer_internal_models.HTTPError:
+    properties:
+      error:
+        description: Shorthand error
+        type: string
+      message:
+        description: Pretty error message
+        type: string
+    type: object
+  github_com_Vanady39_cluer_internal_models_response.GetCurrentUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_models_response.User'
+    type: object
+  github_com_Vanady39_cluer_internal_models_response.GetListingsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_models_response.Listing'
+        type: array
+    type: object
+  github_com_Vanady39_cluer_internal_models_response.Listing:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      imageUrl:
+        type: string
+      price:
+        type: integer
+      title:
+        type: string
+    type: object
+  github_com_Vanady39_cluer_internal_models_response.User:
+    properties:
+      avatarUrl:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Onboarding tours and listings API.
+  title: Cluer
+  version: 0.0.1
+paths:
+  /listings:
+    get:
+      description: Returns every available listing
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models_response.GetListingsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Get all listings
+      tags:
+      - Listings
+  /tours:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new onboarding tour draft
+      parameters:
+      - description: Tour object
+        in: body
+        name: tour
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Create a new tour
+      tags:
+      - Tours
+  /tours/{tourId}/hints:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new hint for a specific tour
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Hint object
+        in: body
+        name: hint
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Create a hint for a tour
+      tags:
+      - Hints
+  /tours/published:
+    get:
+      description: Returns published tours with their hints for a specific target
+        path
+      parameters:
+      - description: Target path
+        example: /dashboard
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Get published tours by path
+      tags:
+      - Tours
+  /users/me:
+    get:
+      description: Returns the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models_response.GetCurrentUserResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Get the current user
+      tags:
+      - Users
+swagger: "2.0"
