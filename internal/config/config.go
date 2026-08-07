@@ -60,8 +60,6 @@ func (c *Config) GetLoggerConfig(module string) ComponentConfig {
 // Get Domain Source Name from config
 func (pc *PostgresConfig) GetDSN() string {
 	// Escaping special characters in username/password
-	log.Trace().Str("user", pc.User).Str("password", pc.Password).Str("address", pc.Address).Str("dbname", pc.DBName).Msg("check postgres config")
-	// user := url.QueryEscape(pc.User)
 	// password := url.QueryEscape(pc.Password)
 
 	DSN := fmt.Sprintf("postgres://%s:%s@%s/%s", pc.User, pc.Password, pc.Address, pc.DBName)
