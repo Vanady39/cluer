@@ -2,100 +2,138 @@ package repositories
 
 import (
 	"context"
-	"sort"
-	"sync"
 
 	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type (
-	HintRepository struct {
-		mu    sync.RWMutex
-		hints map[uuid.UUID]*domains.Hint
-	}
-)
-
-func NewHintRepository() *HintRepository {
-	return &HintRepository{hints: make(map[uuid.UUID]*domains.Hint)}
+type HintRepository struct {
+	pool *pgxpool.Pool
 }
 
-// hintNotFound builds the standard not-found error for a hint, carrying
-// domains.ErrHintNotFound so callers can still match it with errors.Is.
-func hintNotFound(id uuid.UUID, op domains.RepoOperation) error {
-	return &domains.RepositoryError{
-		Err:       domains.ErrHintNotFound,
-		EntityRef: id.String(),
-		Operation: op,
-		Reason:    domains.NoRecord,
-	}
+func NewHintRepository(pool *pgxpool.Pool) *HintRepository {
+	return &HintRepository{pool: pool}
 }
 
-func (hr *HintRepository) CreateHint(_ context.Context, h *domains.Hint) error {
-	hr.mu.Lock()
-	defer hr.mu.Unlock()
-	cp := *h
-	hr.hints[h.Id] = &cp
+const hintColumns = `id, tour_version_id, step, title, content, selector, placement,
+	media_url, spotlight, required, wait_for_selector, input_placeholder,
+	expected_input, created_at, updated_at`
+
+func (hr *HintRepository) Create(ctx context.Context, h *domains.Hint) error {
+	err := hr.pool.QueryRow(ctx, `
+		INSERT INTO hints (
+			tour_version_id, step, title, content, selector, placement, media_url,
+			spotlight, required, wait_for_selector, input_placeholder, expected_input)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		RETURNING id, created_at, updated_at`,
+		h.TourVersionId, h.Step, h.Title, h.Content, h.Selector, h.Placement, h.MediaUrl,
+		h.Spotlight, h.Required, h.WaitForSelector, h.InputPlaceHolder, h.ExpectedInput,
+	).Scan(&h.Id, &h.CreatedAt, &h.UpdatedAt)
+
+	return wrap(err, domains.ErrHintNotFound, h.TourVersionId.String(), domains.Create)
+}
+
+func (hr *HintRepository) GetById(ctx context.Context, id uuid.UUID) (*domains.Hint, error) {
+	h, err := scanHint(hr.pool.QueryRow(ctx, `SELECT `+hintColumns+` FROM hints WHERE id = $1`, id))
+	if err != nil {
+		return nil, wrap(err, domains.ErrHintNotFound, id.String(), domains.Retrieve)
+	}
+	return h, nil
+}
+
+func (hr *HintRepository) ListByVersion(ctx context.Context, versionId uuid.UUID) ([]domains.Hint, error) {
+	rows, err := hr.pool.Query(ctx,
+		`SELECT `+hintColumns+` FROM hints WHERE tour_version_id = $1 ORDER BY step`, versionId)
+	if err != nil {
+		return nil, wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Retrieve)
+	}
+	defer rows.Close()
+
+	hints := make([]domains.Hint, 0)
+	for rows.Next() {
+		h, err := scanHint(rows)
+		if err != nil {
+			return nil, wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Retrieve)
+		}
+		hints = append(hints, *h)
+	}
+	return hints, rows.Err()
+}
+
+func (hr *HintRepository) Update(ctx context.Context, h *domains.Hint) error {
+	updated, err := scanHint(hr.pool.QueryRow(ctx, `
+		UPDATE hints SET title = $2, content = $3, selector = $4, placement = $5,
+			media_url = $6, spotlight = $7, required = $8, wait_for_selector = $9,
+			input_placeholder = $10, expected_input = $11
+		WHERE id = $1
+		RETURNING `+hintColumns,
+		h.Id, h.Title, h.Content, h.Selector, h.Placement, h.MediaUrl,
+		h.Spotlight, h.Required, h.WaitForSelector, h.InputPlaceHolder, h.ExpectedInput))
+	if err != nil {
+		return wrap(err, domains.ErrHintNotFound, h.Id.String(), domains.Update)
+	}
+	*h = *updated
 	return nil
 }
 
-func (hr *HintRepository) GetById(_ context.Context, id uuid.UUID) (*domains.Hint, error) {
-	hr.mu.RLock()
-	defer hr.mu.RUnlock()
-	h, ok := hr.hints[id]
-	if !ok {
-		return nil, hintNotFound(id, domains.Retrieve)
+func (hr *HintRepository) Delete(ctx context.Context, versionId, id uuid.UUID) error {
+	tx, err := hr.pool.Begin(ctx)
+	if err != nil {
+		return wrap(err, domains.ErrHintNotFound, id.String(), domains.Delete)
 	}
-	cp := *h
-	return &cp, nil
+	defer tx.Rollback(ctx)
+
+	var step int
+	err = tx.QueryRow(ctx,
+		`DELETE FROM hints WHERE id = $1 AND tour_version_id = $2 RETURNING step`, id, versionId,
+	).Scan(&step)
+	if err != nil {
+		return wrap(err, domains.ErrHintNotFound, id.String(), domains.Delete)
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE hints SET step = step - 1 WHERE tour_version_id = $1 AND step > $2`,
+		versionId, step); err != nil {
+		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Update)
+	}
+
+	return wrap(tx.Commit(ctx), domains.ErrHintNotFound, id.String(), domains.Delete)
 }
 
-func (hr *HintRepository) ListByTour(_ context.Context, tourId uuid.UUID) ([]domains.Hint, error) {
-	hr.mu.RLock()
-	defer hr.mu.RUnlock()
-	result := make([]domains.Hint, 0)
-	for _, h := range hr.hints {
-		if h.TourId == tourId {
-			result = append(result, *h)
+func (hr *HintRepository) Reorder(ctx context.Context, versionId uuid.UUID, ids []uuid.UUID) error {
+	tx, err := hr.pool.Begin(ctx)
+	if err != nil {
+		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Update)
+	}
+	defer tx.Rollback(ctx)
+
+	var count int
+	if err := tx.QueryRow(ctx,
+		`SELECT count(*) FROM hints WHERE tour_version_id = $1`, versionId).Scan(&count); err != nil {
+		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Retrieve)
+	}
+	if count != len(ids) {
+		return &domains.RepositoryError{
+			Err:       domains.ErrReorderMismatch,
+			EntityRef: versionId.String(),
+			Operation: domains.Update,
+			Reason:    domains.InvalidReference,
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Step < result[j].Step
-	})
-	return result, nil
-}
 
-func (hr *HintRepository) UpdateHint(_ context.Context, h *domains.Hint) error {
-	hr.mu.Lock()
-	defer hr.mu.Unlock()
-	if _, ok := hr.hints[h.Id]; !ok {
-		return hintNotFound(h.Id, domains.Update)
+	if _, err := tx.Exec(ctx, `SET CONSTRAINTS ALL DEFERRED`); err != nil {
+		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Update)
 	}
-	cp := *h
-	hr.hints[h.Id] = &cp
-	return nil
-}
 
-func (hr *HintRepository) DeleteHint(_ context.Context, tourId, id uuid.UUID) error {
-	hr.mu.Lock()
-	defer hr.mu.Unlock()
-	if h, ok := hr.hints[id]; ok && h.TourId == tourId {
-		delete(hr.hints, id)
-		return nil
-	}
-	return hintNotFound(id, domains.Delete)
-}
-
-func (hr *HintRepository) ReorderHint(_ context.Context, tourId uuid.UUID, ids []uuid.UUID) error {
-	hr.mu.Lock()
-	defer hr.mu.Unlock()
-
-	// Resolve every id before touching any of them, so a bad id cannot leave the
-	// tour half-renumbered.
-	ordered := make([]*domains.Hint, len(ids))
 	for i, id := range ids {
-		h, ok := hr.hints[id]
-		if !ok || h.TourId != tourId {
+		tag, err := tx.Exec(ctx,
+			`UPDATE hints SET step = $1 WHERE id = $2 AND tour_version_id = $3`,
+			i+1, id, versionId)
+		if err != nil {
+			return wrap(err, domains.ErrHintNotFound, id.String(), domains.Update)
+		}
+		if tag.RowsAffected() == 0 {
 			return &domains.RepositoryError{
 				Err:       domains.ErrReorderMismatch,
 				EntityRef: id.String(),
@@ -103,11 +141,20 @@ func (hr *HintRepository) ReorderHint(_ context.Context, tourId uuid.UUID, ids [
 				Reason:    domains.InvalidReference,
 			}
 		}
-		ordered[i] = h
 	}
 
-	for i, h := range ordered {
-		h.Step = i + 1
+	return wrap(tx.Commit(ctx), domains.ErrHintNotFound, versionId.String(), domains.Update)
+}
+
+func scanHint(row scanner) (*domains.Hint, error) {
+	h := new(domains.Hint)
+	err := row.Scan(
+		&h.Id, &h.TourVersionId, &h.Step, &h.Title, &h.Content, &h.Selector, &h.Placement,
+		&h.MediaUrl, &h.Spotlight, &h.Required, &h.WaitForSelector, &h.InputPlaceHolder,
+		&h.ExpectedInput, &h.CreatedAt, &h.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return h, nil
 }

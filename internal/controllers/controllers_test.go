@@ -1,6 +1,3 @@
-// Package controllers_test is an external test package: the tests install the real
-// ErrorHandler middleware, and middlewares imports controllers, so testing from
-// inside package controllers would be an import cycle.
 package controllers_test
 
 import (
@@ -20,9 +17,6 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-// newTestRouter builds a router carrying the same ErrorHandler the real server
-// installs, so tests exercise the actual error-rendering path rather than
-// assuming what a controller would have written.
 func newTestRouter(register func(r *gin.Engine)) *gin.Engine {
 	logger := zerolog.Nop()
 	router := gin.New()
@@ -49,7 +43,6 @@ func doJSON(t *testing.T, router *gin.Engine, method, target string, body any) *
 	return rec
 }
 
-// doRaw sends a body that is not necessarily valid JSON.
 func doRaw(router *gin.Engine, method, target, body string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, target, bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
@@ -58,7 +51,6 @@ func doRaw(router *gin.Engine, method, target, body string) *httptest.ResponseRe
 	return rec
 }
 
-// decodeHTTPError asserts the body is the standard error envelope and returns it.
 func decodeHTTPError(t *testing.T, rec *httptest.ResponseRecorder) models.HTTPError {
 	t.Helper()
 

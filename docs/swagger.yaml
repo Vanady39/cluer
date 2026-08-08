@@ -1,13 +1,161 @@
 basePath: /v1
 definitions:
+  github_com_Vanady39_cluer_internal_domains.Analytics:
+    properties:
+      broken_selectors:
+        items:
+          type: string
+        type: array
+      from:
+        format: date-time
+        type: string
+      funnel:
+        items:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.FunnelStep'
+        type: array
+      to:
+        format: date-time
+        type: string
+      totals:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.AnalyticsTotals'
+      tour_id:
+        format: uuid
+        type: string
+      tour_version_id:
+        format: uuid
+        type: string
+      version:
+        example: 7
+        type: integer
+    type: object
+  github_com_Vanady39_cluer_internal_domains.AnalyticsTotals:
+    properties:
+      completed:
+        example: 612
+        type: integer
+      completion_rate:
+        example: 0.494
+        type: number
+      dismissed:
+        example: 388
+        type: integer
+      goal_rate:
+        example: 0.404
+        type: number
+      goal_reached:
+        example: 501
+        type: integer
+      started:
+        example: 1240
+        type: integer
+    type: object
+  github_com_Vanady39_cluer_internal_domains.App:
+    properties:
+      allowed_origins:
+        example:
+        - http://localhost:3000
+        items:
+          type: string
+        type: array
+      archived_at:
+        format: date-time
+        type: string
+      created_at:
+        format: date-time
+        type: string
+      id:
+        format: uuid
+        type: string
+      name:
+        example: Demo classifieds
+        type: string
+      public_key:
+        example: pk_demo_7f3a91c4b2e85d60
+        type: string
+    type: object
   github_com_Vanady39_cluer_internal_domains.Audience:
     properties:
       max_shows:
+        example: 3
         type: integer
       only_new:
+        example: false
         type: boolean
       show_once:
+        example: true
         type: boolean
+    type: object
+  github_com_Vanady39_cluer_internal_domains.DraftPatch:
+    properties:
+      audience:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Audience'
+      target_path:
+        type: string
+      trigger_type:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
+    type: object
+  github_com_Vanady39_cluer_internal_domains.EventBatchResult:
+    properties:
+      accepted:
+        example: 4
+        type: integer
+      duplicates:
+        example: 1
+        type: integer
+      errors:
+        items:
+          type: string
+        type: array
+      rejected:
+        example: 0
+        type: integer
+    type: object
+  github_com_Vanady39_cluer_internal_domains.EventType:
+    enum:
+    - tour_started
+    - hint_shown
+    - hint_completed
+    - hint_skipped
+    - selector_missing
+    - tour_completed
+    - tour_dismissed
+    - goal_reached
+    type: string
+    x-enum-varnames:
+    - EventTourStarted
+    - EventHintShown
+    - EventHintCompleted
+    - EventHintSkipped
+    - EventSelectorMissing
+    - EventTourCompleted
+    - EventTourDismissed
+    - EventGoalReached
+  github_com_Vanady39_cluer_internal_domains.FunnelStep:
+    properties:
+      completed:
+        example: 1105
+        type: integer
+      dropoff:
+        example: 0.109
+        type: number
+      hint_id:
+        format: uuid
+        type: string
+      selector_missing:
+        example: 0
+        type: integer
+      shown:
+        example: 1240
+        type: integer
+      skipped:
+        example: 0
+        type: integer
+      step:
+        example: 1
+        type: integer
+      title:
+        example: Начните здесь
+        type: string
     type: object
   github_com_Vanady39_cluer_internal_domains.Hint:
     properties:
@@ -15,7 +163,6 @@ definitions:
         example: Здесь вы можете изменить параметры аккаунта
         type: string
       created_at:
-        example: "2026-08-05T12:00:00Z"
         format: date-time
         type: string
       expected_input:
@@ -23,6 +170,7 @@ definitions:
         type: string
       id:
         example: 01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c
+        format: uuid
         type: string
       input_placeholder:
         example: Введите ваше имя
@@ -49,11 +197,10 @@ definitions:
       title:
         example: Нажмите кнопку настроек
         type: string
-      tour_id:
-        example: 01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b
+      tour_version_id:
+        format: uuid
         type: string
       updated_at:
-        example: "2026-08-05T12:00:00Z"
         format: date-time
         type: string
       wait_for_selector:
@@ -78,17 +225,36 @@ definitions:
     - PlacementRightTop
     - PlacementLeft
     - PlacementRight
+  github_com_Vanady39_cluer_internal_domains.ResolveResult:
+    properties:
+      current_hint_id:
+        format: uuid
+        type: string
+      tour:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
+      tour_version_id:
+        format: uuid
+        type: string
+      version:
+        example: 7
+        type: integer
+    type: object
   github_com_Vanady39_cluer_internal_domains.Tour:
     properties:
+      app_id:
+        format: uuid
+        type: string
       audience:
         $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Audience'
       created_at:
-        example: "2026-08-05T12:00:00Z"
         format: date-time
         type: string
       description:
         example: Тур по основным функциям дашборда
         type: string
+      enabled:
+        example: true
+        type: boolean
       hints:
         items:
           $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
@@ -115,8 +281,33 @@ definitions:
         - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
         example: on_load
       updated_at:
-        example: "2026-08-05T12:00:00Z"
         format: date-time
+        type: string
+      version:
+        example: 7
+        type: integer
+      version_id:
+        format: uuid
+        type: string
+    type: object
+  github_com_Vanady39_cluer_internal_domains.TourCard:
+    properties:
+      draft:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+      published:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+      tour:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
+    type: object
+  github_com_Vanady39_cluer_internal_domains.TourMetaPatch:
+    properties:
+      description:
+        type: string
+      enabled:
+        type: boolean
+      priority:
+        type: integer
+      title:
         type: string
     type: object
   github_com_Vanady39_cluer_internal_domains.TourStatus:
@@ -129,6 +320,46 @@ definitions:
     - TourDraft
     - TourPublished
     - TourArchived
+  github_com_Vanady39_cluer_internal_domains.TourVersion:
+    properties:
+      archived_at:
+        format: date-time
+        type: string
+      audience:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Audience'
+      created_at:
+        format: date-time
+        type: string
+      created_by:
+        type: string
+      hints:
+        items:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+        type: array
+      id:
+        format: uuid
+        type: string
+      published_at:
+        format: date-time
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourStatus'
+        example: published
+      target_path:
+        example: /dashboard
+        type: string
+      tour_id:
+        format: uuid
+        type: string
+      trigger_type:
+        allOf:
+        - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
+        example: on_load
+      version:
+        example: 7
+        type: integer
+    type: object
   github_com_Vanady39_cluer_internal_domains.TriggerType:
     enum:
     - on_load
@@ -184,13 +415,188 @@ definitions:
       name:
         type: string
     type: object
+  internal_controllers.CreateAppRequest:
+    properties:
+      allowed_origins:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  internal_controllers.EventBatchRequest:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/internal_controllers.EventItem'
+        type: array
+      session_id:
+        type: string
+      subject_id:
+        type: string
+    required:
+    - events
+    - session_id
+    - subject_id
+    type: object
+  internal_controllers.EventItem:
+    properties:
+      event_key:
+        type: string
+      hint_id:
+        type: string
+      occurred_at:
+        type: string
+      payload:
+        additionalProperties: {}
+        type: object
+      tour_id:
+        type: string
+      tour_version_id:
+        type: string
+      type:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.EventType'
+    required:
+    - event_key
+    - type
+    type: object
+  internal_controllers.HealthResponse:
+    properties:
+      db:
+        example: ok
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  internal_controllers.ReorderRequest:
+    properties:
+      hint_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - hint_ids
+    type: object
+  internal_controllers.ResolveRequest:
+    properties:
+      props:
+        additionalProperties: {}
+        type: object
+      session_id:
+        type: string
+      subject_id:
+        type: string
+      url:
+        type: string
+    required:
+    - subject_id
+    type: object
+  internal_controllers.RollbackRequest:
+    properties:
+      to_version_id:
+        type: string
+    required:
+    - to_version_id
+    type: object
 host: localhost:8080
 info:
   contact: {}
-  description: Onboarding tours and listings API.
-  title: Cluer
-  version: 0.0.1
+  description: 'Interactive onboarding platform: tours, immutable versions, resolve
+    and analytics.'
+  title: Cluer Onboarding
+  version: 0.1.0
 paths:
+  /apps:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.App'
+            type: array
+      summary: List consumer applications
+      tags:
+      - Apps
+    post:
+      consumes:
+      - application/json
+      description: Issues the public key that goes into the SDK script tag
+      parameters:
+      - description: Application
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.CreateAppRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.App'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Register a consumer application
+      tags:
+      - Apps
+  /events:
+    post:
+      consumes:
+      - application/json
+      description: Idempotent on event_key, so a retry after a dropped connection
+        cannot double the metrics
+      parameters:
+      - description: Application public key
+        in: header
+        name: X-App-Key
+        required: true
+        type: string
+      - description: Event batch
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.EventBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.EventBatchResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Accept a batch of events
+      tags:
+      - Runtime
+  /health:
+    get:
+      description: Reports whether the process and its database are both usable
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_controllers.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/internal_controllers.HealthResponse'
+      summary: Health check
+      tags:
+      - Runtime
   /listings:
     get:
       description: Returns every available listing
@@ -208,12 +614,77 @@ paths:
       summary: Get all listings
       tags:
       - Listings
-  /tours:
+  /resolve:
     post:
       consumes:
       - application/json
-      description: Creates a new onboarding tour draft
+      description: The single request the SDK makes on init. Returns at most one tour,
+        whole.
       parameters:
+      - description: Application public key
+        in: header
+        name: X-App-Key
+        required: true
+        type: string
+      - description: Resolve context
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.ResolveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.ResolveResult'
+        "204":
+          description: Nothing to show
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Resolve a tour for a subject
+      tags:
+      - Runtime
+  /tours:
+    get:
+      description: Returns every tour of an app with the status of its current version
+      parameters:
+      - description: App ID
+        format: uuid
+        in: query
+        name: appId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: List tours
+      tags:
+      - Tours
+    post:
+      consumes:
+      - application/json
+      description: Creates a tour together with its first draft version
+      parameters:
+      - description: App ID
+        format: uuid
+        in: query
+        name: appId
+        required: true
+        type: string
       - description: Tour object
         in: body
         name: tour
@@ -225,22 +696,219 @@ paths:
       responses:
         "201":
           description: Created
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-        "500":
-          description: Internal Server Error
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
       summary: Create a new tour
       tags:
       - Tours
+  /tours/{tourId}:
+    delete:
+      description: 'Soft delete: the tour stops resolving but its analytics history
+        survives'
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Archive a tour
+      tags:
+      - Tours
+    get:
+      description: Returns the tour with both its published and draft versions
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourCard'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Get a tour card
+      tags:
+      - Tours
+    patch:
+      consumes:
+      - application/json
+      description: Changes title, description, enabled or priority without creating
+        a version
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: patch
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourMetaPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Tour'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Update tour metadata
+      tags:
+      - Tours
+  /tours/{tourId}/analytics:
+    get:
+      description: Per-hint funnel for one version over one period
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Version ID, defaults to published
+        format: uuid
+        in: query
+        name: versionId
+        type: string
+      - description: Period start, RFC3339
+        in: query
+        name: from
+        type: string
+      - description: Period end, RFC3339
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Analytics'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Tour funnel and totals
+      tags:
+      - Analytics
+  /tours/{tourId}/draft:
+    patch:
+      consumes:
+      - application/json
+      description: Saves work in progress; validation is enforced at publish time,
+        not here
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Fields to change
+        in: body
+        name: patch
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.DraftPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Update the draft content
+      tags:
+      - Versions
+    post:
+      description: 'Entry point to editing: the published version itself is never
+        modified'
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Fork a draft from the published version
+      tags:
+      - Versions
   /tours/{tourId}/hints:
+    get:
+      description: Returns the hints of the tour's draft version, ordered by step
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+            type: array
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: List draft hints
+      tags:
+      - Hints
     post:
       consumes:
       - application/json
-      description: Creates a new hint for a specific tour
+      description: Appends a hint to the tour's draft version
       parameters:
       - description: Tour ID
         format: uuid
@@ -259,30 +927,210 @@ paths:
       responses:
         "201":
           description: Created
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-        "404":
-          description: Not Found
           schema:
             $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
         "409":
           description: Conflict
           schema:
             $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-      summary: Create a hint for a tour
+      summary: Create a hint
       tags:
       - Hints
+  /tours/{tourId}/hints/{hintId}:
+    delete:
+      description: Removes a hint from the draft and closes the gap in step numbering
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Hint ID
+        format: uuid
+        in: path
+        name: hintId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Delete a hint
+      tags:
+      - Hints
+    patch:
+      consumes:
+      - application/json
+      description: Edits a hint of the draft version; hints of published versions
+        are immutable
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Hint ID
+        format: uuid
+        in: path
+        name: hintId
+        required: true
+        type: string
+      - description: Hint object
+        in: body
+        name: hint
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Update a hint
+      tags:
+      - Hints
+  /tours/{tourId}/hints/order:
+    put:
+      consumes:
+      - application/json
+      description: Takes the full list of hint ids in their new order
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Ordered hint ids
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.ReorderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Hint'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Reorder hints
+      tags:
+      - Hints
+  /tours/{tourId}/publish:
+    post:
+      description: Archives the live version and promotes the draft, atomically
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Publish the draft
+      tags:
+      - Versions
+  /tours/{tourId}/rollback:
+    post:
+      consumes:
+      - application/json
+      description: Copies the chosen version into a new one and publishes it; history
+        is appended, never rewritten
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Target version
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_controllers.RollbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Roll back to an earlier version
+      tags:
+      - Versions
+  /tours/{tourId}/versions:
+    get:
+      description: Version history without hint bodies, newest first
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+            type: array
+      summary: List tour versions
+      tags:
+      - Versions
   /tours/published:
     get:
-      description: Returns published tours with their hints for a specific target
-        path
+      description: Returns published tours with their hints for a target path
       parameters:
+      - description: App ID
+        format: uuid
+        in: query
+        name: appId
+        required: true
+        type: string
       - description: Target path
         example: /dashboard
         in: query
@@ -300,10 +1148,6 @@ paths:
             type: array
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-        "500":
-          description: Internal Server Error
           schema:
             $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
       summary: Get published tours by path
@@ -326,4 +1170,28 @@ paths:
       summary: Get the current user
       tags:
       - Users
+  /versions/{versionId}:
+    get:
+      description: Returns a version with its hints, for diffing and preview
+      parameters:
+      - description: Version ID
+        format: uuid
+        in: path
+        name: versionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Get one version
+      tags:
+      - Versions
 swagger: "2.0"

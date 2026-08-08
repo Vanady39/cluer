@@ -17,8 +17,12 @@ type (
 	}
 )
 
-// Reasons carried as the Err of a controller-level error.
-var errMissingPath = errors.New("path query parameter is required")
+var (
+	errMissingPath   = errors.New("path query parameter is required")
+	errMissingAppId  = errors.New("appId query parameter is required")
+	errBadTimeFormat = errors.New("from and to must be RFC3339 timestamps")
+	errMissingAppKey = errors.New("X-App-Key header is required")
+)
 
 // ----------------------------- //
 // ----- Permissions Error ----- //

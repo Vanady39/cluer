@@ -1,14 +1,147 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Onboarding tours and listings API.",
-        "title": "Cluer",
+        "description": "Interactive onboarding platform: tours, immutable versions, resolve and analytics.",
+        "title": "Cluer Onboarding",
         "contact": {},
-        "version": "0.0.1"
+        "version": "0.1.0"
     },
     "host": "localhost:8080",
     "basePath": "/v1",
     "paths": {
+        "/apps": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Apps"
+                ],
+                "summary": "List consumer applications",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.App"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Issues the public key that goes into the SDK script tag",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Apps"
+                ],
+                "summary": "Register a consumer application",
+                "parameters": [
+                    {
+                        "description": "Application",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.CreateAppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.App"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/events": {
+            "post": {
+                "description": "Idempotent on event_key, so a retry after a dropped connection cannot double the metrics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Runtime"
+                ],
+                "summary": "Accept a batch of events",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application public key",
+                        "name": "X-App-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Event batch",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.EventBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.EventBatchResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Reports whether the process and its database are both usable",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Runtime"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.HealthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.HealthResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/listings": {
             "get": {
                 "description": "Returns every available listing",
@@ -35,9 +168,96 @@
                 }
             }
         },
-        "/tours": {
+        "/resolve": {
             "post": {
-                "description": "Creates a new onboarding tour draft",
+                "description": "The single request the SDK makes on init. Returns at most one tour, whole.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Runtime"
+                ],
+                "summary": "Resolve a tour for a subject",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Application public key",
+                        "name": "X-App-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Resolve context",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.ResolveRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.ResolveResult"
+                        }
+                    },
+                    "204": {
+                        "description": "Nothing to show"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours": {
+            "get": {
+                "description": "Returns every tour of an app with the status of its current version",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tours"
+                ],
+                "summary": "List tours",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "App ID",
+                        "name": "appId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a tour together with its first draft version",
                 "consumes": [
                     "application/json"
                 ],
@@ -50,6 +270,14 @@
                 "summary": "Create a new tour",
                 "parameters": [
                     {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "App ID",
+                        "name": "appId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
                         "description": "Tour object",
                         "name": "tour",
                         "in": "body",
@@ -61,7 +289,10 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created"
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -69,8 +300,8 @@
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
@@ -80,7 +311,7 @@
         },
         "/tours/published": {
             "get": {
-                "description": "Returns published tours with their hints for a specific target path",
+                "description": "Returns published tours with their hints for a target path",
                 "produces": [
                     "application/json"
                 ],
@@ -89,6 +320,14 @@
                 ],
                 "summary": "Get published tours by path",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "App ID",
+                        "name": "appId",
+                        "in": "query",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "example": "/dashboard",
@@ -113,9 +352,250 @@
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}": {
+            "get": {
+                "description": "Returns the tour with both its published and draft versions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tours"
+                ],
+                "summary": "Get a tour card",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourCard"
+                        }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Soft delete: the tour stops resolving but its analytics history survives",
+                "tags": [
+                    "Tours"
+                ],
+                "summary": "Archive a tour",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Changes title, description, enabled or priority without creating a version",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tours"
+                ],
+                "summary": "Update tour metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "patch",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourMetaPatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/analytics": {
+            "get": {
+                "description": "Per-hint funnel for one version over one period",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Tour funnel and totals",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID, defaults to published",
+                        "name": "versionId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Period start, RFC3339",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Period end, RFC3339",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Analytics"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/draft": {
+            "post": {
+                "description": "Entry point to editing: the published version itself is never modified",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versions"
+                ],
+                "summary": "Fork a draft from the published version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Saves work in progress; validation is enforced at publish time, not here",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versions"
+                ],
+                "summary": "Update the draft content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to change",
+                        "name": "patch",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.DraftPatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
@@ -124,8 +604,45 @@
             }
         },
         "/tours/{tourId}/hints": {
+            "get": {
+                "description": "Returns the hints of the tour's draft version, ordered by step",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "List draft hints",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
             "post": {
-                "description": "Creates a new hint for a specific tour",
+                "description": "Appends a hint to the tour's draft version",
                 "consumes": [
                     "application/json"
                 ],
@@ -135,7 +652,7 @@
                 "tags": [
                     "Hints"
                 ],
-                "summary": "Create a hint for a tour",
+                "summary": "Create a hint",
                 "parameters": [
                     {
                         "type": "string",
@@ -157,16 +674,13 @@
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created"
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
@@ -176,11 +690,271 @@
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/hints/order": {
+            "put": {
+                "description": "Takes the full list of hint ids in their new order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Reorder hints",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    {
+                        "description": "Ordered hint ids",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.ReorderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/hints/{hintId}": {
+            "delete": {
+                "description": "Removes a hint from the draft and closes the gap in step numbering",
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Delete a hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Hint ID",
+                        "name": "hintId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "Edits a hint of the draft version; hints of published versions are immutable",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Update a hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Hint ID",
+                        "name": "hintId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Hint object",
+                        "name": "hint",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/publish": {
+            "post": {
+                "description": "Archives the live version and promotes the draft, atomically",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versions"
+                ],
+                "summary": "Publish the draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/rollback": {
+            "post": {
+                "description": "Copies the chosen version into a new one and publishes it; history is appended, never rewritten",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versions"
+                ],
+                "summary": "Roll back to an earlier version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target version",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_controllers.RollbackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/tours/{tourId}/versions": {
+            "get": {
+                "description": "Version history without hint bodies, newest first",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versions"
+                ],
+                "summary": "List tour versions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                            }
                         }
                     }
                 }
@@ -211,20 +985,259 @@
                     }
                 }
             }
+        },
+        "/versions/{versionId}": {
+            "get": {
+                "description": "Returns a version with its hints, for diffing and preview",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versions"
+                ],
+                "summary": "Get one version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Version ID",
+                        "name": "versionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "github_com_Vanady39_cluer_internal_domains.Analytics": {
+            "type": "object",
+            "properties": {
+                "broken_selectors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "from": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "funnel": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.FunnelStep"
+                    }
+                },
+                "to": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "totals": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.AnalyticsTotals"
+                },
+                "tour_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "tour_version_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 7
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.AnalyticsTotals": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "integer",
+                    "example": 612
+                },
+                "completion_rate": {
+                    "type": "number",
+                    "example": 0.494
+                },
+                "dismissed": {
+                    "type": "integer",
+                    "example": 388
+                },
+                "goal_rate": {
+                    "type": "number",
+                    "example": 0.404
+                },
+                "goal_reached": {
+                    "type": "integer",
+                    "example": 501
+                },
+                "started": {
+                    "type": "integer",
+                    "example": 1240
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.App": {
+            "type": "object",
+            "properties": {
+                "allowed_origins": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "http://localhost:3000"
+                    ]
+                },
+                "archived_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Demo classifieds"
+                },
+                "public_key": {
+                    "type": "string",
+                    "example": "pk_demo_7f3a91c4b2e85d60"
+                }
+            }
+        },
         "github_com_Vanady39_cluer_internal_domains.Audience": {
             "type": "object",
             "properties": {
                 "max_shows": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 3
                 },
                 "only_new": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": false
                 },
                 "show_once": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.DraftPatch": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Audience"
+                },
+                "target_path": {
+                    "type": "string"
+                },
+                "trigger_type": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.EventBatchResult": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "duplicates": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rejected": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.EventType": {
+            "type": "string",
+            "enum": [
+                "tour_started",
+                "hint_shown",
+                "hint_completed",
+                "hint_skipped",
+                "selector_missing",
+                "tour_completed",
+                "tour_dismissed",
+                "goal_reached"
+            ],
+            "x-enum-varnames": [
+                "EventTourStarted",
+                "EventHintShown",
+                "EventHintCompleted",
+                "EventHintSkipped",
+                "EventSelectorMissing",
+                "EventTourCompleted",
+                "EventTourDismissed",
+                "EventGoalReached"
+            ]
+        },
+        "github_com_Vanady39_cluer_internal_domains.FunnelStep": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "integer",
+                    "example": 1105
+                },
+                "dropoff": {
+                    "type": "number",
+                    "example": 0.109
+                },
+                "hint_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "selector_missing": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "shown": {
+                    "type": "integer",
+                    "example": 1240
+                },
+                "skipped": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "step": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Начните здесь"
                 }
             }
         },
@@ -237,8 +1250,7 @@
                 },
                 "created_at": {
                     "type": "string",
-                    "format": "date-time",
-                    "example": "2026-08-05T12:00:00Z"
+                    "format": "date-time"
                 },
                 "expected_input": {
                     "type": "string",
@@ -246,6 +1258,7 @@
                 },
                 "id": {
                     "type": "string",
+                    "format": "uuid",
                     "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c"
                 },
                 "input_placeholder": {
@@ -284,14 +1297,13 @@
                     "type": "string",
                     "example": "Нажмите кнопку настроек"
                 },
-                "tour_id": {
+                "tour_version_id": {
                     "type": "string",
-                    "example": "01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0b"
+                    "format": "uuid"
                 },
                 "updated_at": {
                     "type": "string",
-                    "format": "date-time",
-                    "example": "2026-08-05T12:00:00Z"
+                    "format": "date-time"
                 },
                 "wait_for_selector": {
                     "type": "boolean",
@@ -320,20 +1332,47 @@
                 "PlacementRight"
             ]
         },
+        "github_com_Vanady39_cluer_internal_domains.ResolveResult": {
+            "type": "object",
+            "properties": {
+                "current_hint_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "tour": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
+                },
+                "tour_version_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 7
+                }
+            }
+        },
         "github_com_Vanady39_cluer_internal_domains.Tour": {
             "type": "object",
             "properties": {
+                "app_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
                 "audience": {
                     "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Audience"
                 },
                 "created_at": {
                     "type": "string",
-                    "format": "date-time",
-                    "example": "2026-08-05T12:00:00Z"
+                    "format": "date-time"
                 },
                 "description": {
                     "type": "string",
                     "example": "Тур по основным функциям дашборда"
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "example": true
                 },
                 "hints": {
                     "type": "array",
@@ -376,8 +1415,46 @@
                 },
                 "updated_at": {
                     "type": "string",
-                    "format": "date-time",
-                    "example": "2026-08-05T12:00:00Z"
+                    "format": "date-time"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 7
+                },
+                "version_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.TourCard": {
+            "type": "object",
+            "properties": {
+                "draft": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                },
+                "published": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourVersion"
+                },
+                "tour": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Tour"
+                }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.TourMetaPatch": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "priority": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -393,6 +1470,67 @@
                 "TourPublished",
                 "TourArchived"
             ]
+        },
+        "github_com_Vanady39_cluer_internal_domains.TourVersion": {
+            "type": "object",
+            "properties": {
+                "archived_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "audience": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Audience"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "hints": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.Hint"
+                    }
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "published_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TourStatus"
+                        }
+                    ],
+                    "example": "published"
+                },
+                "target_path": {
+                    "type": "string",
+                    "example": "/dashboard"
+                },
+                "tour_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "trigger_type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType"
+                        }
+                    ],
+                    "example": "on_load"
+                },
+                "version": {
+                    "type": "integer",
+                    "example": 7
+                }
+            }
         },
         "github_com_Vanady39_cluer_internal_domains.TriggerType": {
             "type": "string",
@@ -471,6 +1609,135 @@
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.CreateAppRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "allowed_origins": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.EventBatchRequest": {
+            "type": "object",
+            "required": [
+                "events",
+                "session_id",
+                "subject_id"
+            ],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_controllers.EventItem"
+                    }
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "subject_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.EventItem": {
+            "type": "object",
+            "required": [
+                "event_key",
+                "type"
+            ],
+            "properties": {
+                "event_key": {
+                    "type": "string"
+                },
+                "hint_id": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "tour_id": {
+                    "type": "string"
+                },
+                "tour_version_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.EventType"
+                }
+            }
+        },
+        "internal_controllers.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "db": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "internal_controllers.ReorderRequest": {
+            "type": "object",
+            "required": [
+                "hint_ids"
+            ],
+            "properties": {
+                "hint_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_controllers.ResolveRequest": {
+            "type": "object",
+            "required": [
+                "subject_id"
+            ],
+            "properties": {
+                "props": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "subject_id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_controllers.RollbackRequest": {
+            "type": "object",
+            "required": [
+                "to_version_id"
+            ],
+            "properties": {
+                "to_version_id": {
                     "type": "string"
                 }
             }

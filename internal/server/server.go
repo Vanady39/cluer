@@ -6,6 +6,7 @@ import (
 
 	"github.com/Vanady39/cluer/internal/config"
 	"github.com/Vanady39/cluer/internal/controllers"
+	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/Vanady39/cluer/internal/server/middlewares"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -26,49 +27,77 @@ type (
 
 	CreateStruct struct {
 		Logger            *zerolog.Logger
-		ListingController controllers.ListingControllerInterface
-		UserController    controllers.UserControllerInterface
+		RuntimeDomain     domains.RuntimeDomainInterface
 		TourController    controllers.TourControllerInterface
 		HintController    controllers.HintControllerInterface
+		RuntimeController controllers.RuntimeControllerInterface
 	}
 )
 
-// NewServer creates new entity of Server
 func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
-	// Set gin mode
 	gin.SetMode(gin.ReleaseMode)
 
-	// Create a new Gin router instance
 	router := gin.New()
 
-	// Add middlewares
 	router.Use(
 		gin.Logger(),
 		gin.Recovery(),
 		middlewares.ErrorHandler(createStruct.Logger),
 	)
 
-	// If debug is enabled add swagger endpoint
 	AddDocsForDebugVersion(router)
 
-	// Setup routes
 	v1 := router.Group("/v1")
 	{
-		v1.GET("/listings", createStruct.ListingController.GetListings)
+		v1.GET("/health", createStruct.RuntimeController.Health)
 
-		users := v1.Group("/users")
+		runtime := v1.Group("")
+		runtime.Use(
+			middlewares.RuntimeCORS(),
+			middlewares.AppKeyAuth(createStruct.RuntimeDomain),
+		)
 		{
-			users.GET("/me", createStruct.UserController.GetCurrentUser)
+			runtime.POST("/resolve", createStruct.RuntimeController.Resolve)
+			runtime.POST("/events", createStruct.RuntimeController.Ingest)
+			runtime.OPTIONS("/resolve", func(*gin.Context) {})
+			runtime.OPTIONS("/events", func(*gin.Context) {})
 		}
 
-		tours := v1.Group("/tours")
+		admin := v1.Group("")
 		{
-			tours.POST("", createStruct.TourController.Create)
-			tours.GET("/published", createStruct.TourController.GetPublished)
+			admin.POST("/apps", createStruct.RuntimeController.CreateApp)
+			admin.GET("/apps", createStruct.RuntimeController.ListApps)
 
-			tourID := tours.Group("/:tourId")
+			admin.GET("/versions/:versionId", createStruct.TourController.GetVersion)
+
+			tours := admin.Group("/tours")
 			{
-				tourID.POST("/hints", createStruct.HintController.Create)
+				tours.POST("", createStruct.TourController.Create)
+				tours.GET("", createStruct.TourController.List)
+				tours.GET("/published", createStruct.TourController.GetPublished)
+
+				tourID := tours.Group("/:tourId")
+				{
+					tourID.GET("", createStruct.TourController.Card)
+					tourID.PATCH("", createStruct.TourController.UpdateMeta)
+					tourID.DELETE("", createStruct.TourController.Archive)
+
+					tourID.GET("/versions", createStruct.TourController.ListVersions)
+					tourID.POST("/draft", createStruct.TourController.CreateDraft)
+					tourID.PATCH("/draft", createStruct.TourController.UpdateDraft)
+					tourID.POST("/publish", createStruct.TourController.Publish)
+					tourID.POST("/rollback", createStruct.TourController.Rollback)
+					tourID.GET("/analytics", createStruct.RuntimeController.Analytics)
+
+					hints := tourID.Group("/hints")
+					{
+						hints.POST("", createStruct.HintController.Create)
+						hints.GET("", createStruct.HintController.List)
+						hints.PUT("/order", createStruct.HintController.Reorder)
+						hints.PATCH("/:hintId", createStruct.HintController.Update)
+						hints.DELETE("/:hintId", createStruct.HintController.Delete)
+					}
+				}
 			}
 		}
 	}
@@ -86,8 +115,6 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 
 func (s *Server) Start() error {
 	s.logger.Info().Str("address", s.httpServer.Addr).Msg("Starting server...")
-	// ListenAndServe blocks until shutdown, so there is nothing to log on the way
-	// out beyond a genuine failure.
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		s.logger.Error().Err(err).Msg("Server failed to start")
 		return err
