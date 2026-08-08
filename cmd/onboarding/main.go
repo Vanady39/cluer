@@ -32,9 +32,6 @@ func main() {
 		defaultLogger.Fatal().Msg("postgres config is required for the onboarding service")
 	}
 
-	// User authentication is deferred: every caller is treated as the same
-	// mocked administrator. Logged at startup so that an open deployment is
-	// visible in the logs rather than discovered.
 	defaultLogger.Warn().Msg("Admin endpoints are unauthenticated: acting as a single mocked user")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -42,9 +39,6 @@ func main() {
 
 	dsn := cfg.PostgresConfig.GetDSN()
 
-	// Migrations run before the pool is used, so the service either starts on a
-	// current schema or does not start at all. A half-migrated database that
-	// serves traffic is worse than an outage: it fails on some rows only.
 	if err := storage.Migrate(dsn, defaultLogger); err != nil {
 		defaultLogger.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Migrations failed")
 	}

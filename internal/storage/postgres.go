@@ -1,4 +1,3 @@
-// Package storage owns the database connection and schema lifecycle.
 package storage
 
 import (
@@ -13,14 +12,10 @@ import (
 	migratepgx "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx/v5" database/sql driver
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
 )
 
-// Connect opens a pooled connection and blocks until the database answers a
-// ping or the deadline passes. Postgres in docker-compose accepts TCP a second
-// or two before it is ready to serve queries, so a single attempt at startup is
-// a coin flip; retrying here is cheaper than a restart loop on the container.
 func Connect(ctx context.Context, dsn string, logger *zerolog.Logger) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -57,7 +52,6 @@ func Connect(ctx context.Context, dsn string, logger *zerolog.Logger) (*pgxpool.
 	}
 }
 
-// Migrate applies every pending migration embedded in the binary.
 func Migrate(dsn string, logger *zerolog.Logger) error {
 	source, err := iofs.New(migrations.FS, ".")
 	if err != nil {
@@ -80,8 +74,6 @@ func Migrate(dsn string, logger *zerolog.Logger) error {
 		return fmt.Errorf("build migrator: %w", err)
 	}
 
-	// ErrNoChange means the schema is already current, which is the normal case
-	// on every restart after the first.
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("apply migrations: %w", err)
 	}

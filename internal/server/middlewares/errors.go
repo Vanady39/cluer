@@ -8,6 +8,8 @@ import (
 
 var errUnauthorized = errors.New("missing or invalid admin credentials")
 
+var ErrEmptyAdminToken = errors.New("admin token must not be empty")
+
 // Authorization error
 type (
 	AuthHeaderError struct {

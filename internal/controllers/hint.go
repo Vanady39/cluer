@@ -21,7 +21,7 @@ type (
 		Reorder(ctx *gin.Context)
 	}
 
-	reorderRequest struct {
+	ReorderRequest struct {
 		HintIds []uuid.UUID `json:"hint_ids" binding:"required"`
 	}
 )
@@ -40,8 +40,8 @@ func NewHintController(domain domains.HintDomainInterface) *HintController {
 //	@Param			tourId	path		string			true	"Tour ID"	format(uuid)
 //	@Param			hint	body		domains.Hint	true	"Hint object"
 //	@Success		201		{object}	domains.Hint
-//	@Failure		400		{object}	models.ErrorEnvelope
-//	@Failure		409		{object}	models.ErrorEnvelope
+//	@Failure		400		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/hints [post]
 func (hc *HintController) Create(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -74,7 +74,7 @@ func (hc *HintController) Create(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			tourId	path		string	true	"Tour ID"	format(uuid)
 //	@Success		200		{array}		domains.Hint
-//	@Failure		409		{object}	models.ErrorEnvelope
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/hints [get]
 func (hc *HintController) List(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -102,7 +102,7 @@ func (hc *HintController) List(ctx *gin.Context) {
 //	@Param			hintId	path		string			true	"Hint ID"	format(uuid)
 //	@Param			hint	body		domains.Hint	true	"Hint object"
 //	@Success		200		{object}	domains.Hint
-//	@Failure		409		{object}	models.ErrorEnvelope
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/hints/{hintId} [patch]
 func (hc *HintController) Update(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -138,7 +138,7 @@ func (hc *HintController) Update(ctx *gin.Context) {
 //	@Param			tourId	path	string	true	"Tour ID"	format(uuid)
 //	@Param			hintId	path	string	true	"Hint ID"	format(uuid)
 //	@Success		204		"No Content"
-//	@Failure		404		{object}	models.ErrorEnvelope
+//	@Failure		404		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/hints/{hintId} [delete]
 func (hc *HintController) Delete(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -167,9 +167,9 @@ func (hc *HintController) Delete(ctx *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			tourId	path		string						true	"Tour ID"	format(uuid)
-//	@Param			body	body		controllers.reorderRequest	true	"Ordered hint ids"
+//	@Param			body	body		controllers.ReorderRequest	true	"Ordered hint ids"
 //	@Success		200		{array}		domains.Hint
-//	@Failure		400		{object}	models.ErrorEnvelope
+//	@Failure		400		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/hints/order [put]
 func (hc *HintController) Reorder(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -178,7 +178,7 @@ func (hc *HintController) Reorder(ctx *gin.Context) {
 		return
 	}
 
-	req := new(reorderRequest)
+	req := new(ReorderRequest)
 	if err := ctx.ShouldBindJSON(req); err != nil {
 		ctx.Error(&BindingError{Err: err, Zone: Body, Code: http.StatusBadRequest})
 		return

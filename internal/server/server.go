@@ -34,16 +34,6 @@ type (
 	}
 )
 
-// NewServer wires the routes.
-//
-// The admin group is currently open: authentication is deliberately deferred and
-// everything acts as a single mocked user. The grouping below is kept anyway, so
-// that switching it back on is one middleware line rather than a reshuffle of
-// the route tree.
-//
-// This is fine for local development and is not fine anywhere else: /v1/tours
-// can publish, roll back and archive, so an open deployment lets anyone switch
-// off every tour in production.
 func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 	gin.SetMode(gin.ReleaseMode)
 
@@ -61,7 +51,6 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 	{
 		v1.GET("/health", createStruct.RuntimeController.Health)
 
-		// ---- runtime: the SDK, authenticated by the app's public key ----
 		runtime := v1.Group("")
 		runtime.Use(
 			middlewares.RuntimeCORS(),
@@ -74,8 +63,6 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 			runtime.OPTIONS("/events", func(*gin.Context) {})
 		}
 
-		// ---- admin: everything that can change what is live ----
-		// TODO: re-enable middlewares.AdminAuth here once auth lands.
 		admin := v1.Group("")
 		{
 			admin.POST("/apps", createStruct.RuntimeController.CreateApp)
@@ -128,8 +115,6 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 
 func (s *Server) Start() error {
 	s.logger.Info().Str("address", s.httpServer.Addr).Msg("Starting server...")
-	// ListenAndServe blocks until shutdown, so there is nothing to log on the way
-	// out beyond a genuine failure.
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		s.logger.Error().Err(err).Msg("Server failed to start")
 		return err

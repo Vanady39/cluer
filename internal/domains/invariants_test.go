@@ -8,11 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The checks below cover the rules the whole design rests on. They are pure
-// functions on purpose: the invariants that need a database to break — one
-// published version per tour, frozen bodies — are enforced by the schema and
-// are verified against a real Postgres, not mocked here.
-
 func TestMatchPath(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -28,8 +23,6 @@ func TestMatchPath(t *testing.T) {
 		{"префикс не ловит чужое", "/additem*", "/profile", false},
 		{"суффикс со звёздочкой", "*/edit", "/items/42/edit", true},
 		{"звёздочка в середине", "/items/*/edit", "/items/42/edit", true},
-		// Админ, написавший /dashboard, имеет в виду страницу, а не её
-		// отсутствие query-параметров.
 		{"query игнорируется, если не упомянут", "/dashboard", "/dashboard?tab=stats", true},
 		{"query учитывается, если упомянут", "/dashboard?tab=stats", "/dashboard?tab=stats", true},
 		{"пустой паттерн не ловит ничего", "", "/dashboard", false},
@@ -43,8 +36,6 @@ func TestMatchPath(t *testing.T) {
 }
 
 func TestPathFromURL(t *testing.T) {
-	// Хост намеренно отбрасывается: один и тот же тур должен работать
-	// на localhost, стенде и проде без правки паттерна.
 	assert.Equal(t, "/additem?cat=1", PathFromURL("https://demo.local/additem?cat=1"))
 	assert.Equal(t, "/dashboard", PathFromURL("http://localhost:3000/dashboard"))
 	assert.Equal(t, "/", PathFromURL("https://demo.local"))
@@ -72,7 +63,6 @@ func TestValidateForPublish(t *testing.T) {
 	})
 
 	t.Run("дыра в нумерации ловится", func(t *testing.T) {
-		// Шаги 1 и 3: SDK остановится на дыре, и хвост тура никто не увидит.
 		err := validateForPublish(version(), []Hint{validHint(1), validHint(3)})
 		require.Error(t, err)
 		assert.Contains(t, detailPaths(t, err), "hints")
@@ -100,7 +90,6 @@ func TestValidateForPublish(t *testing.T) {
 		broken := Hint{Step: 1}
 		err := validateForPublish(&TourVersion{}, []Hint{broken})
 		require.Error(t, err)
-		// Заставлять админа пересохранять ради следующей ошибки — плохой размен.
 		assert.GreaterOrEqual(t, len(detailPaths(t, err)), 4)
 	})
 
@@ -109,7 +98,12 @@ func TestValidateForPublish(t *testing.T) {
 		var ve *ValidationError
 		require.ErrorAs(t, err, &ve)
 		assert.Equal(t, 422, ve.StatusCode())
-		assert.Equal(t, "VALIDATION_FAILED", ve.Code())
+
+		body := ve.ToHTTPError()
+		assert.Equal(t, "Tour cannot be published", body.Message)
+		for _, d := range ve.Details {
+			assert.Contains(t, body.Error, d.Path)
+		}
 	})
 }
 
@@ -196,7 +190,6 @@ func TestValidateEvent(t *testing.T) {
 	})
 
 	t.Run("событие без версии отвергается", func(t *testing.T) {
-		// Без версии воронка смешает показы до и после правки текстов.
 		assert.Error(t, validateEvent(&Event{EventKey: "k", Type: EventTourStarted}))
 	})
 
@@ -207,15 +200,58 @@ func TestValidateEvent(t *testing.T) {
 	})
 
 	t.Run("событие без ключа отвергается", func(t *testing.T) {
-		// event_key — основа идемпотентности; без него ретрай удвоит метрики.
 		assert.Error(t, validateEvent(&Event{Type: EventTourStarted, TourVersionId: versionId}))
 	})
 }
 
+func TestValidateEventScope(t *testing.T) {
+	var (
+		appA      = uuid.New()
+		appB      = uuid.New()
+		tourId    = uuid.New()
+		hintId    = uuid.New()
+		otherHint = uuid.New()
+	)
+
+	scope := func() *eventScope {
+		return &eventScope{
+			TourId: tourId,
+			AppId:  appA,
+			Hints:  map[uuid.UUID]struct{}{hintId: {}},
+		}
+	}
+
+	t.Run("своё приложение, свой тур, своя подсказка", func(t *testing.T) {
+		assert.NoError(t, validateEventScope(
+			&Event{TourId: tourId, HintId: &hintId}, appA, scope()))
+	})
+
+	t.Run("чужое приложение отвергается", func(t *testing.T) {
+		err := validateEventScope(&Event{TourId: tourId}, appB, scope())
+		assert.ErrorIs(t, err, ErrVersionForeignApp)
+	})
+
+	t.Run("пустой tour_id отвергается", func(t *testing.T) {
+		err := validateEventScope(&Event{TourId: uuid.Nil}, appA, scope())
+		assert.ErrorIs(t, err, ErrTourRequired)
+	})
+
+	t.Run("версия из другого тура отвергается", func(t *testing.T) {
+		err := validateEventScope(&Event{TourId: uuid.New()}, appA, scope())
+		assert.ErrorIs(t, err, ErrTourVersionMismatch)
+	})
+
+	t.Run("подсказка не из этой версии отвергается", func(t *testing.T) {
+		err := validateEventScope(&Event{TourId: tourId, HintId: &otherHint}, appA, scope())
+		assert.ErrorIs(t, err, ErrHintNotInVersion)
+	})
+
+	t.Run("событие уровня тура без подсказки проходит", func(t *testing.T) {
+		assert.NoError(t, validateEventScope(&Event{TourId: tourId}, appA, scope()))
+	})
+}
+
 func TestEventTypeTourLevel(t *testing.T) {
-	// goal_reached учитывается отдельно от tour_completed: пользователь может
-	// прокликать все подсказки и не опубликовать объявление. Слить их значит
-	// заставить метрику измерять саму себя.
 	assert.True(t, EventGoalReached.TourLevel())
 	assert.True(t, EventTourCompleted.TourLevel())
 	assert.NotEqual(t, EventGoalReached, EventTourCompleted)

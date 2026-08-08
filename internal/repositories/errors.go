@@ -8,19 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// PostgreSQL error codes we translate rather than pass through.
 const (
 	pgUniqueViolation     = "23505"
-	pgRestrictViolation   = "23001" // raised by the immutability triggers
+	pgRestrictViolation   = "23001"
 	pgForeignKeyViolation = "23503"
 )
 
-// wrap turns a driver error into something the HTTP layer can answer with.
-//
-// The immutability triggers raise 23001, and the partial unique indexes raise
-// 23505 when two publishes race. Both are meaningful outcomes, not internal
-// failures, and returning a raw driver message for either would tell the user
-// nothing and leak the schema at the same time.
 func wrap(err error, sentinel error, ref string, op domains.RepoOperation) error {
 	if err == nil {
 		return nil

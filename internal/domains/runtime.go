@@ -36,8 +36,6 @@ type (
 		SubjectProgress(ctx context.Context, appId uuid.UUID, subjectId string) (map[uuid.UUID]*Progress, error)
 		UpsertProgress(ctx context.Context, p *Progress) error
 
-		// InsertEvents is idempotent on (app_id, event_key) and applies the
-		// progress side effects in the same transaction.
 		InsertEvents(ctx context.Context, events []Event) (accepted, duplicates int, err error)
 		Funnel(ctx context.Context, versionId uuid.UUID, from, to time.Time) ([]FunnelStep, error)
 		Totals(ctx context.Context, versionId uuid.UUID, from, to time.Time) (AnalyticsTotals, error)
@@ -81,16 +79,6 @@ func (rd *RuntimeDomain) Ping(ctx context.Context) error {
 	return rd.runtime.Ping(ctx)
 }
 
-// Resolve answers "what do we show this user, here, right now" in one request.
-//
-// The whole tour goes back in that one response on purpose. Asking the backend
-// for each hint would put a 200-400ms round trip on every click, which reads as
-// lag, and a dropped connection would tear the onboarding in half. Sending it
-// whole means a dropped connection costs analytics, not the onboarding itself.
-//
-// At most one tour comes back. Two overlays on screen at the same time is
-// broken UX, so ties are resolved by priority and then age — deterministic, and
-// configurable from the admin panel.
 func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*ResolveResult, error) {
 	if req.SubjectId == "" {
 		return nil, logicErr(ErrSubjectRequired, "resolve", http.StatusBadRequest)
@@ -111,8 +99,6 @@ func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*Reso
 
 	path := PathFromURL(req.Url)
 
-	// Candidates arrive already ordered by priority DESC, created_at ASC, so the
-	// first survivor of the filters is the winner.
 	for _, tour := range candidates {
 		if !MatchPath(tour.TargetPath, path) {
 			continue
@@ -126,7 +112,6 @@ func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*Reso
 	return nil, nil
 }
 
-// start reads or creates the progress row and returns the tour to show.
 func (rd *RuntimeDomain) start(ctx context.Context, req ResolveRequest, tour *Tour, current *Progress) (*ResolveResult, error) {
 	hints, err := rd.hints.ListByVersion(ctx, tour.VersionId)
 	if err != nil {
@@ -149,11 +134,6 @@ func (rd *RuntimeDomain) start(ctx context.Context, req ResolveRequest, tour *To
 		}
 
 	case current.TourVersionId != tour.VersionId:
-		// The subject was mid-way through a version that is no longer published.
-		// The position is not carried over: hint ids in the new version are
-		// different rows entirely, and guessing an equivalent would produce
-		// events that belong to no version anyone ever saw. Starting over is the
-		// honest option.
 		current = &Progress{
 			AppId:         req.AppId,
 			SubjectId:     req.SubjectId,
@@ -184,9 +164,6 @@ func (rd *RuntimeDomain) start(ctx context.Context, req ResolveRequest, tour *To
 	}, nil
 }
 
-// matchAudience evaluates targeting on the backend. It is not sent to the
-// browser to be evaluated there, because targeting rules in the browser are
-// targeting rules the browser can rewrite.
 func matchAudience(a Audience, props map[string]any, p *Progress) bool {
 	if a.OnlyNew && !boolProp(props, "isNewUser") {
 		return false
@@ -212,13 +189,6 @@ func boolProp(props map[string]any, key string) bool {
 	return ok && b
 }
 
-// Ingest accepts a batch of events.
-//
-// Each event is checked individually and a bad one is counted in Rejected
-// instead of failing the batch: the SDK sends up to fifty at a time, and one
-// malformed entry from an older client version must not discard the other
-// forty-nine. This is also why the event vocabulary is not a CHECK constraint —
-// a constraint violation would take the whole transaction with it.
 func (rd *RuntimeDomain) Ingest(
 	ctx context.Context,
 	appId uuid.UUID,
@@ -238,6 +208,7 @@ func (rd *RuntimeDomain) Ingest(
 
 	result := &EventBatchResult{}
 	valid := make([]Event, 0, len(events))
+	scopes := make(map[uuid.UUID]*eventScope)
 
 	for i := range events {
 		e := events[i]
@@ -252,10 +223,23 @@ func (rd *RuntimeDomain) Ingest(
 		}
 
 		if err := validateEvent(&e); err != nil {
-			result.Rejected++
-			result.Errors = append(result.Errors, err.Error())
+			result.reject(err)
 			continue
 		}
+
+		scope, err := rd.scopeOf(ctx, scopes, e.TourVersionId)
+		if err != nil {
+			if IsNotFound(err) {
+				result.reject(ErrVersionNotFound)
+				continue
+			}
+			return nil, err
+		}
+		if err := validateEventScope(&e, appId, scope); err != nil {
+			result.reject(err)
+			continue
+		}
+
 		valid = append(valid, e)
 	}
 
@@ -271,18 +255,56 @@ func (rd *RuntimeDomain) Ingest(
 	return result, nil
 }
 
+type eventScope struct {
+	TourId uuid.UUID
+	AppId  uuid.UUID
+	Hints  map[uuid.UUID]struct{}
+}
+
+func (rd *RuntimeDomain) scopeOf(
+	ctx context.Context,
+	cache map[uuid.UUID]*eventScope,
+	versionId uuid.UUID,
+) (*eventScope, error) {
+	if cached, seen := cache[versionId]; seen {
+		if cached == nil {
+			return nil, NotFound(ErrVersionNotFound, versionId.String())
+		}
+		return cached, nil
+	}
+
+	tourId, appId, err := rd.tours.VersionOwner(ctx, versionId)
+	if err != nil {
+		if IsNotFound(err) {
+			cache[versionId] = nil
+		}
+		return nil, err
+	}
+
+	hints, err := rd.hints.ListByVersion(ctx, versionId)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make(map[uuid.UUID]struct{}, len(hints))
+	for _, h := range hints {
+		ids[h.Id] = struct{}{}
+	}
+
+	scope := &eventScope{TourId: tourId, AppId: appId, Hints: ids}
+	cache[versionId] = scope
+	return scope, nil
+}
+
 func validateEvent(e *Event) error {
 	if e.EventKey == "" {
-		return ErrEmptyBatch
+		return ErrEventKeyRequired
 	}
 	if !e.Type.Valid() {
 		return ErrUnknownEventType
 	}
 	if e.TourVersionId == uuid.Nil {
-		// Without the version an event is unusable: impressions from before and
-		// after an edit would land in the same bucket with nothing to tell them
-		// apart. This is the one rule the analytics rest on.
-		return ErrHintIdMismatch
+		return ErrVersionRequired
 	}
 	if e.Type.TourLevel() != (e.HintId == nil) {
 		return ErrHintIdMismatch
@@ -290,7 +312,24 @@ func validateEvent(e *Event) error {
 	return nil
 }
 
-// Analytics builds the funnel for one version over one period.
+func validateEventScope(e *Event, appId uuid.UUID, scope *eventScope) error {
+	if scope.AppId != appId {
+		return ErrVersionForeignApp
+	}
+	if e.TourId == uuid.Nil {
+		return ErrTourRequired
+	}
+	if e.TourId != scope.TourId {
+		return ErrTourVersionMismatch
+	}
+	if e.HintId != nil {
+		if _, ok := scope.Hints[*e.HintId]; !ok {
+			return ErrHintNotInVersion
+		}
+	}
+	return nil
+}
+
 func (rd *RuntimeDomain) Analytics(
 	ctx context.Context,
 	tourId, versionId uuid.UUID,
@@ -335,8 +374,6 @@ func (rd *RuntimeDomain) Analytics(
 		if funnel[i].Shown > 0 {
 			funnel[i].Dropoff = round3(float64(funnel[i].Shown-funnel[i].Completed) / float64(funnel[i].Shown))
 		}
-		// A missing anchor is a product signal, not a debug line: it means the
-		// host's markup moved and the tour has quietly stopped working.
 		if funnel[i].SelectorMissing > 0 {
 			broken = append(broken, funnel[i].HintId)
 		}

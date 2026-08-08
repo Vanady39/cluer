@@ -23,35 +23,35 @@ type (
 		ListApps(ctx *gin.Context)
 	}
 
-	resolveRequest struct {
+	ResolveRequest struct {
 		Url       string         `json:"url"`
 		SubjectId string         `json:"subject_id" binding:"required"`
 		SessionId string         `json:"session_id"`
 		Props     map[string]any `json:"props"`
 	}
 
-	eventRequest struct {
-		EventKey      string           `json:"event_key" binding:"required"`
+	EventItem struct {
+		EventKey      string            `json:"event_key" binding:"required"`
 		Type          domains.EventType `json:"type" binding:"required"`
-		TourId        uuid.UUID        `json:"tour_id"`
-		TourVersionId uuid.UUID        `json:"tour_version_id"`
-		HintId        *uuid.UUID       `json:"hint_id"`
-		OccurredAt    *time.Time       `json:"occurred_at"`
-		Payload       map[string]any   `json:"payload"`
+		TourId        uuid.UUID         `json:"tour_id"`
+		TourVersionId uuid.UUID         `json:"tour_version_id"`
+		HintId        *uuid.UUID        `json:"hint_id"`
+		OccurredAt    *time.Time        `json:"occurred_at"`
+		Payload       map[string]any    `json:"payload"`
 	}
 
-	eventBatchRequest struct {
-		SubjectId string         `json:"subject_id" binding:"required"`
-		SessionId string         `json:"session_id" binding:"required"`
-		Events    []eventRequest `json:"events" binding:"required"`
+	EventBatchRequest struct {
+		SubjectId string      `json:"subject_id" binding:"required"`
+		SessionId string      `json:"session_id" binding:"required"`
+		Events    []EventItem `json:"events" binding:"required"`
 	}
 
-	createAppRequest struct {
+	CreateAppRequest struct {
 		Name           string   `json:"name" binding:"required"`
 		AllowedOrigins []string `json:"allowed_origins"`
 	}
 
-	healthResponse struct {
+	HealthResponse struct {
 		Status string `json:"status" example:"ok"`
 		DB     string `json:"db" example:"ok"`
 	}
@@ -69,10 +69,10 @@ func NewRuntimeController(domain domains.RuntimeDomainInterface) *RuntimeControl
 //	@Accept			json
 //	@Produce		json
 //	@Param			X-App-Key	header		string							true	"Application public key"
-//	@Param			body		body		controllers.resolveRequest	true	"Resolve context"
+//	@Param			body		body		controllers.ResolveRequest	true	"Resolve context"
 //	@Success		200			{object}	domains.ResolveResult
 //	@Success		204			"Nothing to show"
-//	@Failure		401			{object}	models.ErrorEnvelope
+//	@Failure		401			{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/resolve [post]
 func (rc *RuntimeController) Resolve(ctx *gin.Context) {
 	appId, err := appIdFromContext(ctx)
@@ -81,7 +81,7 @@ func (rc *RuntimeController) Resolve(ctx *gin.Context) {
 		return
 	}
 
-	req := new(resolveRequest)
+	req := new(ResolveRequest)
 	if err := ctx.ShouldBindJSON(req); err != nil {
 		ctx.Error(&BindingError{Err: err, Zone: Body, Code: http.StatusBadRequest})
 		return
@@ -99,8 +99,6 @@ func (rc *RuntimeController) Resolve(ctx *gin.Context) {
 		return
 	}
 
-	// Nothing to show is the expected outcome most of the time, not a failure:
-	// the SDK runs on every page load and most pages have no onboarding.
 	if result == nil {
 		ctx.Status(http.StatusNoContent)
 		return
@@ -116,9 +114,9 @@ func (rc *RuntimeController) Resolve(ctx *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			X-App-Key	header		string							true	"Application public key"
-//	@Param			body		body		controllers.eventBatchRequest	true	"Event batch"
+//	@Param			body		body		controllers.EventBatchRequest	true	"Event batch"
 //	@Success		202			{object}	domains.EventBatchResult
-//	@Failure		400			{object}	models.ErrorEnvelope
+//	@Failure		400			{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/events [post]
 func (rc *RuntimeController) Ingest(ctx *gin.Context) {
 	appId, err := appIdFromContext(ctx)
@@ -127,7 +125,7 @@ func (rc *RuntimeController) Ingest(ctx *gin.Context) {
 		return
 	}
 
-	req := new(eventBatchRequest)
+	req := new(EventBatchRequest)
 	if err := ctx.ShouldBindJSON(req); err != nil {
 		ctx.Error(&BindingError{Err: err, Zone: Body, Code: http.StatusBadRequest})
 		return
@@ -163,17 +161,15 @@ func (rc *RuntimeController) Ingest(ctx *gin.Context) {
 //	@Description	Reports whether the process and its database are both usable
 //	@Tags			Runtime
 //	@Produce		json
-//	@Success		200	{object}	controllers.healthResponse
-//	@Failure		503	{object}	controllers.healthResponse
+//	@Success		200	{object}	controllers.HealthResponse
+//	@Failure		503	{object}	controllers.HealthResponse
 //	@Router			/health [get]
 func (rc *RuntimeController) Health(ctx *gin.Context) {
-	// Pinging the database matters: a process that answers while its database is
-	// gone is exactly the state a health check exists to catch.
 	if err := rc.domain.Ping(ctx.Request.Context()); err != nil {
-		ctx.JSON(http.StatusServiceUnavailable, healthResponse{Status: "degraded", DB: "down"})
+		ctx.JSON(http.StatusServiceUnavailable, HealthResponse{Status: "degraded", DB: "down"})
 		return
 	}
-	ctx.JSON(http.StatusOK, healthResponse{Status: "ok", DB: "ok"})
+	ctx.JSON(http.StatusOK, HealthResponse{Status: "ok", DB: "ok"})
 }
 
 // Analytics godoc
@@ -187,7 +183,7 @@ func (rc *RuntimeController) Health(ctx *gin.Context) {
 //	@Param			from		query		string	false	"Period start, RFC3339"
 //	@Param			to			query		string	false	"Period end, RFC3339"
 //	@Success		200			{object}	domains.Analytics
-//	@Failure		404			{object}	models.ErrorEnvelope
+//	@Failure		404			{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/analytics [get]
 func (rc *RuntimeController) Analytics(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -221,12 +217,12 @@ func (rc *RuntimeController) Analytics(ctx *gin.Context) {
 //	@Tags			Apps
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		controllers.createAppRequest	true	"Application"
+//	@Param			body	body		controllers.CreateAppRequest	true	"Application"
 //	@Success		201		{object}	domains.App
-//	@Failure		400		{object}	models.ErrorEnvelope
+//	@Failure		400		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/apps [post]
 func (rc *RuntimeController) CreateApp(ctx *gin.Context) {
-	req := new(createAppRequest)
+	req := new(CreateAppRequest)
 	if err := ctx.ShouldBindJSON(req); err != nil {
 		ctx.Error(&BindingError{Err: err, Zone: Body, Code: http.StatusBadRequest})
 		return
@@ -259,7 +255,6 @@ func (rc *RuntimeController) ListApps(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, apps)
 }
 
-// appIdFromContext reads what the X-App-Key middleware resolved.
 func appIdFromContext(ctx *gin.Context) (uuid.UUID, error) {
 	value, ok := ctx.Get("app_id")
 	if !ok {

@@ -8,9 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// pathUUID reads a UUID from the route. A malformed id is a client mistake, not
-// a missing entity, so it answers 400 rather than letting the repository return
-// a confusing 404.
 func pathUUID(ctx *gin.Context, name string) (uuid.UUID, error) {
 	id, err := uuid.Parse(ctx.Param(name))
 	if err != nil {
@@ -31,8 +28,6 @@ func requiredUUIDQuery(ctx *gin.Context, name string) (uuid.UUID, error) {
 	return id, nil
 }
 
-// optionalUUIDQuery returns uuid.Nil when the parameter is absent, which callers
-// read as "use the default".
 func optionalUUIDQuery(ctx *gin.Context, name string) (uuid.UUID, error) {
 	raw := ctx.Query(name)
 	if raw == "" {
@@ -45,11 +40,6 @@ func optionalUUIDQuery(ctx *gin.Context, name string) (uuid.UUID, error) {
 	return id, nil
 }
 
-// timeRange reads the reporting period, defaulting to the last 30 days.
-//
-// The period filters received_at rather than occurred_at: client clocks can be
-// skewed by hours, and a report "for yesterday" built on them would quietly
-// include or drop the wrong sessions.
 func timeRange(ctx *gin.Context) (time.Time, time.Time, error) {
 	to := time.Now().UTC()
 	from := to.AddDate(0, 0, -30)

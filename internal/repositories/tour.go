@@ -22,9 +22,6 @@ const versionColumns = `id, tour_id, version, status, trigger_type, target_path,
 	audience_show_once, audience_max_shows, audience_only_new,
 	created_by, created_at, published_at, archived_at`
 
-// CreateWithDraft writes the tour and its first draft together. A tour with no
-// version is a state nothing downstream knows how to render, so it must not be
-// reachable even for the instant between two statements.
 func (tr *TourRepository) CreateWithDraft(ctx context.Context, t *domains.Tour) (*domains.Tour, error) {
 	tx, err := tr.pool.Begin(ctx)
 	if err != nil {
@@ -77,8 +74,6 @@ func (tr *TourRepository) GetById(ctx context.Context, id uuid.UUID) (*domains.T
 	return t, nil
 }
 
-// List projects each tour together with the version the admin cares about:
-// the published one if there is one, otherwise the newest.
 func (tr *TourRepository) List(ctx context.Context, appId uuid.UUID) ([]*domains.Tour, error) {
 	rows, err := tr.pool.Query(ctx, `
 		SELECT t.id, t.app_id, t.title, t.description, t.enabled, t.priority,
@@ -197,6 +192,20 @@ func (tr *TourRepository) GetVersion(ctx context.Context, versionId uuid.UUID) (
 	return v, nil
 }
 
+func (tr *TourRepository) VersionOwner(ctx context.Context, versionId uuid.UUID) (uuid.UUID, uuid.UUID, error) {
+	var tourId, appId uuid.UUID
+	err := tr.pool.QueryRow(ctx, `
+		SELECT v.tour_id, t.app_id
+		FROM tour_versions v
+		JOIN tours t ON t.id = v.tour_id
+		WHERE v.id = $1`, versionId,
+	).Scan(&tourId, &appId)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Retrieve)
+	}
+	return tourId, appId, nil
+}
+
 func (tr *TourRepository) ListVersions(ctx context.Context, tourId uuid.UUID) ([]*domains.TourVersion, error) {
 	rows, err := tr.pool.Query(ctx,
 		`SELECT `+versionColumns+` FROM tour_versions WHERE tour_id = $1 ORDER BY version DESC`, tourId)
@@ -250,8 +259,6 @@ func (tr *TourRepository) UpdateDraft(ctx context.Context, versionId uuid.UUID, 
 	}
 
 	args = append(args, versionId)
-	// The status guard is belt and braces next to the trigger, but it turns a
-	// race into an empty result instead of an exception.
 	query := fmt.Sprintf(
 		`UPDATE tour_versions SET %s WHERE id = $%d AND status = 'draft' RETURNING %s`,
 		strings.Join(set, ", "), len(args), versionColumns)
@@ -263,9 +270,6 @@ func (tr *TourRepository) UpdateDraft(ctx context.Context, versionId uuid.UUID, 
 	return v, nil
 }
 
-// CopyToDraft clones a version and its hint rows into a new draft. This is where
-// storing hints as rows costs more than a single JSON document would: the copy
-// is an extra statement instead of coming along for free.
 func (tr *TourRepository) CopyToDraft(ctx context.Context, tourId, sourceVersionId uuid.UUID) (*domains.TourVersion, error) {
 	tx, err := tr.pool.Begin(ctx)
 	if err != nil {
@@ -306,12 +310,6 @@ func (tr *TourRepository) CopyToDraft(ctx context.Context, tourId, sourceVersion
 	return v, nil
 }
 
-// Publish archives the live version and promotes the draft, atomically.
-//
-// The row lock is not optional. Without it two admins pressing Publish at the
-// same moment both pass the "is there a draft" check, and the second one dies
-// on the partial unique index with a raw driver error instead of a sensible
-// answer.
 func (tr *TourRepository) Publish(ctx context.Context, tourId uuid.UUID) (*domains.TourVersion, error) {
 	tx, err := tr.pool.Begin(ctx)
 	if err != nil {
@@ -346,8 +344,6 @@ func (tr *TourRepository) Publish(ctx context.Context, tourId uuid.UUID) (*domai
 	return v, nil
 }
 
-// ResolveCandidates returns enabled, non-archived tours that have a published
-// version, already ordered so the first match wins.
 func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID) ([]*domains.Tour, error) {
 	rows, err := tr.pool.Query(ctx, `
 		SELECT t.id, t.app_id, t.title, t.description, t.enabled, t.priority,
@@ -381,7 +377,6 @@ func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID
 	return tours, rows.Err()
 }
 
-// scanner is satisfied by both pgx.Row and pgx.Rows.
 type scanner interface {
 	Scan(dest ...any) error
 }

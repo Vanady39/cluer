@@ -29,7 +29,7 @@ type (
 		Rollback(ctx *gin.Context)
 	}
 
-	rollbackRequest struct {
+	RollbackRequest struct {
 		ToVersionId uuid.UUID `json:"to_version_id" binding:"required"`
 	}
 )
@@ -48,8 +48,8 @@ func NewTourController(domain domains.TourDomainInterface) *TourController {
 //	@Param			appId	query		string			true	"App ID"	format(uuid)
 //	@Param			tour	body		domains.Tour	true	"Tour object"
 //	@Success		201		{object}	domains.Tour
-//	@Failure		400		{object}	models.ErrorEnvelope
-//	@Failure		401		{object}	models.ErrorEnvelope
+//	@Failure		400		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
+//	@Failure		401		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours [post]
 func (tc *TourController) Create(ctx *gin.Context) {
 	appId, err := requiredUUIDQuery(ctx, "appId")
@@ -82,7 +82,7 @@ func (tc *TourController) Create(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			appId	query		string	true	"App ID"	format(uuid)
 //	@Success		200		{array}		domains.Tour
-//	@Failure		400		{object}	models.ErrorEnvelope
+//	@Failure		400		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours [get]
 func (tc *TourController) List(ctx *gin.Context) {
 	appId, err := requiredUUIDQuery(ctx, "appId")
@@ -107,7 +107,7 @@ func (tc *TourController) List(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			tourId	path		string	true	"Tour ID"	format(uuid)
 //	@Success		200		{object}	domains.TourCard
-//	@Failure		404		{object}	models.ErrorEnvelope
+//	@Failure		404		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId} [get]
 func (tc *TourController) Card(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -134,7 +134,7 @@ func (tc *TourController) Card(ctx *gin.Context) {
 //	@Param			tourId	path		string					true	"Tour ID"	format(uuid)
 //	@Param			patch	body		domains.TourMetaPatch	true	"Fields to change"
 //	@Success		200		{object}	domains.Tour
-//	@Failure		404		{object}	models.ErrorEnvelope
+//	@Failure		404		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId} [patch]
 func (tc *TourController) UpdateMeta(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -164,7 +164,7 @@ func (tc *TourController) UpdateMeta(ctx *gin.Context) {
 //	@Tags			Tours
 //	@Param			tourId	path	string	true	"Tour ID"	format(uuid)
 //	@Success		204		"No Content"
-//	@Failure		404		{object}	models.ErrorEnvelope
+//	@Failure		404		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId} [delete]
 func (tc *TourController) Archive(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -189,7 +189,7 @@ func (tc *TourController) Archive(ctx *gin.Context) {
 //	@Param			appId	query		string	true	"App ID"		format(uuid)
 //	@Param			path	query		string	true	"Target path"	example(/dashboard)
 //	@Success		200		{array}		domains.Tour
-//	@Failure		400		{object}	models.ErrorEnvelope
+//	@Failure		400		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/published [get]
 func (tc *TourController) GetPublished(ctx *gin.Context) {
 	appId, err := requiredUUIDQuery(ctx, "appId")
@@ -244,7 +244,7 @@ func (tc *TourController) ListVersions(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			versionId	path		string	true	"Version ID"	format(uuid)
 //	@Success		200			{object}	domains.TourVersion
-//	@Failure		404			{object}	models.ErrorEnvelope
+//	@Failure		404			{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/versions/{versionId} [get]
 func (tc *TourController) GetVersion(ctx *gin.Context) {
 	versionId, err := pathUUID(ctx, "versionId")
@@ -269,7 +269,7 @@ func (tc *TourController) GetVersion(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			tourId	path		string	true	"Tour ID"	format(uuid)
 //	@Success		201		{object}	domains.TourVersion
-//	@Failure		409		{object}	models.ErrorEnvelope
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/draft [post]
 func (tc *TourController) CreateDraft(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -296,7 +296,7 @@ func (tc *TourController) CreateDraft(ctx *gin.Context) {
 //	@Param			tourId	path		string				true	"Tour ID"	format(uuid)
 //	@Param			patch	body		domains.DraftPatch	true	"Fields to change"
 //	@Success		200		{object}	domains.TourVersion
-//	@Failure		409		{object}	models.ErrorEnvelope
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/draft [patch]
 func (tc *TourController) UpdateDraft(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -327,8 +327,8 @@ func (tc *TourController) UpdateDraft(ctx *gin.Context) {
 //	@Produce		json
 //	@Param			tourId	path		string	true	"Tour ID"	format(uuid)
 //	@Success		200		{object}	domains.TourVersion
-//	@Failure		409		{object}	models.ErrorEnvelope
-//	@Failure		422		{object}	models.ErrorEnvelope
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
+//	@Failure		422		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/publish [post]
 func (tc *TourController) Publish(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -353,9 +353,9 @@ func (tc *TourController) Publish(ctx *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			tourId	path		string					true	"Tour ID"	format(uuid)
-//	@Param			body	body		controllers.rollbackRequest	true	"Target version"
+//	@Param			body	body		controllers.RollbackRequest	true	"Target version"
 //	@Success		200		{object}	domains.TourVersion
-//	@Failure		409		{object}	models.ErrorEnvelope
+//	@Failure		409		{object}	github_com_Vanady39_cluer_internal_models.HTTPError
 //	@Router			/tours/{tourId}/rollback [post]
 func (tc *TourController) Rollback(ctx *gin.Context) {
 	tourId, err := pathUUID(ctx, "tourId")
@@ -364,7 +364,7 @@ func (tc *TourController) Rollback(ctx *gin.Context) {
 		return
 	}
 
-	req := new(rollbackRequest)
+	req := new(RollbackRequest)
 	if err := ctx.ShouldBindJSON(req); err != nil {
 		ctx.Error(&BindingError{Err: err, Zone: Body, Code: http.StatusBadRequest})
 		return

@@ -15,21 +15,8 @@ type (
 		ToHTTPError() *models.HTTPError
 		StatusCode() int
 	}
-
-	// CodedError is implemented by errors that name their own machine readable
-	// code instead of accepting the one derived from the HTTP status.
-	CodedError interface {
-		Code() string
-	}
-
-	// DetailedError is implemented by errors that can point at the fields that
-	// failed.
-	DetailedError interface {
-		ErrorDetails() []models.ErrorDetail
-	}
 )
 
-// Reasons carried as the Err of a controller-level error.
 var (
 	errMissingPath   = errors.New("path query parameter is required")
 	errMissingAppId  = errors.New("appId query parameter is required")

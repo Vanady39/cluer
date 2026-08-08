@@ -27,9 +27,6 @@ func main() {
 	defaultLogger := logger.New(cfg.Logger.Default.Level)
 	defaultLogger.Info().Msg("Logger setup successfully")
 
-	// The demo site keeps its fixtures in memory. It exists to have a page with
-	// data-onboarding-id attributes to point at; giving it a database would add
-	// a moving part that demonstrates nothing.
 	listingDomain := domains.NewListingDomain(repositories.NewListingRepository())
 	userDomain := domains.NewUserDomain(repositories.NewUserRepository())
 

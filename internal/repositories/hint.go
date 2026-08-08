@@ -77,11 +77,6 @@ func (hr *HintRepository) Update(ctx context.Context, h *domains.Hint) error {
 	return nil
 }
 
-// Delete removes the hint and closes the hole it leaves in the numbering.
-//
-// Renumbering is not cosmetic. Publishing rejects gaps, so a delete that left
-// one behind would make the tour unpublishable with an error pointing at a hint
-// the admin never touched.
 func (hr *HintRepository) Delete(ctx context.Context, versionId, id uuid.UUID) error {
 	tx, err := hr.pool.Begin(ctx)
 	if err != nil {
@@ -106,12 +101,6 @@ func (hr *HintRepository) Delete(ctx context.Context, versionId, id uuid.UUID) e
 	return wrap(tx.Commit(ctx), domains.ErrHintNotFound, id.String(), domains.Delete)
 }
 
-// Reorder assigns new step numbers from a full ordered list.
-//
-// Every id is resolved before anything is written, so a wrong id cannot leave
-// the tour half-renumbered. The unique constraint is deferred for the duration
-// because the intermediate states are genuinely invalid: swapping steps 1 and 2
-// necessarily passes through a moment where two rows claim the same number.
 func (hr *HintRepository) Reorder(ctx context.Context, versionId uuid.UUID, ids []uuid.UUID) error {
 	tx, err := hr.pool.Begin(ctx)
 	if err != nil {
@@ -124,8 +113,6 @@ func (hr *HintRepository) Reorder(ctx context.Context, versionId uuid.UUID, ids 
 		`SELECT count(*) FROM hints WHERE tour_version_id = $1`, versionId).Scan(&count); err != nil {
 		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Retrieve)
 	}
-	// A partial list would silently drop the hints it omits to the end in an
-	// arbitrary order, so it is refused rather than guessed at.
 	if count != len(ids) {
 		return &domains.RepositoryError{
 			Err:       domains.ErrReorderMismatch,

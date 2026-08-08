@@ -10,21 +10,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// DemoCreateStruct wires the sample classifieds site the onboarding is
-// demonstrated on.
 type DemoCreateStruct struct {
 	Logger            *zerolog.Logger
 	ListingController controllers.ListingControllerInterface
 	UserController    controllers.UserControllerInterface
 }
 
-// NewDemoServer serves the test site.
-//
-// It is a separate binary from the onboarding platform on purpose. The platform
-// is the product — a mechanism that attaches to any web app — and the
-// classifieds site is one of its consumers. Keeping them in one process would
-// make that boundary invisible and tempt exactly the coupling the design is
-// meant to prevent.
 func NewDemoServer(cfg *config.ServerConfig, createStruct *DemoCreateStruct) *Server {
 	gin.SetMode(gin.ReleaseMode)
 

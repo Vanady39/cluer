@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Vanady39/cluer/internal/models"
 )
@@ -57,9 +58,6 @@ func (re *RepositoryError) Error() string {
 	return fmt.Sprintf("failed to %s entity %s: %v", re.Operation, re.EntityRef, re.Err)
 }
 
-// Message names the entity for a miss and stays vague for anything else: a
-// failed query's real cause is a driver message describing the schema, which
-// the caller can neither act on nor should be shown.
 func (re *RepositoryError) Message() string {
 	if re.Reason == NoRecord && re.Err != nil {
 		return capitalise(re.Err.Error())
@@ -167,10 +165,6 @@ func (le *LogicError) Error() string {
 	return fmt.Sprintf("failure during %s: %v", le.Stage, le.Err)
 }
 
-// Message carries the reason, not just the stage. Every Err here is one of our
-// own sentinels — never driver text — so it is safe to show, and "publish or
-// discard the existing draft before rolling back" is the whole difference
-// between a user fixing the problem and a user filing a ticket.
 func (le *LogicError) Message() string {
 	if le.Err == nil {
 		return fmt.Sprintf("An error occurred during %s", le.Stage)
@@ -204,9 +198,6 @@ func (le *LogicError) StatusCode() int {
 // ------------------------------ //
 // ----- Onboarding Reasons ----- //
 // ------------------------------ //
-
-// Sentinels carried as the Err of a LogicError or RepositoryError, so callers can
-// still match them with errors.Is through the wrapper's Unwrap.
 
 var (
 	ErrTitleRequired      = errors.New("title is required")
@@ -259,25 +250,30 @@ var (
 	ErrUnknownEventType = errors.New("unknown event type")
 	ErrHintIdMismatch   = errors.New("hint id must be set for hint-level events and absent for tour-level ones")
 	ErrBadPeriod        = errors.New("'to' must be after 'from'")
+
+	ErrEventKeyRequired    = errors.New("event_key is required")
+	ErrVersionRequired     = errors.New("tour_version_id is required")
+	ErrTourRequired        = errors.New("tour_id is required")
+	ErrVersionForeignApp   = errors.New("tour version belongs to another application")
+	ErrTourVersionMismatch = errors.New("tour version does not belong to the specified tour")
+	ErrHintNotInVersion    = errors.New("hint does not belong to the specified tour version")
 )
 
-// ------------------------- //
-// ----- Validation ------- //
-// ------------------------- //
+// ---------------------------- //
+// ----- Validation Error ----- //
+// ---------------------------- //
 
-// ErrorDetail points at the exact field that failed, which is the difference
-// between an admin fixing their tour and an admin filing a bug report. Aliased
-// rather than redeclared so the HTTP layer can serialise it without a
-// conversion that would have to be kept in sync.
-type ErrorDetail = models.ErrorDetail
+type (
+	ErrorDetail struct {
+		Path    string
+		Message string
+	}
 
-// ValidationError carries every problem found in one pass rather than the first
-// one: making the user resubmit to discover the next mistake is a poor trade for
-// the two lines it saves here.
-type ValidationError struct {
-	Err     error
-	Details []ErrorDetail
-}
+	ValidationError struct {
+		Err     error
+		Details []ErrorDetail
+	}
+)
 
 func (ve *ValidationError) Error() string {
 	return fmt.Sprintf("validation failed: %v (%d problems)", ve.Err, len(ve.Details))
@@ -290,23 +286,24 @@ func (ve *ValidationError) Unwrap() error { return ve.Err }
 func (ve *ValidationError) StatusCode() int { return http.StatusUnprocessableEntity }
 
 func (ve *ValidationError) ToHTTPError() *models.HTTPError {
-	return &models.HTTPError{Error: ve.Err.Error(), Message: ve.Message()}
+	problems := make([]string, 0, len(ve.Details))
+	for _, d := range ve.Details {
+		problems = append(problems, fmt.Sprintf("%s: %s", d.Path, d.Message))
+	}
+	return &models.HTTPError{
+		Error:   fmt.Sprintf("%v: %s", ve.Err, strings.Join(problems, "; ")),
+		Message: ve.Message(),
+	}
 }
 
-// Code and Details satisfy the richer error contract used by the HTTP layer.
-func (ve *ValidationError) Code() string { return "VALIDATION_FAILED" }
-
-func (ve *ValidationError) ErrorDetails() []ErrorDetail { return ve.Details }
-
-// ------------------------- //
-// ----- Helpers ---------- //
-// ------------------------- //
+// --------------------- //
+// ----- Helpers ------- //
+// --------------------- //
 
 func logicErr(err error, stage string, code int) error {
 	return &LogicError{Err: err, Stage: stage, Code: code}
 }
 
-// NotFound builds the standard not-found error for any entity.
 func NotFound(sentinel error, ref string) error {
 	return &RepositoryError{
 		Err:       sentinel,
@@ -316,9 +313,6 @@ func NotFound(sentinel error, ref string) error {
 	}
 }
 
-// IsNotFound lets callers treat "no such row" as a normal outcome. Several
-// operations legitimately expect a missing draft or published version, and
-// those are questions, not failures.
 func IsNotFound(err error) bool {
 	var repoErr *RepositoryError
 	if errors.As(err, &repoErr) {

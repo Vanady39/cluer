@@ -26,9 +26,6 @@ func (p Placement) Valid() bool {
 	return false
 }
 
-// Hint belongs to a *version*, not to a tour. That is what makes "a published
-// tour never changes" hold for the hint rows too: editing is only ever possible
-// on the draft's hints, and publishing freezes them where they are.
 type Hint struct {
 	Id               uuid.UUID `json:"id" format:"uuid" example:"01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c"`
 	TourVersionId    uuid.UUID `json:"tour_version_id" format:"uuid"`

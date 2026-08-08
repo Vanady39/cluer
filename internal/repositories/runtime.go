@@ -22,8 +22,6 @@ func (rr *RuntimeRepository) Ping(ctx context.Context) error {
 	return rr.pool.Ping(ctx)
 }
 
-// ---------------------------------------------------------------- apps
-
 func (rr *RuntimeRepository) CreateApp(ctx context.Context, a *domains.App) error {
 	err := rr.pool.QueryRow(ctx, `
 		INSERT INTO apps (name, public_key, allowed_origins)
@@ -69,11 +67,6 @@ func (rr *RuntimeRepository) ListApps(ctx context.Context) ([]*domains.App, erro
 	return apps, rows.Err()
 }
 
-// ---------------------------------------------------------------- progress
-
-// SubjectProgress loads everything this subject has going, keyed by tour. One
-// query rather than one per candidate: resolve has to answer in milliseconds,
-// and the primary key covers the (app_id, subject_id) prefix.
 func (rr *RuntimeRepository) SubjectProgress(
 	ctx context.Context,
 	appId uuid.UUID,
@@ -121,16 +114,6 @@ func (rr *RuntimeRepository) UpsertProgress(ctx context.Context, p *domains.Prog
 	return wrap(err, domains.ErrTourNotFound, p.SubjectId, domains.Update)
 }
 
-// ---------------------------------------------------------------- events
-
-// InsertEvents writes the batch and applies its progress side effects in one
-// transaction.
-//
-// ON CONFLICT DO NOTHING is what makes a retry safe: the SDK resends batches
-// after a dropped connection, and without it every retry would double the
-// metrics. A row that conflicts is counted as a duplicate and, importantly,
-// does not move the progress a second time — idempotent inserts would be
-// worthless if the side effects still ran twice.
 func (rr *RuntimeRepository) InsertEvents(ctx context.Context, events []domains.Event) (int, int, error) {
 	tx, err := rr.pool.Begin(ctx)
 	if err != nil {
@@ -172,9 +155,6 @@ func (rr *RuntimeRepository) InsertEvents(ctx context.Context, events []domains.
 	return accepted, duplicates, nil
 }
 
-// applyProgress is the denormalised projection of the event log. goal_reached is
-// deliberately absent: a business outcome is not a step of the tour, and folding
-// it into completion would make the two metrics measure each other.
 func applyProgress(ctx context.Context, tx pgx.Tx, e *domains.Event) error {
 	switch e.Type {
 	case domains.EventHintCompleted:
@@ -185,6 +165,7 @@ func applyProgress(ctx context.Context, tx pgx.Tx, e *domains.Event) error {
 				  AND next.step > (SELECT step FROM hints WHERE id = $5)
 				ORDER BY next.step LIMIT 1)
 			WHERE app_id = $1 AND subject_id = $2 AND tour_id = $3
+			  AND tour_version_id = $4
 			  AND status = 'in_progress'`,
 			e.AppId, e.SubjectId, e.TourId, e.TourVersionId, e.HintId)
 		return wrap(err, domains.ErrTourNotFound, e.SubjectId, domains.Update)
@@ -196,26 +177,16 @@ func applyProgress(ctx context.Context, tx pgx.Tx, e *domains.Event) error {
 		}
 		_, err := tx.Exec(ctx, `
 			UPDATE tour_progress
-			SET status = $4, finished_at = now(), current_hint_id = NULL
+			SET status = $5, finished_at = now(), current_hint_id = NULL
 			WHERE app_id = $1 AND subject_id = $2 AND tour_id = $3
+			  AND tour_version_id = $4
 			  AND status = 'in_progress'`,
-			e.AppId, e.SubjectId, e.TourId, status)
+			e.AppId, e.SubjectId, e.TourId, e.TourVersionId, status)
 		return wrap(err, domains.ErrTourNotFound, e.SubjectId, domains.Update)
 	}
 	return nil
 }
 
-// ---------------------------------------------------------------- analytics
-
-// Funnel counts one row per hint of the version.
-//
-// The join is a LEFT JOIN so a hint nobody ever reached still shows up with
-// zeros — that is precisely the row the admin needs to see. The order comes from
-// hints.step rather than from the data, so the funnel reads top to bottom even
-// when the middle of it is empty.
-//
-// COUNT(DISTINCT subject_id) rather than COUNT(*): a user who comes back to a
-// hint twice is one person, and the funnel measures people.
 func (rr *RuntimeRepository) Funnel(
 	ctx context.Context,
 	versionId uuid.UUID,
@@ -230,6 +201,7 @@ func (rr *RuntimeRepository) Funnel(
 		FROM hints h
 		LEFT JOIN tour_events e
 		       ON e.hint_id = h.id
+		      AND e.tour_version_id = h.tour_version_id
 		      AND e.received_at >= $2 AND e.received_at <= $3
 		WHERE h.tour_version_id = $1
 		GROUP BY h.step, h.id, h.title

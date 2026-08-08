@@ -26,7 +26,6 @@ type (
 		GetById(ctx context.Context, id uuid.UUID) (*Hint, error)
 		ListByVersion(ctx context.Context, versionId uuid.UUID) ([]Hint, error)
 		Update(ctx context.Context, h *Hint) error
-		// Delete removes the hint and closes the gap it leaves in the numbering.
 		Delete(ctx context.Context, versionId, id uuid.UUID) error
 		Reorder(ctx context.Context, versionId uuid.UUID, ids []uuid.UUID) error
 	}
@@ -36,9 +35,6 @@ func NewHintDomain(tours TourRepositoryInterface, hints HintRepositoryInterface)
 	return &HintDomain{tours: tours, hints: hints}
 }
 
-// Create appends a hint to the tour's draft. The route still addresses a tour,
-// as it always did — the draft is found from it, so callers never have to know
-// which version they are editing.
 func (hd *HintDomain) Create(ctx context.Context, tourId uuid.UUID, h *Hint) (*Hint, error) {
 	draft, err := hd.draftOf(ctx, tourId)
 	if err != nil {
@@ -79,9 +75,6 @@ func (hd *HintDomain) Update(ctx context.Context, tourId, hintId uuid.UUID, h *H
 	if err != nil {
 		return nil, err
 	}
-	// Editing a hint of the published version is the exact thing versioning
-	// exists to prevent; the database would refuse it too, but a 409 explains
-	// itself better than a driver error.
 	if current.TourVersionId != draft.Id {
 		return nil, logicErr(ErrVersionImmutable, "hint update", http.StatusConflict)
 	}
@@ -91,7 +84,7 @@ func (hd *HintDomain) Update(ctx context.Context, tourId, hintId uuid.UUID, h *H
 
 	h.Id = hintId
 	h.TourVersionId = draft.Id
-	h.Step = current.Step // order is changed through Reorder, not here
+	h.Step = current.Step
 
 	if err := hd.hints.Update(ctx, h); err != nil {
 		return nil, err
@@ -107,9 +100,6 @@ func (hd *HintDomain) Delete(ctx context.Context, tourId, hintId uuid.UUID) erro
 	return hd.hints.Delete(ctx, draft.Id, hintId)
 }
 
-// Reorder takes the full list in its new order. A full list rather than a
-// move-one-item call because the result is unambiguous: there is no state where
-// the client and the server disagree about what the other half looks like.
 func (hd *HintDomain) Reorder(ctx context.Context, tourId uuid.UUID, ids []uuid.UUID) ([]Hint, error) {
 	draft, err := hd.draftOf(ctx, tourId)
 	if err != nil {
@@ -124,7 +114,6 @@ func (hd *HintDomain) Reorder(ctx context.Context, tourId uuid.UUID, ids []uuid.
 	return hd.hints.ListByVersion(ctx, draft.Id)
 }
 
-// ListByTour returns the draft's hints — the editor's working set.
 func (hd *HintDomain) ListByTour(ctx context.Context, tourId uuid.UUID) ([]Hint, error) {
 	draft, err := hd.draftOf(ctx, tourId)
 	if err != nil {
