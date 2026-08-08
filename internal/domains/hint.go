@@ -40,9 +40,6 @@ func (hd *HintDomain) Create(ctx context.Context, tourId uuid.UUID, h *Hint) (*H
 	if err != nil {
 		return nil, err
 	}
-	if err := validateHint(h); err != nil {
-		return nil, err
-	}
 
 	existing, err := hd.hints.ListByVersion(ctx, draft.Id)
 	if err != nil {
@@ -77,9 +74,6 @@ func (hd *HintDomain) Update(ctx context.Context, tourId, hintId uuid.UUID, h *H
 	}
 	if current.TourVersionId != draft.Id {
 		return nil, logicErr(ErrVersionImmutable, "hint update", http.StatusConflict)
-	}
-	if err := validateHint(h); err != nil {
-		return nil, err
 	}
 
 	h.Id = hintId
@@ -131,21 +125,4 @@ func (hd *HintDomain) draftOf(ctx context.Context, tourId uuid.UUID) (*TourVersi
 		return nil, err
 	}
 	return draft, nil
-}
-
-func validateHint(h *Hint) error {
-	var err error
-	switch {
-	case h.Title == "":
-		err = ErrTitleRequired
-	case h.Content == "":
-		err = ErrContentRequired
-	case !h.Placement.Valid():
-		err = ErrBadPlacement
-	case h.Placement != PlacementCenter && h.Selector == "":
-		err = ErrSelectorRequired
-	default:
-		return nil
-	}
-	return logicErr(err, "hint validation", http.StatusBadRequest)
 }

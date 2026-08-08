@@ -77,6 +77,9 @@ func (td *TourDomain) Create(ctx context.Context, appId uuid.UUID, t *Tour) (*To
 	if t.TriggerType == "" {
 		t.TriggerType = TriggerOnLoad
 	}
+	if t.Audience == nil {
+		t.Audience = &Audience{}
+	}
 
 	return td.tours.CreateWithDraft(ctx, t)
 }
@@ -269,7 +272,7 @@ func validateTour(t *Tour) error {
 		err = ErrPriorityNegative
 	case t.TriggerType != "" && !t.TriggerType.Valid():
 		err = ErrInvalidTriggerType
-	case t.Audience.MaxShows < 0:
+	case t.Audience != nil && t.Audience.MaxShows < 0:
 		err = ErrMaxShowsNegative
 	default:
 		return nil

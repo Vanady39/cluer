@@ -23,6 +23,7 @@ func NewDemoServer(cfg *config.ServerConfig, createStruct *DemoCreateStruct) *Se
 	router.Use(
 		gin.Logger(),
 		gin.Recovery(),
+		middlewares.RuntimeCORS(),
 		middlewares.ErrorHandler(createStruct.Logger),
 	)
 

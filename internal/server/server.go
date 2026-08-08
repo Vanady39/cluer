@@ -42,6 +42,7 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 	router.Use(
 		gin.Logger(),
 		gin.Recovery(),
+		middlewares.RuntimeCORS(),
 		middlewares.ErrorHandler(createStruct.Logger),
 	)
 
@@ -52,15 +53,10 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 		v1.GET("/health", createStruct.RuntimeController.Health)
 
 		runtime := v1.Group("")
-		runtime.Use(
-			middlewares.RuntimeCORS(),
-			middlewares.AppKeyAuth(createStruct.RuntimeDomain),
-		)
+		runtime.Use(middlewares.AppKeyAuth(createStruct.RuntimeDomain))
 		{
 			runtime.POST("/resolve", createStruct.RuntimeController.Resolve)
 			runtime.POST("/events", createStruct.RuntimeController.Ingest)
-			runtime.OPTIONS("/resolve", func(*gin.Context) {})
-			runtime.OPTIONS("/events", func(*gin.Context) {})
 		}
 
 		admin := v1.Group("")
