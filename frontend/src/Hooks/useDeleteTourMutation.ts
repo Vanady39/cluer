@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Tour } from "../types/sdk";
 import { onboardingAPI } from "../Api/onboarding";
 
 export function useDeleteTourMutation() {
@@ -7,18 +6,16 @@ export function useDeleteTourMutation() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Если API готово — раскомментируйте:
-      // await onboardingAPI.deleteTour(id);
-      
-      // Пока через localStorage
-      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-      const updated = tours.filter((item: Tour) => item.id !== id);
-      localStorage.setItem("tours", JSON.stringify(updated));
-      return updated;
+      await onboardingAPI.deleteTour(id);
+      return id;
     },
-    onSuccess: (updatedScenarios) => {
-      queryClient.setQueryData(["tours"], updatedScenarios);
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["tours"],
+      });
     },
+
     onError: (error) => {
       console.error("Ошибка удаления:", error);
       alert("Не удалось удалить сценарий");

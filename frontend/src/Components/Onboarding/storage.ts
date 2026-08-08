@@ -1,35 +1,48 @@
-import type { Tour } from "../../types/sdk";
+const SUBJECT_KEY = "onboarding_subject_id";
+const SESSION_KEY = "onboarding_session_id";
 
-const KEY = "onboarding_tours";
-
-export function getTours(): Tour[] {
-  const data = localStorage.getItem(KEY);
-  return data ? JSON.parse(data) : [];
+function createId(prefix: string) {
+  return `${prefix}_${crypto.randomUUID()}`;
 }
 
-export function saveTour(tour: Tour) {
-  const tours = getTours();
-  const existingIndex = tours.findIndex((t) => t.id === tour.id);
-  if (existingIndex !== -1) {
-    tours[existingIndex] = tour;
-  } else {
-    tours.push(tour);
+export function getSubjectId(
+  providedSubjectId?: string,
+) {
+  if (providedSubjectId) {
+    return providedSubjectId;
   }
-  localStorage.setItem(KEY, JSON.stringify(tours));
+
+  const existing =
+    localStorage.getItem(SUBJECT_KEY);
+
+  if (existing) {
+    return existing;
+  }
+
+  const subjectId = createId("anon");
+
+  localStorage.setItem(
+    SUBJECT_KEY,
+    subjectId,
+  );
+
+  return subjectId;
 }
 
-export function deleteTour(id: string) {
-  const updated = getTours().filter((t) => t.id !== id);
-  localStorage.setItem(KEY, JSON.stringify(updated));
-  return updated;
-}
+export function getSessionId() {
+  const existing =
+    sessionStorage.getItem(SESSION_KEY);
 
-export function getPublishedTour(path?: string) {
-  return getTours().find((tour) => {
-    if (tour.status !== "published") return false;
-    if (path) {
-      return !tour.target_path || tour.target_path === path;
-    }
-    return true;
-  });
+  if (existing) {
+    return existing;
+  }
+
+  const sessionId = createId("sess");
+
+  sessionStorage.setItem(
+    SESSION_KEY,
+    sessionId,
+  );
+
+  return sessionId;
 }
