@@ -283,6 +283,8 @@ func (tc *TourController) CreateDraft(ctx *gin.Context) {
 		ctx.Error(err)
 		return
 	}
+
+	ctx.Header("Location", "/v1/versions/"+draft.Id.String())
 	ctx.JSON(http.StatusCreated, draft)
 }
 

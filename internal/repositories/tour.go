@@ -122,7 +122,7 @@ func (tr *TourRepository) List(ctx context.Context, appId uuid.UUID) ([]*domains
 			t.Status = domains.TourStatus(*status)
 			t.TriggerType = domains.TriggerType(*triggerType)
 			t.TargetPath = *targetPath
-			t.Audience = domains.Audience{ShowOnce: *showOnce, MaxShows: *maxShows, OnlyNew: *onlyNew}
+			t.Audience = &domains.Audience{ShowOnce: *showOnce, MaxShows: *maxShows, OnlyNew: *onlyNew}
 		}
 		t.Hints = []domains.Hint{}
 		tours = append(tours, t)
@@ -362,6 +362,7 @@ func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID
 	tours := make([]*domains.Tour, 0)
 	for rows.Next() {
 		t := new(domains.Tour)
+		t.Audience = new(domains.Audience)
 		if err := rows.Scan(
 			&t.Id, &t.AppId, &t.Title, &t.Description, &t.Enabled, &t.Priority,
 			&t.CreatedAt, &t.UpdatedAt,

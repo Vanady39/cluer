@@ -236,6 +236,8 @@ func (rc *RuntimeController) CreateApp(ctx *gin.Context) {
 		ctx.Error(err)
 		return
 	}
+
+	ctx.Header("Location", "/v1/apps/"+created.Id.String())
 	ctx.JSON(http.StatusCreated, created)
 }
 

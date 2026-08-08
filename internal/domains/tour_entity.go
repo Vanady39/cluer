@@ -60,7 +60,7 @@ type Tour struct {
 	Status      TourStatus  `json:"status,omitempty" example:"draft"`
 	TriggerType TriggerType `json:"trigger_type,omitempty" example:"on_load"`
 	TargetPath  string      `json:"target_path,omitempty" example:"/dashboard"`
-	Audience    Audience    `json:"audience,omitzero"`
+	Audience    *Audience   `json:"audience,omitempty"`
 	Hints       []Hint      `json:"hints,omitempty"`
 }
 
@@ -92,7 +92,8 @@ func (v *TourVersion) AsTour(t *Tour) *Tour {
 	merged.Status = v.Status
 	merged.TriggerType = v.TriggerType
 	merged.TargetPath = v.TargetPath
-	merged.Audience = v.Audience
+	audience := v.Audience
+	merged.Audience = &audience
 	merged.Hints = v.Hints
 	if merged.Hints == nil {
 		merged.Hints = []Hint{}

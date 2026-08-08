@@ -103,7 +103,7 @@ func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*Reso
 		if !MatchPath(tour.TargetPath, path) {
 			continue
 		}
-		if !matchAudience(tour.Audience, req.Props, progress[tour.Id]) {
+		if tour.Audience != nil && !matchAudience(*tour.Audience, req.Props, progress[tour.Id]) {
 			continue
 		}
 		return rd.start(ctx, req, tour, progress[tour.Id])
