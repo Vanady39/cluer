@@ -6,7 +6,7 @@ import { Button } from "../../../UI/Button/Button";
 import { useTourLoader } from "../../../../Hooks/useTourLoader";
 import { useHintManager } from "../../../../Hooks/useHintManager";
 import { useSaveScenario } from "../../../../Hooks/useSaveScenario";
-import type { TriggerType, Audience } from "../../../../types/sdk";
+import type { TriggerType, Audience, TourHint } from "../../../../types/sdk";
 
 function CreateScenariosComponent() {
   const navigate = useNavigate();
@@ -22,20 +22,21 @@ function CreateScenariosComponent() {
   });
   const { data: loadedTour } = useTourLoader(editId);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [initialHints, setInitialHints] = useState<TourHint[]>([]);
   const { hints, addHint, updateHint, removeHint, setHints } = useHintManager([
-  {
-    id: String(Date.now()),
-    step: 1,
-    title: "Первый шаг",
-    content: "",
-    selector: "",
-    placement: "bottom",
-    page_path: "/",
-    spotlight: true,
-    wait_for_selector: false,
-    media_url: "",
-  },
-]);
+    {
+      id: String(Date.now()),
+      step: 1,
+      title: "Первый шаг",
+      content: "",
+      selector: "",
+      placement: "bottom",
+      page_path: "/",
+      spotlight: true,
+      wait_for_selector: false,
+      media_url: "",
+    },
+  ]);
 
   useEffect(() => {
     if (loadedTour && !hasLoaded) {
@@ -50,7 +51,13 @@ function CreateScenariosComponent() {
         },
       );
       if (loadedTour.hints?.length) {
-        setHints(loadedTour.hints);
+        const loadedHints = loadedTour.hints.map((hint: TourHint) => ({
+          ...hint,
+          page_path: loadedTour.target_path || "/",
+        }));
+
+        setHints(loadedHints);
+        setInitialHints(loadedHints);
       }
       setHasLoaded(true);
     }
@@ -76,13 +83,19 @@ function CreateScenariosComponent() {
 
   const saveMutation = useSaveScenario(editId);
   const saveScenario = (scenarioStatus: "draft" | "published") => {
+    const deletedHints = initialHints.filter(
+      (oldHint) => !hints.some((hint) => hint.id === oldHint.id),
+    );
+
     saveMutation.mutate({
       title,
       description,
-      hints,
-      status: scenarioStatus,
+      target_path: hints[0]?.page_path || "/",
       trigger_type: triggerType,
       audience,
+      hints,
+      deletedHints,
+      status: scenarioStatus,
     });
   };
 
@@ -261,11 +274,7 @@ function CreateScenariosComponent() {
             </div>
           ))}
           <div className={styles.addStepBottom}>
-            <Button
-              size="main"
-              color="primary"
-              onClick={addHint}
-            >
+            <Button size="main" color="primary" onClick={addHint}>
               + Добавить шаг
             </Button>
           </div>
@@ -276,6 +285,7 @@ function CreateScenariosComponent() {
         <Button size="main" onClick={() => navigate("/admin/scenarios")}>
           Отмена
         </Button>
+
         <Button
           size="main"
           onClick={() => saveScenario("draft")}

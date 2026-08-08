@@ -1,113 +1,140 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Tour } from "../../types/sdk";
 import { Hint } from "./Hint";
-import { useNavigate } from "react-router-dom";
 
 interface Props {
   tour: Tour;
   onClose: () => void;
 }
 
-export function TourRunner({ tour, onClose }: Props) {
-  const storageKey = `tour_step_${tour.id}`;
-  const navigate = useNavigate();
+export function TourRunner({
+  tour,
+  onClose,
+}: Props) {
+  const sortedHints = useMemo(() => {
+    return [...(tour.hints || [])].sort(
+      (a, b) => a.step - b.step,
+    );
+  }, [tour.hints]);
 
-  const [step, setStep] = useState(() => {
-    const saved = sessionStorage.getItem(storageKey);
-    return saved ? Number(saved) : 0;
-  });
+  const initialStep = useMemo(() => {
+    if (!tour.current_hint_id) {
+      return 0;
+    }
 
-  const hint = tour.hints[step];
-  const [element, setElement] = useState<HTMLElement | null>(null);
+    const index = sortedHints.findIndex(
+      (hint) => hint.id === tour.current_hint_id,
+    );
 
-  if (!hint) {
-    return null;
-  }
+    return index >= 0 ? index : 0;
+  }, [tour.current_hint_id, sortedHints]);
 
-  const changeStep = (newStep: number) => {
-    sessionStorage.setItem(storageKey, String(newStep));
-    setStep(newStep);
-  };
+  const [step, setStep] = useState(initialStep);
 
-  const next = () => {
-    const nextStep = step + 1;
-    if (nextStep >= tour.hints.length) {
-      sessionStorage.removeItem(`tour_step_${tour.id}`);
-      setElement(null);
-      onClose();
+  const [element, setElement] =
+    useState<HTMLElement | null>(null);
+
+  const hint = sortedHints[step];
+
+  // =========================
+  // СИНХРОНИЗАЦИЯ С BACKEND
+  // =========================
+
+  useEffect(() => {
+    setStep(initialStep);
+  }, [initialStep]);
+
+  // =========================
+  // ПОИСК ELEMENT
+  // =========================
+
+  useEffect(() => {
+    setElement(null);
+
+    if (!hint) {
       return;
     }
 
-    const nextHint = tour.hints[nextStep];
-    changeStep(nextStep);
-
-    if (nextHint.page_path && nextHint.page_path !== window.location.pathname) {
-      navigate(nextHint.page_path);
+    // center не требует selector
+    if (hint.placement === "center") {
+      return;
     }
-  };
 
-  useEffect(() => {
-    let interval: number;
+    if (!hint.selector) {
+      console.warn(
+        "[Onboarding] selector is missing",
+        hint,
+      );
+
+      return;
+    }
+
+    let interval: number | undefined;
+
     const findElement = () => {
-      const target = hint.selector
-        ? (document.querySelector(hint.selector) as HTMLElement | null)
-        : null;
-
-      if (target) {
-        console.log("Элемент найден:", target);
-        setElement(target);
-        clearInterval(interval);
-      }
-    };
-    findElement();
-    interval = window.setInterval(findElement, 200);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [step, hint.selector]);
-
-  useEffect(() => {
-    if (!element) return;
-
-    const handleAction = () => {
-      console.log("Шаг выполнен", step);
-
-      const nextStep = step + 1;
-
-      if (nextStep >= tour.hints.length) {
-        sessionStorage.removeItem(`tour_step_${tour.id}`);
-        onClose();
+      if (!hint.selector) {
         return;
       }
 
-      const nextHint = tour.hints[nextStep];
+      const target = document.querySelector(
+        hint.selector,
+      ) as HTMLElement | null;
 
-      changeStep(nextStep);
+      if (!target) {
+        return;
+      }
 
-      if (
-        nextHint.page_path &&
-        nextHint.page_path !== window.location.pathname
-      ) {
-        navigate(nextHint.page_path);
+      console.log(
+        "[Onboarding] element found",
+        target,
+      );
+
+      setElement(target);
+
+      if (interval !== undefined) {
+        window.clearInterval(interval);
       }
     };
 
-    element.addEventListener("click", handleAction);
+    findElement();
+
+    interval = window.setInterval(
+      findElement,
+      200,
+    );
 
     return () => {
-      element.removeEventListener("click", handleAction);
+      if (interval !== undefined) {
+        window.clearInterval(interval);
+      }
     };
-  }, [element, step]);
+  }, [
+    step,
+    hint?.id,
+    hint?.selector,
+    hint?.placement,
+  ]);
+
+  // =========================
+  // ПРОКРУТКА К ELEMENT
+  // =========================
 
   useEffect(() => {
-    if (!element) return;
+    if (!element || !hint) {
+      return;
+    }
 
     if (hint.placement === "center") {
       return;
     }
 
     const rect = element.getBoundingClientRect();
-    const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+    const isVisible =
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= window.innerHeight &&
+      rect.right <= window.innerWidth;
 
     if (!isVisible) {
       element.scrollIntoView({
@@ -116,18 +143,132 @@ export function TourRunner({ tour, onClose }: Props) {
         inline: "nearest",
       });
     }
-  }, [element, hint.placement]);
+  }, [element, hint]);
 
-  if (!element) return null;
+  // =========================
+  // ПЕРЕХОД К СЛЕДУЮЩЕМУ ШАГУ
+  // =========================
+
+  const goToNextStep = () => {
+    if (!hint) {
+      return;
+    }
+
+    console.log(
+      "[Onboarding] hint completed",
+      hint.id,
+    );
+
+    const nextStep = step + 1;
+
+    if (nextStep >= sortedHints.length) {
+      console.log(
+        "[Onboarding] tour completed",
+        tour.id,
+      );
+
+      setElement(null);
+      onClose();
+
+      return;
+    }
+
+    console.log(
+      "[Onboarding] move to step",
+      nextStep,
+      sortedHints[nextStep],
+    );
+
+    setElement(null);
+    setStep(nextStep);
+  };
+
+  // =========================
+  // КЛИК ПО ЦЕЛЕВОМУ ELEMENT
+  // =========================
+
+  useEffect(() => {
+    if (!element || !hint) {
+      return;
+    }
+
+    const handleElementClick = () => {
+      console.log(
+        "[Onboarding] target element clicked",
+        hint.id,
+      );
+
+      /*
+       * НЕ делаем preventDefault.
+       *
+       * Если кнопка хоста должна открыть страницу,
+       * React Router / сайт продолжит работать сам.
+       *
+       * SDK только переводит onboarding
+       * на следующий шаг.
+       */
+      goToNextStep();
+    };
+
+    element.addEventListener(
+      "click",
+      handleElementClick,
+    );
+
+    return () => {
+      element.removeEventListener(
+        "click",
+        handleElementClick,
+      );
+    };
+  }, [element, step, hint?.id]);
+
+  // =========================
+  // ДАЛЕЕ
+  // =========================
+
+  const next = () => {
+    goToNextStep();
+  };
+
+  // =========================
+  // ЗАКРЫТЬ / ПРОПУСТИТЬ
+  // =========================
+
+  const skip = () => {
+    if (!hint) {
+      return;
+    }
+
+    console.log(
+      "[Onboarding] tour dismissed",
+      tour.id,
+    );
+
+    setElement(null);
+    onClose();
+  };
+
+  if (!hint) {
+    return null;
+  }
+
+  // Обычная подсказка ждёт DOM element
+  if (
+    hint.placement !== "center" &&
+    !element
+  ) {
+    return null;
+  }
 
   return (
     <Hint
       hint={hint}
       element={element}
       step={step}
-      total={tour.hints.length}
+      total={sortedHints.length}
       next={next}
-      skip={onClose}
+      skip={skip}
     />
   );
 }

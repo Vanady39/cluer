@@ -1,24 +1,24 @@
-import { api } from "./api";
+import { demoApi } from "./api_demo";
 import type { Listing } from "../types/listings";
 
 export const listingsAPI = {
   // Получить список объявлений
   getAll: () =>
-    api
+    demoApi
       .get<{ data: Listing[] }>("/listings")
       .then((res) => res.data.data),
 
 
   // Получить объявление по id
   getById: (id: number) =>
-    api
+    demoApi
       .get<{ data: Listing }>(`/listings/${id}`)
       .then((res) => res.data.data),
 
 
   // Создать объявление
   create: (data: Omit<Listing, "id">) =>
-    api
+    demoApi
       .post<{ data: Listing }>("/listings", data)
       .then((res) => res.data.data),
 
@@ -28,7 +28,7 @@ export const listingsAPI = {
     id: number,
     data: Partial<Omit<Listing, "id">>,
   ) =>
-    api
+    demoApi
       .put<{ data: Listing }>(
         `/listings/${id}`,
         data,
@@ -38,7 +38,7 @@ export const listingsAPI = {
 
   // Удалить объявление
   delete: (id: number) =>
-    api
+    demoApi
       .delete<{ data: null }>(`/listings/${id}`)
       .then((res) => res.data.data),
 };
