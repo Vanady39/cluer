@@ -1,5 +1,10 @@
 import { api } from "./api";
-import type { CreateTourRequest, CreateHintRequest } from "../types/sdk";
+import type {
+  CreateTourRequest,
+  CreateHintRequest,
+  TourAnalytics,
+  TourListItem,
+} from "../types/sdk";
 
 const APP_ID = "6adb48e4-a338-42b8-af6f-e46364e61aaa";
 
@@ -13,10 +18,8 @@ function getIdFromLocation(location?: string) {
 export const onboardingAPI = {
   getTours: () =>
     api
-      .get("/tours", {
-        params: {
-          appId: APP_ID,
-        },
+      .get<TourListItem[]>("/tours", {
+        params: { appId: APP_ID },
       })
       .then((res) => res.data),
 
@@ -129,4 +132,18 @@ export const onboardingAPI = {
 
   deleteHint: (tourId: string, hintId: string) =>
     api.delete(`/tours/${tourId}/hints/${hintId}`),
+
+  getAnalytics: (
+    tourId: string,
+    params?: {
+      versionId?: string;
+      from?: string;
+      to?: string;
+    },
+  ) =>
+    api
+      .get<TourAnalytics>(`/tours/${tourId}/analytics`, {
+        params,
+      })
+      .then((res) => res.data),
 };

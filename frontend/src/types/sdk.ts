@@ -78,3 +78,40 @@ export interface CreateHintRequest {
   // но в запрос backend сейчас не отправляем.
   page_path?: string;
 }
+
+export interface AnalyticsTotals {
+  started: number;
+  completed: number;
+  dismissed: number;
+  goal_reached: number;
+  completion_rate: number;
+  goal_rate: number;
+}
+
+export interface AnalyticsFunnelStep {
+  step: number;
+  hint_id: string;
+  title: string;
+  shown: number;
+  completed: number;
+  skipped: number;
+  selector_missing: number;
+  dropoff: number;
+}
+
+export interface TourAnalytics {
+  tour_id: string;
+  tour_version_id: string;
+  version: number;
+  from: string;
+  to: string;
+  totals: AnalyticsTotals;
+  funnel: AnalyticsFunnelStep[];
+  broken_selectors: string[];
+}
+
+export interface TourListItem {
+  id: string;
+  title: string;
+  description?: string;
+}
