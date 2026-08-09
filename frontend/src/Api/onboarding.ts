@@ -4,6 +4,7 @@ import type {
   CreateHintRequest,
   TourAnalytics,
   TourListItem,
+  TourVersion,
 } from "../types/sdk";
 
 const APP_ID = "6adb48e4-a338-42b8-af6f-e46364e61aaa";
@@ -64,6 +65,19 @@ export const onboardingAPI = {
     };
   },
 
+  getVersions: (tourId: string) =>
+    api.get<TourVersion[]>(`/tours/${tourId}/versions`).then((res) => res.data),
+
+  getVersion: (versionId: string) =>
+    api.get<TourVersion>(`/versions/${versionId}`).then((res) => res.data),
+
+  rollbackVersion: (tourId: string, versionId: string) =>
+    api
+      .post<TourVersion>(`/tours/${tourId}/rollback`, {
+        to_version_id: versionId,
+      })
+      .then((res) => res.data),
+
   getPublished: (path: string) =>
     api
       .get("/tours/published", {
@@ -121,11 +135,7 @@ export const onboardingAPI = {
     return response.data;
   },
 
-  updateHint: (
-    tourId: string,
-    hintId: string,
-    data: Partial<CreateHintRequest>,
-  ) =>
+  updateHint: (tourId: string, hintId: string, data: CreateHintRequest) =>
     api.patch(`/tours/${tourId}/hints/${hintId}`, data).then((res) => res.data),
 
   deleteTour: (tourId: string) => api.delete(`/tours/${tourId}`),

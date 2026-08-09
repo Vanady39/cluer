@@ -1,106 +1,172 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+
 import { onboardingAPI } from "../Api/onboarding";
 
-export function useSaveScenario(editId?: string | null) {
-  const queryClient = useQueryClient();
+import type {
+  CreateHintRequest,
+  TourHint,
+} from "../types/sdk";
+
+function toHintRequest(
+  hint: TourHint,
+): CreateHintRequest {
+  return {
+    title: hint.title,
+    content: hint.content,
+
+    selector: hint.selector ?? "",
+    placement: hint.placement,
+
+    media_url: hint.media_url ?? "",
+    spotlight: Boolean(
+      hint.spotlight,
+    ),
+
+    required: Boolean(
+      hint.required,
+    ),
+
+    wait_for_selector: Boolean(
+      hint.wait_for_selector,
+    ),
+
+    input_placeholder:
+      hint.input_placeholder ?? "",
+
+    expected_input:
+      hint.expected_input ?? "",
+  };
+}
+
+export function useSaveScenario(
+  editId?: string | null,
+) {
+  const queryClient =
+    useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (
+      data: any,
+    ) => {
       // =========================
       // РЕДАКТИРОВАНИЕ
       // =========================
+
       if (editId) {
-        // Метаданные самого тура
-        await onboardingAPI.updateTourMeta(editId, {
-          title: data.title,
-          description: data.description,
-        });
+        await onboardingAPI.updateTourMeta(
+          editId,
+          {
+            title: data.title,
+            description:
+              data.description,
+          },
+        );
 
-        // Данные draft-версии
-        await onboardingAPI.updateTour(editId, {
-          target_path: data.target_path,
-          trigger_type: data.trigger_type,
-          audience: data.audience,
-        });
+        await onboardingAPI.updateTour(
+          editId,
+          {
+            target_path:
+              data.target_path,
 
-        console.log("TOUR UPDATED");
+            trigger_type:
+              data.trigger_type,
 
-        for (const hint of data.deletedHints || []) {
-          console.log("DELETE HINT", hint.id);
+            audience:
+              data.audience,
+          },
+        );
 
-          await onboardingAPI.deleteHint(editId, hint.id);
+        for (
+          const hint of
+          data.deletedHints || []
+        ) {
+          await onboardingAPI.deleteHint(
+            editId,
+            hint.id,
+          );
         }
 
-        for (const hint of data.hints || []) {
-          const isNew = hint.id.length !== 36;
+        for (
+          const hint of
+          data.hints || []
+        ) {
+          const request =
+            toHintRequest(hint);
+
+          const isNew =
+            hint.id.length !== 36;
 
           if (isNew) {
-            console.log("CREATE NEW HINT", hint);
-
-            await onboardingAPI.createHint(editId, {
-              title: hint.title,
-              content: hint.content,
-              selector: hint.selector,
-              placement: hint.placement,
-              spotlight: hint.spotlight,
-              wait_for_selector: hint.wait_for_selector,
-              media_url: hint.media_url,
-            });
+            await onboardingAPI.createHint(
+              editId,
+              request,
+            );
           } else {
-            console.log("UPDATE HINT", hint);
-
-            await onboardingAPI.updateHint(editId, hint.id, {
-              title: hint.title,
-              content: hint.content,
-              selector: hint.selector,
-              placement: hint.placement,
-              spotlight: hint.spotlight,
-              wait_for_selector: hint.wait_for_selector,
-              media_url: hint.media_url,
-            });
+            await onboardingAPI.updateHint(
+              editId,
+              hint.id,
+              request,
+            );
           }
         }
 
-        if (data.status === "published") {
-          await onboardingAPI.publishTour(editId);
+        if (
+          data.status ===
+          "published"
+        ) {
+          await onboardingAPI.publishTour(
+            editId,
+          );
         }
 
         return editId;
       }
 
       // =========================
-      // СОЗДАНИЕ НОВОГО
+      // НОВЫЙ СЦЕНАРИЙ
       // =========================
 
-      console.log("SAVE DATA", data);
+      const tourId =
+        await onboardingAPI.createTour(
+          {
+            title: data.title,
 
-      const tourId = await onboardingAPI.createTour({
-        title: data.title,
-        description: data.description,
-        target_path: data.hints?.[0]?.page_path || "/",
-        priority: 1,
-        trigger_type: data.trigger_type,
-        audience: data.audience,
-      });
+            description:
+              data.description,
 
-      console.log("HINTS BEFORE CREATE", data.hints);
+            target_path:
+              data.target_path,
 
-      for (const hint of data.hints || []) {
-        console.log("CREATE HINT", hint);
+            priority: 1,
 
-        await onboardingAPI.createHint(tourId, {
-          title: hint.title,
-          content: hint.content,
-          selector: hint.selector,
-          placement: hint.placement,
-          spotlight: hint.spotlight,
-          wait_for_selector: hint.wait_for_selector,
-          media_url: hint.media_url,
-        });
+            trigger_type:
+              data.trigger_type,
+
+            audience:
+              data.audience,
+          },
+        );
+
+      for (
+        const hint of
+        data.hints || []
+      ) {
+        await onboardingAPI.createHint(
+          tourId,
+          toHintRequest(hint),
+        );
       }
 
-      if (data.status === "published") {
-        await onboardingAPI.publishTour(tourId);
+      if (
+        data.status ===
+        "published"
+      ) {
+        await onboardingAPI.publishTour(
+          tourId,
+        );
       }
 
       return tourId;
@@ -111,19 +177,34 @@ export function useSaveScenario(editId?: string | null) {
         queryKey: ["tours"],
       });
 
-      window.location.href = "/admin/scenarios";
+      window.location.href =
+        "/admin/scenarios";
     },
 
     onError(error: any) {
-      console.error("FULL ERROR", error);
-      console.error("STATUS", error.response?.status);
-      console.error("RESPONSE", error.response?.data);
+      console.error(
+        "FULL ERROR",
+        error,
+      );
+
+      console.error(
+        "STATUS",
+        error.response?.status,
+      );
+
+      console.error(
+        "RESPONSE",
+        error.response?.data,
+      );
 
       alert(
         JSON.stringify(
           {
-            status: error.response?.status,
-            data: error.response?.data,
+            status:
+              error.response?.status,
+
+            data:
+              error.response?.data,
           },
           null,
           2,

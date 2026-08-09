@@ -115,3 +115,21 @@ export interface TourListItem {
   title: string;
   description?: string;
 }
+
+export interface TourVersion {
+  id: string;
+  tour_id: string;
+  version: number;
+  status: "draft" | "published" | "archived";
+
+  trigger_type: TriggerType;
+  target_path: string;
+  audience: Audience;
+
+  created_by?: string;
+  created_at: string;
+  published_at?: string | null;
+  archived_at?: string | null;
+
+  hints?: TourHint[];
+}
