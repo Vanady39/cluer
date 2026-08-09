@@ -1,0 +1,91 @@
+@use '../../../../../../Styles/mixins.scss' as mixins;
+
+.card {
+  @include mixins.card;
+
+  &__label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: #434343;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  &__textarea {
+    width: 100%;
+    height: 100px;
+    padding-top: 12px;
+    resize: vertical;
+    border: 2px solid #f5f5f5;
+    background: #f5f5f5;
+    border-radius: 10px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    color: #1a1a1a;
+
+    &:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #2f7efd;
+      box-shadow: 0 0 0 3px rgba(47, 126, 253, 0.1);
+    }
+  }
+
+  &__error {
+    display: block;
+    color: #ff4d4f;
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  &__checkboxRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+
+    input {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__numberInput {
+    width: 100%;
+  }
+
+  &__settingsGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+
+    &__label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: #434343;
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+
+    &__select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    &__error {
+      display: block;
+      color: #ff4d4f;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+  }
+}

@@ -1,0 +1,142 @@
+.step {
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #f0f0f0;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: #e0e0e0;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  input,
+  textarea,
+  select {
+    background: #ffffff;
+    border-color: #e8e8e8;
+
+    &:focus {
+      border-color: #2f7efd;
+    }
+  }
+
+  &__stepTitle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 16px;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+
+    button {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: #8c8c8c;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: #fff1f0;
+        color: #ff4d4f;
+      }
+    }
+  }
+
+  &__label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: #434343;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  &__textarea {
+    width: 100%;
+    height: 100px;
+    padding-top: 12px;
+    resize: vertical;
+    border: 2px solid #f5f5f5;
+    background: #f5f5f5;
+    border-radius: 10px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    color: #1a1a1a;
+
+    &:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #2f7efd;
+      box-shadow: 0 0 0 3px rgba(47, 126, 253, 0.1);
+    }
+
+    &__error {
+      border-color: #ff4d4f !important; 
+
+      &:focus {
+        border-color: #ff4d4f !important;
+        box-shadow: 0 0 0 4px rgba(255, 77, 79, 0.1) !important;
+      }
+    }
+  }
+
+  &__error {
+    display: block;
+    color: #ff4d4f;
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  &__select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+  }
+
+  &__removeButton {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #8c8c8c;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #fff1f0;
+      color: #ff4d4f;
+    }
+  }
+
+  &__selectorRow {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  &__selectorInput {
+    flex: 1;
+  }
+
+  &__pickButton {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 12px;
+  }
+}

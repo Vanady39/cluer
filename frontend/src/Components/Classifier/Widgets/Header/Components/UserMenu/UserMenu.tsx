@@ -19,10 +19,9 @@ function UserMenuComponent() {
   const handleMouseLeave = () => {
     hoverTimer = setTimeout(() => {
       setIsOpen(false);
-    }, 200); // Задержка 200мс
+    }, 200);
   };
 
-  // Закрывать меню при клике вне его
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {

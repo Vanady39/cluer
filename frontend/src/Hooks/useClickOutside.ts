@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect } from "react";
 
 const useOutsideClick = (
   target:
@@ -9,35 +9,24 @@ const useOutsideClick = (
   options = ["button", "a[href]"],
   isActive?: boolean | undefined,
 ) => {
-  const isFirstClick = useRef(true); 
-
   useEffect(() => {
-    if (!target || !handler) return;
+    if (!target || !handler || isActive === false) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       const element = target.current;
-      if (!element || isActive === false) {
-        return;
-      }
-      if (element.contains(event.target as Node)) {
-        return;
-      }
+      if (!element) return;
+      if (element.contains(event.target as Node)) return;
 
       const isExcluded = options.some((selector) =>
         (event.target as Element)?.closest(selector),
       );
-
-      if (isExcluded) {
-        return;
-      }
+      if (isExcluded) return;
       handler(event);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      isFirstClick.current = true;  
     };
   }, [target, handler, options, isActive]);
 };

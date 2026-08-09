@@ -1,5 +1,5 @@
 import { memo, useRef } from "react";
-import styles from './Styles.module.scss';
+import styles from "./Styles.module.scss";
 
 interface FileItem {
   uid: string;
@@ -13,7 +13,6 @@ interface PhotoUploadProps {
   fileList: FileItem[];
   onFileChange: (files: FileItem[]) => void;
   openPreview: (url: string) => void;
-  // 👇 Добавляем поддержку data-атрибутов
   [key: `data-${string}`]: unknown;
 }
 
@@ -21,7 +20,7 @@ function UploadComponent({
   fileList,
   onFileChange,
   openPreview,
-  ...props // 👈 Собираем остальные пропсы
+  ...props
 }: PhotoUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,20 +56,20 @@ function UploadComponent({
   };
 
   return (
-    <div className={styles.field} {...props}> {/* 👈 Пробрасываем data-атрибуты */}
+    <div className={styles.field} {...props}>
       <label className={styles.label}>Фотографии</label>
       <div className={styles.uploadArea}>
-        <div className={styles.previewList}>
+        <div className={styles.uploadArea__previewList}>
           {fileList.map((file) => (
-            <div key={file.uid} className={styles.previewItem}>
+            <div key={file.uid} className={styles.uploadArea__previewItem}>
               <img src={file.url} alt={file.name} onClick={() => openPreview(file.url!)} />
-              <button type="button" className={styles.removeBtn} onClick={() => removeFile(file.uid)}>
+              <button type="button" className={styles.uploadArea__removeBtn} onClick={() => removeFile(file.uid)}>
                 ✕
               </button>
             </div>
           ))}
           {fileList.length < 5 && (
-            <button type="button" className={styles.uploadBox} onClick={() => fileInputRef.current?.click()}>
+            <button type="button" className={styles.uploadArea__uploadBox} onClick={() => fileInputRef.current?.click()}>
               <span>+</span>
               <span>Загрузить</span>
             </button>
@@ -82,9 +81,9 @@ function UploadComponent({
           accept="image/jpeg,image/png"
           multiple
           onChange={handleFileChange}
-          className={styles.fileInput}
+          className={styles.uploadArea__fileInput}
         />
-        <span className={styles.uploadHint}>Максимум 5 фото, JPG/PNG до 5MB</span>
+        <span className={styles.uploadArea__uploadHint}>Максимум 5 фото, JPG/PNG до 5MB</span>
       </div>
     </div>
   );
