@@ -30,24 +30,8 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
       const width = 320;
       const height = 120;
 
-      // CENTER не требует DOM-элемента
-      if (hint.placement === "center") {
-        setPosition({
-          top: window.innerHeight / 2 - height / 2,
-          left: window.innerWidth / 2 - width / 2,
-        });
-
-        setSpotlightRect(null);
-
-        return;
-      }
-
-      if (!element) {
-        return;
-      }
-
+      if (!element) return;
       const rect = element.getBoundingClientRect();
-
       let top = rect.bottom + 12;
       let left = rect.left;
 
@@ -56,17 +40,14 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
           top = rect.top - height - 12;
           left = rect.left;
           break;
-
         case "left":
           top = rect.top;
           left = rect.left - width - 12;
           break;
-
         case "right":
           top = rect.top;
           left = rect.right + 12;
           break;
-
         case "bottom":
         default:
           top = rect.bottom + 12;
@@ -74,11 +55,13 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
           break;
       }
 
-      setPosition({
-        top,
-        left,
-      });
+      if (left + width > window.innerWidth - 20)
+        left = window.innerWidth - width - 20;
+      if (left < 20) left = 20;
+      if (top + height > window.innerHeight - 20) top = rect.top - height - 12;
+      if (top < 20) top = 20;
 
+      setPosition({ top, left });
       if (hint.spotlight) {
         setSpotlightRect({
           top: rect.top - 8,
@@ -90,12 +73,10 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
         setSpotlightRect(null);
       }
     };
-
     updatePosition();
 
     window.addEventListener("scroll", updatePosition);
     window.addEventListener("resize", updatePosition);
-
     return () => {
       window.removeEventListener("scroll", updatePosition);
       window.removeEventListener("resize", updatePosition);
@@ -115,29 +96,29 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
           }}
         />
       )}
-
       <div
-        className={styles.tooltip}
+        className={styles.spotlight__tooltip}
         style={{
           top: position.top,
           left: position.left,
         }}
       >
         <h3>{hint.title}</h3>
-
         <span>
           {step + 1}/{total}
         </span>
-
         <p>{hint.content}</p>
-
         {hint.media_url && (
-          <img src={hint.media_url} alt="" className={styles.media} />
+          <img
+            src={hint.media_url}
+            alt=""
+            className={styles.spotlight__media}
+          />
         )}
 
-        <div className={styles.footer}>
+        <div className={styles.spotlight__footer}>
           {step !== total - 1 && (
-            <button className={styles.skip} onClick={skip}>
+            <button className={styles.spotlight__skip} onClick={skip}>
               Пропустить
             </button>
           )}

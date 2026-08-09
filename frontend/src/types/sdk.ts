@@ -24,11 +24,7 @@ export interface TourHint {
   content: string;
   selector?: string;
   placement: Placement;
-
-  // Пока оставляем для редактора.
-  // Backend многостраничность пока не поддерживает.
   page_path?: string;
-
   spotlight: boolean;
   wait_for_selector: boolean;
   media_url?: string;
@@ -38,9 +34,7 @@ export interface Tour {
   id: string;
   title: string;
   description: string;
-
   status?: "draft" | "published";
-
   target_path: string;
   priority: number;
   trigger_type: TriggerType;
@@ -73,9 +67,6 @@ export interface CreateHintRequest {
   spotlight: boolean;
   wait_for_selector: boolean;
   media_url?: string;
-
-  // Пока можно оставить в UI-типе,
-  // но в запрос backend сейчас не отправляем.
   page_path?: string;
 }
 
@@ -132,4 +123,23 @@ export interface TourVersion {
   archived_at?: string | null;
 
   hints?: TourHint[];
+}
+
+export interface UpdateTourRequest {
+  trigger_type?: TriggerType;
+  target_path?: string;
+  audience?: Audience;
+}
+
+export interface UpdateTourMetaRequest {
+  title?: string;
+  description?: string;
+  enabled?: boolean;
+  priority?: number;
+}
+
+export interface AnalyticsQuery {
+  versionId?: string;
+  from?: string;
+  to?: string;
 }

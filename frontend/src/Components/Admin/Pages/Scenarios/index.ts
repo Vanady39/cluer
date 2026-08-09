@@ -1,1 +1,1 @@
-export {Scenarios} from './Scenarios';
+export { Scenarios } from './Scenarios';

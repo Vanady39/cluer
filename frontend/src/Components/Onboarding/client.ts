@@ -1,7 +1,4 @@
-import {
-  getSessionId,
-  getSubjectId,
-} from "./storage";
+import { getSessionId, getSubjectId } from "./storage";
 
 interface ResolveConfig {
   apiUrl: string;
@@ -10,9 +7,22 @@ interface ResolveConfig {
   props?: Record<string, unknown>;
 }
 
-export async function resolveTour(
-  config: ResolveConfig,
-) {
+function buildUrl(apiUrl: string): string {
+  return `${apiUrl.replace(/\/$/, "")}/v1/resolve`;
+}
+
+function buildHeaders(appKey: string): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    "X-App-Key": appKey,
+  };
+}
+
+export async function resolveTour(config: ResolveConfig) {
+  const controller = new AbortController();
+  const { signal } = controller;
+  window.addEventListener("beforeunload", () => controller.abort());
+
   const body = {
     url: window.location.href,
     subject_id: getSubjectId(config.subjectId),
@@ -20,45 +30,16 @@ export async function resolveTour(
     props: config.props ?? {},
   };
 
-  console.log(
-    "[Onboarding SDK] RESOLVE REQUEST",
-    body,
-  );
 
-  const response = await fetch(
-    `${config.apiUrl}/v1/resolve`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-App-Key": config.appKey,
-      },
-      body: JSON.stringify(body),
-    },
-  );
+  const response = await fetch(buildUrl(config.apiUrl), {
+    method: "POST",
+    headers: buildHeaders(config.appKey),
+    body: JSON.stringify(body),
+    signal,
+  });
 
-  if (response.status === 204) {
-    console.log(
-      "[Onboarding SDK] RESOLVE 204",
-    );
+  if (response.status === 204) return null;
+  if (!response.ok) throw new Error(`Resolve failed: ${response.status} ${await response.text()}`);
 
-    return null;
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-
-    throw new Error(
-      `Resolve failed: ${response.status} ${text}`,
-    );
-  }
-
-  const data = await response.json();
-
-  console.log(
-    "[Onboarding SDK] RESOLVE 200",
-    data,
-  );
-
-  return data;
+  return await response.json();
 }

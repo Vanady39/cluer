@@ -1,19 +1,14 @@
 import { api } from "./api";
-import type {
-  CreateTourRequest,
-  CreateHintRequest,
-  TourAnalytics,
-  TourListItem,
-  TourVersion,
-} from "../types/sdk";
+import type { CreateTourRequest, CreateHintRequest, TourAnalytics, TourListItem, TourVersion, UpdateTourRequest,
+              UpdateTourMetaRequest, AnalyticsQuery } from "../types/sdk";
+import { APP_ID } from "./constants";
+import { normalizeTour } from "./Mappers/tourMapper";
 
-const APP_ID = "6adb48e4-a338-42b8-af6f-e46364e61aaa";
-
-function getIdFromLocation(location?: string) {
-  if (!location) {
-    throw new Error("Location header is missing");
-  }
-  return location.split("/").pop()!;
+function getIdFromLocation(location?: string): string {
+  if (!location) throw new Error("Location header is missing");
+  const id = location.split("/").pop();
+  if (!id) throw new Error("Invalid Location header format");
+  return id;
 }
 
 export const onboardingAPI = {
@@ -25,44 +20,9 @@ export const onboardingAPI = {
       .then((res) => res.data),
 
   getTour: async (tourId: string) => {
-    const tourResponse = await api.get(`/tours/${tourId}`);
-    const data = tourResponse.data;
-
-    console.log("TOUR RESPONSE", data);
-
-    let hints: any[] = [];
-
-    if (data.draft) {
-      const hintsResponse = await api.get(`/tours/${tourId}/hints`);
-      hints = hintsResponse.data ?? [];
-    } else if (data.published?.hints) {
-      hints = data.published.hints;
-    }
-
-    return {
-      id: data.tour.id,
-      title: data.tour.title,
-      description: data.tour.description,
-      enabled: data.tour.enabled,
-      priority: data.tour.priority,
-
-      trigger_type:
-        data.draft?.trigger_type ?? data.published?.trigger_type ?? "on_load",
-
-      target_path:
-        data.draft?.target_path ?? data.published?.target_path ?? "/",
-
-      audience: data.draft?.audience ??
-        data.published?.audience ?? {
-          show_once: true,
-          max_shows: 1,
-          only_new: false,
-        },
-
-      hints,
-      draft: data.draft,
-      published: data.published,
-    };
+    const data = (await api.get(`/tours/${tourId}`)).data;
+    const hints = data.draft?.hints || data.published?.hints || [];
+    return normalizeTour(data, hints);
   },
 
   getVersions: (tourId: string) =>
@@ -108,31 +68,14 @@ export const onboardingAPI = {
 
   publishTour: (tourId: string) => api.post(`/tours/${tourId}/publish`),
 
-  updateTour: (tourId: string, data: any) => {
-    console.log("UPDATE TOUR REQUEST", {
-      tourId,
-      data,
-    });
+  updateTour: (tourId: string, data: UpdateTourRequest) =>
+    api.patch(`/tours/${tourId}/draft`, data).then((res) => res.data),
 
-    return api.patch(`/tours/${tourId}/draft`, data).then((res) => {
-      console.log("UPDATE TOUR RESPONSE", res.data);
-      return res.data;
-    });
-  },
-
-  updateTourMeta: (
-    tourId: string,
-    data: {
-      title?: string;
-      description?: string;
-      enabled?: boolean;
-      priority?: number;
-    },
-  ) => api.patch(`/tours/${tourId}`, data).then((res) => res.data),
+  updateTourMeta: (tourId: string, data: UpdateTourMetaRequest) =>
+    api.patch(`/tours/${tourId}`, data).then((res) => res.data),
 
   createDraft: async (tourId: string) => {
-    const response = await api.post(`/tours/${tourId}/draft`);
-    return response.data;
+    return (await api.post(`/tours/${tourId}/draft`)).data;
   },
 
   updateHint: (tourId: string, hintId: string, data: CreateHintRequest) =>
@@ -143,14 +86,7 @@ export const onboardingAPI = {
   deleteHint: (tourId: string, hintId: string) =>
     api.delete(`/tours/${tourId}/hints/${hintId}`),
 
-  getAnalytics: (
-    tourId: string,
-    params?: {
-      versionId?: string;
-      from?: string;
-      to?: string;
-    },
-  ) =>
+  getAnalytics: (tourId: string, params?: AnalyticsQuery) =>
     api
       .get<TourAnalytics>(`/tours/${tourId}/analytics`, {
         params,
