@@ -43,14 +43,6 @@ func doJSON(t *testing.T, router *gin.Engine, method, target string, body any) *
 	return rec
 }
 
-func doRaw(router *gin.Engine, method, target, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, target, bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-	return rec
-}
-
 func decodeHTTPError(t *testing.T, rec *httptest.ResponseRecorder) models.HTTPError {
 	t.Helper()
 

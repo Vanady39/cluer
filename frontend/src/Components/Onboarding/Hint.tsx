@@ -21,8 +21,9 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
       const width = 320;
       const height = 120;
 
-      let top = rect.bottom + 12;
-      let left = rect.left;
+      // No initialiser: every branch below assigns both, including `default`.
+      let top: number;
+      let left: number;
 
       switch (hint.placement) {
         case "top":

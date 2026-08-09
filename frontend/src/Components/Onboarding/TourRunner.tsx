@@ -20,10 +20,6 @@ export function TourRunner({ tour, onClose }: Props) {
   const hint = tour.hints[step];
   const [element, setElement] = useState<HTMLElement | null>(null);
 
-  if (!hint) {
-    return null;
-  }
-
   const changeStep = (newStep: number) => {
     sessionStorage.setItem(storageKey, String(newStep));
     setStep(newStep);
@@ -47,10 +43,12 @@ export function TourRunner({ tour, onClose }: Props) {
   };
 
   useEffect(() => {
-    let interval: number;
+    if (!hint) return;
+
+    const selector = hint.selector;
     const findElement = () => {
-      const target = hint.selector
-        ? (document.querySelector(hint.selector) as HTMLElement | null)
+      const target = selector
+        ? (document.querySelector(selector) as HTMLElement | null)
         : null;
 
       if (target) {
@@ -59,12 +57,17 @@ export function TourRunner({ tour, onClose }: Props) {
         clearInterval(interval);
       }
     };
+
+    // Started before the first lookup so that finding the target straight away
+    // stops the poll: previously that first hit cleared an interval that did
+    // not exist yet, and the timer kept running.
+    const interval = window.setInterval(findElement, 200);
     findElement();
-    interval = window.setInterval(findElement, 200);
+
     return () => {
       clearInterval(interval);
     };
-  }, [step, hint.selector]);
+  }, [step, hint?.selector]);
 
   useEffect(() => {
     if (!element) return;
@@ -100,7 +103,7 @@ export function TourRunner({ tour, onClose }: Props) {
   }, [element, step]);
 
   useEffect(() => {
-    if (!element) return;
+    if (!element || !hint) return;
 
     if (hint.placement === "center") {
       return;
@@ -116,9 +119,11 @@ export function TourRunner({ tour, onClose }: Props) {
         inline: "nearest",
       });
     }
-  }, [element, hint.placement]);
+  }, [element, hint?.placement]);
 
-  if (!element) return null;
+  // Both guards live below the hooks so the hook order stays identical on every
+  // render; the early return used to sit above them.
+  if (!hint || !element) return null;
 
   return (
     <Hint

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Tour } from "../types/sdk";
-import { onboardingAPI } from "../Api/onboarding";
+// import { onboardingAPI } from "../Api/onboarding";
 
 export function useToursQuery() {
   return useQuery({

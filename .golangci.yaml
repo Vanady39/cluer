@@ -1,0 +1,18 @@
+version: "2"
+
+linters:
+  # Default set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  settings:
+    errcheck:
+      # Three call shapes where a returned error is deliberately dropped, and
+      # checking it would be noise rather than safety:
+      exclude-functions:
+        # gin's Error only ever fails on a nil argument, and it is called for
+        # its side effect of attaching the error to the context.
+        - (*github.com/gin-gonic/gin.Context).Error
+        # Deferred rollback after a successful commit always returns
+        # ErrTxClosed; that is the normal path, not a failure.
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+        # Deferred close on a connection that is being torn down anyway.
+        - (*database/sql.DB).Close

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -309,6 +310,12 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 		}
 		if h.Placement != PlacementCenter && h.Selector == "" {
 			details = append(details, ErrorDetail{Path: field("selector"), Message: "required unless placement is center"})
+		}
+		// Пустой путь — законное «наследую target_path». А вот относительный
+		// никогда не совпадёт с location.pathname, и тур молча встанет на этом
+		// шаге, дожидаясь элемента со страницы, куда он не перешёл.
+		if h.PagePath != "" && !strings.HasPrefix(h.PagePath, "/") {
+			details = append(details, ErrorDetail{Path: field("page_path"), Message: "must start with /"})
 		}
 		if seen[h.Step] {
 			details = append(details, ErrorDetail{Path: field("step"), Message: "duplicate step number"})

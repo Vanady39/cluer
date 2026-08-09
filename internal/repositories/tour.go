@@ -294,10 +294,10 @@ func (tr *TourRepository) CopyToDraft(ctx context.Context, tourId, sourceVersion
 
 	_, err = tx.Exec(ctx, `
 		INSERT INTO hints (
-			tour_version_id, step, title, content, selector, placement, media_url,
-			spotlight, required, wait_for_selector, input_placeholder, expected_input)
-		SELECT $1, step, title, content, selector, placement, media_url,
-		       spotlight, required, wait_for_selector, input_placeholder, expected_input
+			tour_version_id, step, title, content, selector, placement, page_path,
+			media_url, spotlight, required, wait_for_selector, input_placeholder, expected_input)
+		SELECT $1, step, title, content, selector, placement, page_path,
+		       media_url, spotlight, required, wait_for_selector, input_placeholder, expected_input
 		FROM hints WHERE tour_version_id = $2
 		ORDER BY step`, v.Id, sourceVersionId)
 	if err != nil {

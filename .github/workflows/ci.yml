@@ -1,0 +1,68 @@
+# Based on the official Go starter workflow:
+# https://github.com/actions/starter-workflows/blob/main/ci/go.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          # Reads the version from go.mod so CI cannot drift from the module.
+          # Module and build caching is on by default.
+          go-version-file: go.mod
+
+      # Config lives in .golangci.yaml. Needs the setup-go step above; the action
+      # caches its own analysis between runs.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12
+
+      - name: Build
+        run: go build -v ./...
+
+      # The suite is pure unit tests, so nothing here needs postgres.
+      - name: Test
+        run: go test -v ./...
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # Matches the builder image in frontend/Dockerfile.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # There are no frontend tests yet. `build` is still worth running: it is
+      # `tsc -b && vite build`, so it type-checks the whole app and fails on the
+      # kind of error that would otherwise only surface when building the image.
+      - name: Build
+        run: npm run build

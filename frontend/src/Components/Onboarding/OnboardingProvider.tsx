@@ -69,13 +69,6 @@ export function OnboardingProvider() {
     if (tour.audience?.only_new && localStorage.getItem("user_seen")) return null;
   }
 
-  const startTour = () => {
-    if (!isPreview) {
-      localStorage.setItem(showsKey, String(shows + 1));
-      localStorage.setItem("user_seen", "true");
-    }
-  };
-
   const closeTour = () => {
     setIsOpen(false);
     if (!isPreview && tour.audience?.show_once) {
@@ -83,11 +76,41 @@ export function OnboardingProvider() {
     }
   };
 
+  return (
+    <>
+      <AutoStartTrigger tour={tour} isPreview={isPreview} showsKey={showsKey} />
+      {isOpen ? <TourRunner tour={tour} onClose={closeTour} /> : null}
+    </>
+  );
+}
+
+// Its own component so the effect is reached by rendering rather than by a hook
+// call placed after the guards above: hook order stays the same on every
+// render, and the guards keep deciding whether the trigger exists at all.
+function AutoStartTrigger({
+  tour,
+  isPreview,
+  showsKey,
+}: {
+  tour: Tour;
+  isPreview: boolean;
+  showsKey: string;
+}) {
   useEffect(() => {
     if (isPreview) return;
 
+    const startTour = () => {
+      const shows = Number(localStorage.getItem(showsKey) || 0);
+      localStorage.setItem(showsKey, String(shows + 1));
+      localStorage.setItem("user_seen", "true");
+    };
+
     if (tour.trigger_type === "delay") {
-      return () => clearTimeout(setTimeout(startTour, 2000));
+      // Was `clearTimeout(setTimeout(startTour, 2000))` inside the cleanup,
+      // which created a timer and cancelled it in the same breath, so a delay
+      // tour never actually started.
+      const timer = setTimeout(startTour, 2000);
+      return () => clearTimeout(timer);
     }
 
     if (tour.trigger_type === "exit_intent") {
@@ -106,9 +129,7 @@ export function OnboardingProvider() {
     if (tour.trigger_type === "on_load") {
       startTour();
     }
-  }, [tour]);
+  }, [tour, isPreview, showsKey]);
 
-  if (!isOpen) return null;
-
-  return tour ? <TourRunner tour={tour} onClose={closeTour} /> : null;
+  return null;
 }
