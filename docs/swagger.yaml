@@ -178,6 +178,12 @@ definitions:
       media_url:
         example: https://cdn.example.com/onboarding/settings.mp4
         type: string
+      page_path:
+        description: |-
+          Пусто — подсказка живёт на той же странице, где тур стартовал,
+          то есть наследует target_path версии.
+        example: /dashboard
+        type: string
       placement:
         allOf:
         - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Placement'

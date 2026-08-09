@@ -1,5 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
+import type { CreateHintRequest, CreateTourRequest, Tour } from "../types/sdk";
+
+// What the scenario form hands over: the tour fields it actually collects, plus
+// its hints. target_path and priority are filled in below, not by the form, and
+// status is carried by the form but not yet sent anywhere.
+type SaveScenarioInput = Omit<CreateTourRequest, "target_path" | "priority"> & {
+  hints: CreateHintRequest[];
+  status: Tour["status"];
+};
 
 export function useSaveScenario(editId?: string | null) {
   const queryClient = useQueryClient();

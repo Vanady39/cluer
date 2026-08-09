@@ -17,18 +17,18 @@ func NewHintRepository(pool *pgxpool.Pool) *HintRepository {
 }
 
 const hintColumns = `id, tour_version_id, step, title, content, selector, placement,
-	media_url, spotlight, required, wait_for_selector, input_placeholder,
+	page_path, media_url, spotlight, required, wait_for_selector, input_placeholder,
 	expected_input, created_at, updated_at`
 
 func (hr *HintRepository) Create(ctx context.Context, h *domains.Hint) error {
 	err := hr.pool.QueryRow(ctx, `
 		INSERT INTO hints (
-			tour_version_id, step, title, content, selector, placement, media_url,
-			spotlight, required, wait_for_selector, input_placeholder, expected_input)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+			tour_version_id, step, title, content, selector, placement, page_path,
+			media_url, spotlight, required, wait_for_selector, input_placeholder, expected_input)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		RETURNING id, created_at, updated_at`,
-		h.TourVersionId, h.Step, h.Title, h.Content, h.Selector, h.Placement, h.MediaUrl,
-		h.Spotlight, h.Required, h.WaitForSelector, h.InputPlaceHolder, h.ExpectedInput,
+		h.TourVersionId, h.Step, h.Title, h.Content, h.Selector, h.Placement, h.PagePath,
+		h.MediaUrl, h.Spotlight, h.Required, h.WaitForSelector, h.InputPlaceHolder, h.ExpectedInput,
 	).Scan(&h.Id, &h.CreatedAt, &h.UpdatedAt)
 
 	return wrap(err, domains.ErrHintNotFound, h.TourVersionId.String(), domains.Create)
@@ -64,11 +64,11 @@ func (hr *HintRepository) ListByVersion(ctx context.Context, versionId uuid.UUID
 func (hr *HintRepository) Update(ctx context.Context, h *domains.Hint) error {
 	updated, err := scanHint(hr.pool.QueryRow(ctx, `
 		UPDATE hints SET title = $2, content = $3, selector = $4, placement = $5,
-			media_url = $6, spotlight = $7, required = $8, wait_for_selector = $9,
-			input_placeholder = $10, expected_input = $11
+			page_path = $6, media_url = $7, spotlight = $8, required = $9,
+			wait_for_selector = $10, input_placeholder = $11, expected_input = $12
 		WHERE id = $1
 		RETURNING `+hintColumns,
-		h.Id, h.Title, h.Content, h.Selector, h.Placement, h.MediaUrl,
+		h.Id, h.Title, h.Content, h.Selector, h.Placement, h.PagePath, h.MediaUrl,
 		h.Spotlight, h.Required, h.WaitForSelector, h.InputPlaceHolder, h.ExpectedInput))
 	if err != nil {
 		return wrap(err, domains.ErrHintNotFound, h.Id.String(), domains.Update)
@@ -150,8 +150,8 @@ func scanHint(row scanner) (*domains.Hint, error) {
 	h := new(domains.Hint)
 	err := row.Scan(
 		&h.Id, &h.TourVersionId, &h.Step, &h.Title, &h.Content, &h.Selector, &h.Placement,
-		&h.MediaUrl, &h.Spotlight, &h.Required, &h.WaitForSelector, &h.InputPlaceHolder,
-		&h.ExpectedInput, &h.CreatedAt, &h.UpdatedAt,
+		&h.PagePath, &h.MediaUrl, &h.Spotlight, &h.Required, &h.WaitForSelector,
+		&h.InputPlaceHolder, &h.ExpectedInput, &h.CreatedAt, &h.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err

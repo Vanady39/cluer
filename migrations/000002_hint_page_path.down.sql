@@ -1,0 +1,1 @@
+ALTER TABLE hints DROP COLUMN IF EXISTS page_path;

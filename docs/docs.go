@@ -1275,6 +1275,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://cdn.example.com/onboarding/settings.mp4"
                 },
+                "page_path": {
+                    "description": "Пусто — подсказка живёт на той же странице, где тур стартовал,\nто есть наследует target_path версии.",
+                    "type": "string",
+                    "example": "/dashboard"
+                },
                 "placement": {
                     "allOf": [
                         {

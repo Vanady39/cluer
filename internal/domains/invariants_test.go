@@ -74,6 +74,24 @@ func TestValidateForPublish(t *testing.T) {
 		assert.Contains(t, detailPaths(t, err), "hints[1].step")
 	})
 
+	t.Run("пустой page_path допустим — наследует target_path", func(t *testing.T) {
+		assert.NoError(t, validateForPublish(version(), []Hint{validHint(1)}))
+	})
+
+	t.Run("абсолютный page_path допустим", func(t *testing.T) {
+		crossPage := validHint(1)
+		crossPage.PagePath = "/profile"
+		assert.NoError(t, validateForPublish(version(), []Hint{crossPage}))
+	})
+
+	t.Run("относительный page_path ловится", func(t *testing.T) {
+		relative := validHint(1)
+		relative.PagePath = "profile"
+		err := validateForPublish(version(), []Hint{relative})
+		require.Error(t, err)
+		assert.Contains(t, detailPaths(t, err), "hints[0].page_path")
+	})
+
 	t.Run("селектор обязателен, кроме placement=center", func(t *testing.T) {
 		noSelector := validHint(1)
 		noSelector.Selector = ""
