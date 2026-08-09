@@ -73,10 +73,8 @@ export function useCreateScenario(editId: string | null) {
       hints: loadedHints,
     });
 
-    if (!hasLoaded) {
-      setHasLoaded(true);
-    }
-  }, [loadedTour, hasLoaded, createForm]);
+    setHasLoaded(true);
+  }, [loadedTour, createForm]); 
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

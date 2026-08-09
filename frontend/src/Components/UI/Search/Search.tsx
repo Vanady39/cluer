@@ -13,10 +13,8 @@ function SearchBarComponent() {
   const [localSearch, setLocalSearch] = useState(searchQuery || "");
 
   useEffect(() => {
-    if (searchQuery && searchQuery !== localSearch) {
-      setLocalSearch(searchQuery);
-    }
-  }, [searchQuery, localSearch]);
+    setLocalSearch(searchQuery);
+  }, [searchQuery]);
 
   const handleFind = () => {
     if (localSearch.trim()) {

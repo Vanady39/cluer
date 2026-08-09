@@ -60,7 +60,7 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
         console.error("[Onboarding] event sending failed", error);
       });
     },
-    [isPreview, tour.id, tour.version_id, tour], 
+    [isPreview, tour], 
   );
 
   useEffect(() => {
@@ -70,10 +70,8 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   }, [tour.id, sendEvents]);
 
   useEffect(() => {
-    if (step !== initialStep) {
-      setStep(initialStep); 
-    }
-  }, [initialStep, step]);
+    setStep(initialStep); 
+  }, [initialStep]);
 
   useEffect(() => {
     if (!hint) return;
@@ -93,8 +91,8 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
       return;
     }
 
-    let interval: number | undefined;
-    let missingTimeout: number | undefined;
+    let _interval: number | undefined; 
+    let _missingTimeout: number | undefined; 
 
     const reportSelectorMissing = (reason: string) => {
       if (missingSelectorsRef.current.has(hint.id)) return;
@@ -116,26 +114,26 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
         if (target) {
           console.log("[Onboarding] element found", target);
           setElement(target);
-          if (interval !== undefined) window.clearInterval(interval);
-          if (missingTimeout !== undefined) window.clearTimeout(missingTimeout);
+          if (_interval !== undefined) window.clearInterval(_interval);
+          if (_missingTimeout !== undefined) window.clearTimeout(_missingTimeout);
         }
       } catch (error) {
         console.error("[Onboarding] invalid selector", hint.selector, error);
         reportSelectorMissing("invalid_selector");
-        if (interval !== undefined) window.clearInterval(interval);
-        if (missingTimeout !== undefined) window.clearTimeout(missingTimeout);
+        if (_interval !== undefined) window.clearInterval(_interval);
+        if (_missingTimeout !== undefined) window.clearTimeout(_missingTimeout);
       }
     };
 
     findElement();
-    interval = window.setInterval(findElement, 200);
-    missingTimeout = window.setTimeout(() => {
+    _interval = window.setInterval(findElement, 200);
+    _missingTimeout = window.setTimeout(() => {
       reportSelectorMissing("element_not_found");
     }, SELECTOR_MISSING_TIMEOUT);
 
     return () => {
-      if (interval !== undefined) window.clearInterval(interval);
-      if (missingTimeout !== undefined) window.clearTimeout(missingTimeout);
+      if (_interval !== undefined) window.clearInterval(_interval);
+      if (_missingTimeout !== undefined) window.clearTimeout(_missingTimeout);
     };
   }, [step, hint?.id, hint?.selector, hint?.placement, sendEvents]);
 
@@ -160,7 +158,7 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
     if (!isVisible) {
       element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     }
-  }, [element, hint]); 
+  }, [element, hint]);
 
   const goToNextStep = useCallback(() => {
     if (!hint) return;

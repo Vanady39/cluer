@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TourRunner } from "./TourRunner";
 import { Builder } from "./Builder";
 import type { Tour } from "../../types/sdk";
@@ -45,10 +45,13 @@ export function OnboardingProvider() {
   const isBuilder = params.get("builder") === "true";
   const previewTourId = params.get("tourId");
 
-  const loadTour = async (isPreview: boolean, previewTourId: string | null) => {
-    if (isPreview) return await loadPreviewTour(previewTourId);
-    return await loadRuntimeTour();
-  };
+  const loadTour = useCallback(
+    async (isPreview: boolean, previewTourId: string | null) => {
+      if (isPreview) return await loadPreviewTour(previewTourId);
+      return await loadRuntimeTour();
+    },
+    [],
+  );
 
   const loadRuntimeTour = async (): Promise<Tour | null> => {
     const response = await resolveTour({
@@ -71,24 +74,33 @@ export function OnboardingProvider() {
       target_path: source.target_path ?? "/",
       priority: source.priority ?? 0,
       trigger_type: source.trigger_type ?? "on_load",
-      audience: source.audience ?? { show_once: false, max_shows: 0, only_new: false },
+      audience: source.audience ?? {
+        show_once: false,
+        max_shows: 0,
+        only_new: false,
+      },
       hints: source.hints ?? raw.hints ?? [],
       current_hint_id: raw.current_hint_id ?? source.current_hint_id,
       version_id: raw.tour_version_id ?? source.version_id,
     };
   };
 
-  const loadPreviewTour = async (tourId: string | null): Promise<Tour | null> => {
+  const loadPreviewTour = async (
+    tourId: string | null,
+  ): Promise<Tour | null> => {
     if (!tourId) return null;
 
     const response = await fetch(`${API_URL}/v1/tours/${tourId}`);
-    if (!response.ok) throw new Error(`Preview request failed: ${response.status}`);
+    if (!response.ok)
+      throw new Error(`Preview request failed: ${response.status}`);
 
     const card = (await response.json()) as PreviewTourCard;
     const source = card.draft ?? card.published;
 
     if (!source) {
-      console.warn("[Onboarding] PREVIEW: tour has no draft or published version");
+      console.warn(
+        "[Onboarding] PREVIEW: tour has no draft or published version",
+      );
       return null;
     }
 
@@ -100,7 +112,11 @@ export function OnboardingProvider() {
       target_path: source.target_path ?? "/",
       priority: card.tour.priority ?? 0,
       trigger_type: source.trigger_type ?? "on_load",
-      audience: source.audience ?? { show_once: false, max_shows: 0, only_new: false },
+      audience: source.audience ?? {
+        show_once: false,
+        max_shows: 0,
+        only_new: false,
+      },
       hints,
       current_hint_id: hints[0]?.id,
       version_id: source.id,
@@ -144,7 +160,7 @@ export function OnboardingProvider() {
         console.warn("[Onboarding] goal ignored: active tour is missing");
         return;
       }
-      
+
       const goal = (event as CustomEvent<OnboardingGoalDetail>).detail;
       if (!goal?.name) return;
 
@@ -178,7 +194,10 @@ export function OnboardingProvider() {
         onSelect={(selector) => {
           localStorage.setItem("selected_element", selector);
           if (window.opener) {
-            window.opener.postMessage({ type: "SELECTOR_SELECTED", selector }, "*");
+            window.opener.postMessage(
+              { type: "SELECTOR_SELECTED", selector },
+              "*",
+            );
             window.close();
           }
         }}
@@ -186,5 +205,11 @@ export function OnboardingProvider() {
     );
   }
   if (!tour || !isOpen) return null;
-  return <TourRunner tour={tour} isPreview={isPreview} onClose={() => setIsOpen(false) } />;
+  return (
+    <TourRunner
+      tour={tour}
+      isPreview={isPreview}
+      onClose={() => setIsOpen(false)}
+    />
+  );
 }

@@ -23,10 +23,8 @@ function HomeComponent() {
 
   useEffect(() => {
     const category = searchParams.get("category") || "all";
-    if (category !== selectedCategory) {
-      setSelectedCategory(category);
-    }
-  }, [searchParams, selectedCategory]);
+    setSelectedCategory(category);
+  }, [searchParams]);
 
   const filteredListings = listings.filter((item) => {
     if (selectedCategory !== "all" && item.category !== selectedCategory) {
