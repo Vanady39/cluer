@@ -6,6 +6,7 @@ import logo from "/logo.svg";
 import { useToursQuery } from "../../../../Hooks/useToursQuery";
 import { useDeleteTourMutation } from "../../../../Hooks/useDeleteTourMutation";
 import { onboardingAPI } from "../../../../Api/onboarding";
+import { ScenarioMenu } from "../ScenarioMenu/ScenarioMenu";
 
 function ScenariosComponent() {
   const navigate = useNavigate();
@@ -15,12 +16,7 @@ function ScenariosComponent() {
     null,
   );
 
-  const {
-    data: scenarios = [],
-    isLoading,
-    error,
-    refetch,
-  } = useToursQuery();
+  const { data: scenarios = [], isLoading, error, refetch } = useToursQuery();
 
   const deleteMutation = useDeleteTourMutation();
 
@@ -29,10 +25,7 @@ function ScenariosComponent() {
     setOpenMenu(null);
   };
 
-  const handleToggleEnabled = async (
-    id: string,
-    enabled: boolean,
-  ) => {
+  const handleToggleEnabled = async (id: string, enabled: boolean) => {
     try {
       setUpdatingEnabledId(id);
 
@@ -96,20 +89,44 @@ function ScenariosComponent() {
     };
   }
 
+  const handlePreview = async (tourId: string) => {
+    try {
+      const card = await onboardingAPI.getTour(tourId);
+
+      const version = card.draft ?? card.published;
+
+      if (!version) {
+        alert("У сценария пока нет версии для предпросмотра");
+        return;
+      }
+
+      const path = version.target_path || "/";
+
+      const previewUrl = new URL(path, window.location.origin);
+
+      previewUrl.searchParams.set("preview", "true");
+
+      previewUrl.searchParams.set("tourId", tourId);
+
+      window.open(previewUrl.toString(), "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("[Admin] preview error", error);
+
+      alert("Не удалось открыть предпросмотр");
+    }
+  };
+
   if (isLoading) {
     return <div>Загрузка сценариев...</div>;
   }
 
   if (error) {
-    return (
-      <div>
-        Ошибка загрузки сценариев: {error.message}
-      </div>
-    );
+    return <div>Ошибка загрузки сценариев: {error.message}</div>;
   }
 
   return (
     <div className={styles.page}>
+      <ScenarioMenu />
       <div className={styles.header}>
         <h1>Сценарии</h1>
 
@@ -137,9 +154,7 @@ function ScenariosComponent() {
 
           return (
             <div className={styles.row} key={item.id}>
-              <span className={styles.name}>
-                {item.title}
-              </span>
+              <span className={styles.name}>{item.title}</span>
 
               <span>
                 <span
@@ -155,21 +170,14 @@ function ScenariosComponent() {
 
                 {status.label}
 
-                <span>
-                  {item.enabled
-                    ? " · включен"
-                    : " · выключен"}
-                </span>
+                <span>{item.enabled ? " · включен" : " · выключен"}</span>
 
                 <input
                   type="checkbox"
                   checked={Boolean(item.enabled)}
                   disabled={updatingEnabledId === item.id}
                   onChange={(event) =>
-                    handleToggleEnabled(
-                      item.id,
-                      event.target.checked,
-                    )
+                    handleToggleEnabled(item.id, event.target.checked)
                   }
                 />
               </span>
@@ -178,24 +186,12 @@ function ScenariosComponent() {
 
               <span>
                 {item.updated_at
-                  ? new Date(
-                      item.updated_at,
-                    ).toLocaleDateString()
+                  ? new Date(item.updated_at).toLocaleDateString()
                   : "—"}
               </span>
 
               <div className={styles.actions}>
-                <Button
-                  size="min"
-                  onClick={() => {
-                    window.open(
-                      `${
-                        item.hints[0]?.page_path || "/"
-                      }?tour=${item.id}&preview=true`,
-                      "_blank",
-                    );
-                  }}
-                >
+                <Button size="min" onClick={() => handlePreview(item.id)}>
                   Предпросмотр
                 </Button>
 
@@ -204,11 +200,7 @@ function ScenariosComponent() {
                     size="min"
                     className={styles.more}
                     onClick={() =>
-                      setOpenMenu(
-                        openMenu === item.id
-                          ? null
-                          : item.id,
-                      )
+                      setOpenMenu(openMenu === item.id ? null : item.id)
                     }
                   >
                     ⋮
@@ -218,21 +210,14 @@ function ScenariosComponent() {
                     <div className={styles.dropdown}>
                       <button
                         className={styles.deleteButton}
-                        onClick={() =>
-                          handleDelete(item.id)
-                        }
+                        onClick={() => handleDelete(item.id)}
                       >
                         Удалить
                       </button>
 
                       <Button
                         size="min"
-                        onClick={() =>
-                          handleEdit(
-                            item.id,
-                            item.status,
-                          )
-                        }
+                        onClick={() => handleEdit(item.id, item.status)}
                       >
                         Редактировать
                       </Button>

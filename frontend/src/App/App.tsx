@@ -2,6 +2,7 @@ import { Header } from "../Components/Classifier/Widgets/Header";
 import { Home } from "../Components/Classifier/Pages/Home/Home";
 import { Profile } from "../Components/Classifier/Pages/Profile/Profile";
 import { AddItem } from "../Components/Classifier/Pages/AddItem/AddItem";
+import { Analytics } from "../Components/Admin/Pages/Analytics/Analytics";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import "./Styles.scss";
 import { Provider } from "react-redux";
@@ -15,7 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 function App() {
   return (
     <Provider store={Store}>
-      <QueryClientProvider client={new QueryClient()}> 
+      <QueryClientProvider client={new QueryClient()}>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<WrappPages />}>
@@ -27,6 +28,7 @@ function App() {
             <Route path="/admin" element={<Admin />}>
               <Route path="scenarios" element={<Scenarios />} />
               <Route path="scenarios/create" element={<CreateScenarios />} />
+              <Route path="analytics" element={<Analytics />} />
             </Route>
           </Routes>
         </BrowserRouter>
