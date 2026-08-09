@@ -39,10 +39,7 @@ export interface Tour {
   priority: number;
   trigger_type: TriggerType;
   audience: Audience;
-
   hints: TourHint[];
-
-  // Runtime поля от /resolve
   current_hint_id?: string;
   version_id?: string;
 
@@ -102,6 +99,7 @@ export interface TourAnalytics {
 }
 
 export interface TourListItem {
+  updated_at: string,
   id: string;
   title: string;
   description?: string;

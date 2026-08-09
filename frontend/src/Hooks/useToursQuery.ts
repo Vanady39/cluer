@@ -21,7 +21,13 @@ export function useToursQuery() {
             };
           } catch (error: unknown) {
             console.error(`Failed to load tour ${tour.id}`, error);
-            return { ...tour, hints: [] };
+            return {
+              ...tour,
+              draft: null,
+              published: null,
+              enabled: false,
+              hints: [],
+            };
           }
         }),
       );

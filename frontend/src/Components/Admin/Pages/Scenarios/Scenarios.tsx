@@ -51,7 +51,7 @@ function ScenariosComponent() {
     }
   };
 
-  const getTourStatus = (tour: { draft?: TourVersion; published?: TourVersion }) => {
+  const getTourStatus = (tour: { draft?: TourVersion | null; published?: TourVersion | null  }) => {
     const hasDraft = Boolean(tour.draft);
     const hasPublished = Boolean(tour.published);
 
