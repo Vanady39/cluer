@@ -45,14 +45,6 @@ export function OnboardingProvider() {
   const isBuilder = params.get("builder") === "true";
   const previewTourId = params.get("tourId");
 
-  const loadTour = useCallback(
-    async (isPreview: boolean, previewTourId: string | null) => {
-      if (isPreview) return await loadPreviewTour(previewTourId);
-      return await loadRuntimeTour();
-    },
-    [],
-  );
-
   const loadRuntimeTour = async (): Promise<Tour | null> => {
     const response = await resolveTour({
       apiUrl: API_URL,
@@ -122,6 +114,14 @@ export function OnboardingProvider() {
       version_id: source.id,
     };
   };
+
+  const loadTour = useCallback(
+    async (isPreview: boolean, previewTourId: string | null) => {
+      if (isPreview) return await loadPreviewTour(previewTourId);
+      return await loadRuntimeTour();
+    },
+    [loadRuntimeTour, loadPreviewTour],
+  );
 
   useEffect(() => {
     let cancelled = false;

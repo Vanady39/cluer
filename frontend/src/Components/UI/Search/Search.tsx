@@ -12,10 +12,6 @@ function SearchBarComponent() {
   const searchQuery = useSelector((state: RootState) => state.search.search);
   const [localSearch, setLocalSearch] = useState(searchQuery || "");
 
-  useEffect(() => {
-    setLocalSearch(searchQuery);
-  }, [searchQuery]);
-
   const handleFind = () => {
     if (localSearch.trim()) {
       dispatch(setSearch(localSearch.trim()));

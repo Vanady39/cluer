@@ -70,10 +70,6 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   }, [tour.id, sendEvents]);
 
   useEffect(() => {
-    setStep(initialStep); 
-  }, [initialStep]);
-
-  useEffect(() => {
     if (!hint) return;
     if (hint.placement === "center") return;
     if (!hint.selector) {

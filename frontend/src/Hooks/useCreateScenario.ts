@@ -74,7 +74,7 @@ export function useCreateScenario(editId: string | null) {
     });
 
     setHasLoaded(true);
-  }, [loadedTour, createForm]); 
+  }, [loadedTour, hasLoaded, createForm]); 
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
