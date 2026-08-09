@@ -1,6 +1,12 @@
 import { api } from "./api";
-import type { Tour, CreateTourRequest, CreateHintRequest,} from "../types/sdk";
+import type {
+  CreateTourRequest,
+  CreateHintRequest,
+  TourAnalytics,
+  TourListItem,
+} from "../types/sdk";
 
+const APP_ID = "6adb48e4-a338-42b8-af6f-e46364e61aaa";
 
 function getIdFromLocation(location?: string) {
   if (!location) {
@@ -10,92 +16,134 @@ function getIdFromLocation(location?: string) {
 }
 
 export const onboardingAPI = {
+  getTours: () =>
+    api
+      .get<TourListItem[]>("/tours", {
+        params: { appId: APP_ID },
+      })
+      .then((res) => res.data),
 
-// Получение опубликованных сценариев для страницы
+  getTour: async (tourId: string) => {
+    const tourResponse = await api.get(`/tours/${tourId}`);
+    const data = tourResponse.data;
+
+    console.log("TOUR RESPONSE", data);
+
+    let hints: any[] = [];
+
+    if (data.draft) {
+      const hintsResponse = await api.get(`/tours/${tourId}/hints`);
+      hints = hintsResponse.data ?? [];
+    } else if (data.published?.hints) {
+      hints = data.published.hints;
+    }
+
+    return {
+      id: data.tour.id,
+      title: data.tour.title,
+      description: data.tour.description,
+      enabled: data.tour.enabled,
+      priority: data.tour.priority,
+
+      trigger_type:
+        data.draft?.trigger_type ?? data.published?.trigger_type ?? "on_load",
+
+      target_path:
+        data.draft?.target_path ?? data.published?.target_path ?? "/",
+
+      audience: data.draft?.audience ??
+        data.published?.audience ?? {
+          show_once: true,
+          max_shows: 1,
+          only_new: false,
+        },
+
+      hints,
+      draft: data.draft,
+      published: data.published,
+    };
+  },
+
   getPublished: (path: string) =>
     api
-      .get<Tour[]>("/tours/published", {
+      .get("/tours/published", {
         params: {
+          appId: APP_ID,
           path,
         },
       })
       .then((res) => res.data),
 
-
-  // Создание сценария
-  // Сервер создаёт его как draft
   createTour: (data: CreateTourRequest) =>
     api
-      .post("/tours", data)
+      .post("/tours", data, {
+        params: {
+          appId: APP_ID,
+        },
+      })
       .then((res) =>
-        getIdFromLocation(
-          res.headers.location as string | undefined,
-        ),
+        getIdFromLocation(res.headers.location as string | undefined),
       ),
 
-
-  // Добавление подсказки
-  createHint: (
-    tourId: string,
-    data: CreateHintRequest,
-  ) =>
+  createHint: (tourId: string, data: CreateHintRequest) =>
     api
       .post(`/tours/${tourId}/hints`, data)
       .then((res) =>
-        getIdFromLocation(
-          res.headers.location as string | undefined,
-        ),
+        getIdFromLocation(res.headers.location as string | undefined),
       ),
 
+  publishTour: (tourId: string) => api.post(`/tours/${tourId}/publish`),
 
-  // Публикация сценария
-  publishTour: (tourId: string) =>
-    api.patch(`/tours/${tourId}`, {
-      status: "published",
-    }),
+  updateTour: (tourId: string, data: any) => {
+    console.log("UPDATE TOUR REQUEST", {
+      tourId,
+      data,
+    });
 
+    return api.patch(`/tours/${tourId}/draft`, data).then((res) => {
+      console.log("UPDATE TOUR RESPONSE", res.data);
+      return res.data;
+    });
+  },
 
-  // Редактирование сценария
-  // Для published сервер должен вернуть 409
-  updateTour: (
+  updateTourMeta: (
     tourId: string,
-    data: Partial<CreateTourRequest>,
-  ) =>
-    api
-      .put(`/tours/${tourId}`, data)
-      .then((res) => res.data),
+    data: {
+      title?: string;
+      description?: string;
+      enabled?: boolean;
+      priority?: number;
+    },
+  ) => api.patch(`/tours/${tourId}`, data).then((res) => res.data),
 
+  createDraft: async (tourId: string) => {
+    const response = await api.post(`/tours/${tourId}/draft`);
+    return response.data;
+  },
 
-  // Редактирование подсказки
   updateHint: (
     tourId: string,
     hintId: string,
     data: Partial<CreateHintRequest>,
   ) =>
-    api
-      .put(
-        `/tours/${tourId}/hints/${hintId}`,
-        data,
-      )
-      .then((res) => res.data),
+    api.patch(`/tours/${tourId}/hints/${hintId}`, data).then((res) => res.data),
 
+  deleteTour: (tourId: string) => api.delete(`/tours/${tourId}`),
 
-  // Удаление сценария
-  deleteTour: (tourId: string) =>
-    api
-      .delete(`/tours/${tourId}`)
-      .then((res) => res.data),
+  deleteHint: (tourId: string, hintId: string) =>
+    api.delete(`/tours/${tourId}/hints/${hintId}`),
 
-      
-  // Удаление подсказки
-  deleteHint: (
+  getAnalytics: (
     tourId: string,
-    hintId: string,
+    params?: {
+      versionId?: string;
+      from?: string;
+      to?: string;
+    },
   ) =>
     api
-      .delete(
-        `/tours/${tourId}/hints/${hintId}`,
-      )
+      .get<TourAnalytics>(`/tours/${tourId}/analytics`, {
+        params,
+      })
       .then((res) => res.data),
-
 };

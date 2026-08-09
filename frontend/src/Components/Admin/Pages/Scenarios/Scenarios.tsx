@@ -5,12 +5,19 @@ import { Button } from "../../../UI/Button";
 import logo from "/logo.svg";
 import { useToursQuery } from "../../../../Hooks/useToursQuery";
 import { useDeleteTourMutation } from "../../../../Hooks/useDeleteTourMutation";
+import { onboardingAPI } from "../../../../Api/onboarding";
+import { ScenarioMenu } from "../ScenarioMenu/ScenarioMenu";
 
 function ScenariosComponent() {
   const navigate = useNavigate();
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const { data: scenarios = [], isLoading, error } = useToursQuery();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [updatingEnabledId, setUpdatingEnabledId] = useState<string | null>(
+    null,
+  );
+
+  const { data: scenarios = [], isLoading, error, refetch } = useToursQuery();
+
   const deleteMutation = useDeleteTourMutation();
 
   const handleDelete = (id: string) => {
@@ -18,25 +25,111 @@ function ScenariosComponent() {
     setOpenMenu(null);
   };
 
+  const handleToggleEnabled = async (id: string, enabled: boolean) => {
+    try {
+      setUpdatingEnabledId(id);
+
+      await onboardingAPI.updateTourMeta(id, {
+        enabled,
+      });
+
+      await refetch();
+    } catch (error) {
+      console.error("TOGGLE ENABLED ERROR", error);
+      alert("Не удалось изменить состояние сценария");
+    } finally {
+      setUpdatingEnabledId(null);
+    }
+  };
+
+  const handleEdit = async (id: string, status: string) => {
+    try {
+      const tour = await onboardingAPI.getTour(id);
+
+      // Есть published, но draft ещё нет
+      if (tour.published && !tour.draft) {
+        await onboardingAPI.createDraft(id);
+      }
+
+      navigate(`/admin/scenarios/create?id=${id}`);
+    } catch (error) {
+      console.error("EDIT TOUR ERROR", error);
+      alert("Не удалось открыть сценарий");
+    }
+  };
+
+  function getTourStatus(tour: any) {
+    const hasDraft = Boolean(tour.draft);
+    const hasPublished = Boolean(tour.published);
+
+    if (hasPublished && hasDraft) {
+      return {
+        label: "Есть неопубликованные изменения",
+        type: "changes",
+      };
+    }
+
+    if (hasPublished) {
+      return {
+        label: "Опубликован",
+        type: "published",
+      };
+    }
+
+    if (hasDraft) {
+      return {
+        label: "Черновик",
+        type: "draft",
+      };
+    }
+
+    return {
+      label: "Без версии",
+      type: "unknown",
+    };
+  }
+
+  const handlePreview = async (tourId: string) => {
+    try {
+      const card = await onboardingAPI.getTour(tourId);
+
+      const version = card.draft ?? card.published;
+
+      if (!version) {
+        alert("У сценария пока нет версии для предпросмотра");
+        return;
+      }
+
+      const path = version.target_path || "/";
+
+      const previewUrl = new URL(path, window.location.origin);
+
+      previewUrl.searchParams.set("preview", "true");
+
+      previewUrl.searchParams.set("tourId", tourId);
+
+      window.open(previewUrl.toString(), "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("[Admin] preview error", error);
+
+      alert("Не удалось открыть предпросмотр");
+    }
+  };
+
   if (isLoading) {
-    return <div className={styles.loading}>Загрузка сценариев...</div>;
+    return <div>Загрузка сценариев...</div>;
   }
 
   if (error) {
-    return (
-      <div className={styles.error}>
-        Ошибка загрузки сценариев: {error.message}
-      </div>
-    );
+    return <div>Ошибка загрузки сценариев: {error.message}</div>;
   }
 
   return (
     <div className={styles.page}>
+      <ScenarioMenu />
       <div className={styles.header}>
-        <img src={logo} className={styles.logo} />
-        <div>
-          <h1>Сценарии</h1>
-        </div>
+        <h1>Сценарии</h1>
+
         <Button
           className={styles.createButton}
           size="main"
@@ -56,75 +149,85 @@ function ScenariosComponent() {
           <span>Действия</span>
         </div>
 
-        {scenarios.map((item) => (
-          <div className={styles.row} key={item.id}>
-            <span className={styles.name}>{item.title}</span>
-            <span>
-              <span
-                className={`
-                  ${styles.status}
-                  ${item.status === "published" ? styles.success : styles.warning}
-                `}
-              />
-              {item.status === "published" ? "Опубликован" : "Черновик"}
-            </span>
+        {scenarios.map((item) => {
+          const status = getTourStatus(item);
 
-            <span>{item.hints.length}</span>
-            <span>
-              {item.updated_at
-                ? new Date(item.updated_at).toLocaleDateString()
-                : "—"}
-            </span>
+          return (
+            <div className={styles.row} key={item.id}>
+              <span className={styles.name}>{item.title}</span>
 
-            <div className={styles.actions}>
-              <Button
-                size="min"
-                onClick={() => {
-                  window.open(
-                    `${item.hints[0]?.page_path || "/"}?tour=${item.id}&preview=true`,
-                    "_blank",
-                  );
-                }}
-              >
-                Предпросмотр
-              </Button>
+              <span>
+                <span
+                  className={`
+                    ${styles.status}
+                    ${
+                      status.type === "published"
+                        ? styles.success
+                        : styles.warning
+                    }
+                  `}
+                />
 
-              <div className={styles.menuWrapper}>
-                <Button
-                  size="min"
-                  className={styles.more}
-                  onClick={() =>
-                    setOpenMenu(openMenu === item.id ? null : item.id)
+                {status.label}
+
+                <span>{item.enabled ? " · включен" : " · выключен"}</span>
+
+                <input
+                  type="checkbox"
+                  checked={Boolean(item.enabled)}
+                  disabled={updatingEnabledId === item.id}
+                  onChange={(event) =>
+                    handleToggleEnabled(item.id, event.target.checked)
                   }
-                >
-                  ⋮
+                />
+              </span>
+
+              <span>{item.hints?.length || 0}</span>
+
+              <span>
+                {item.updated_at
+                  ? new Date(item.updated_at).toLocaleDateString()
+                  : "—"}
+              </span>
+
+              <div className={styles.actions}>
+                <Button size="min" onClick={() => handlePreview(item.id)}>
+                  Предпросмотр
                 </Button>
 
-                {openMenu === item.id && (
-                  <div className={styles.dropdown}>
-                    <button
-                      className={styles.deleteButton}
-                      onClick={() => handleDelete(item.id)}
-                    >
-                      Удалить
-                    </button>
+                <div className={styles.menuWrapper}>
+                  <Button
+                    size="min"
+                    className={styles.more}
+                    onClick={() =>
+                      setOpenMenu(openMenu === item.id ? null : item.id)
+                    }
+                  >
+                    ⋮
+                  </Button>
 
-                    {item.status !== "published" && (
+                  {openMenu === item.id && (
+                    <div className={styles.dropdown}>
+                      <button
+                        className={styles.deleteButton}
+                        onClick={() => handleDelete(item.id)}
+                      >
+                        Удалить
+                      </button>
+
                       <Button
                         size="min"
-                        onClick={() =>
-                          navigate(`/admin/scenarios/create?id=${item.id}`)
-                        }
+                        onClick={() => handleEdit(item.id, item.status)}
                       >
                         Редактировать
                       </Button>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

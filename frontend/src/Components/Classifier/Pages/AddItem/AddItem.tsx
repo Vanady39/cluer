@@ -11,6 +11,7 @@ import { Categories } from "../../../UI/CategoriesSelect/CategoriesSelect";
 import { Upload } from "../../../UI/Upload/Upload";
 import { PreviewModal } from "../../Layouts/PreviewModal/PreviewModal";
 import styles from "./Styles.module.scss";
+import { trackOnboardingGoal } from "../../../Onboarding/goal";
 
 interface FileItem {
   uid: string;
@@ -38,16 +39,29 @@ function AddItemComponent() {
 
   const onSubmit = async (data: InferType<typeof createAdSchema>) => {
     setLoading(true);
+
     try {
       const formData = new FormData();
+
       Object.entries(data).forEach(([key, value]) => {
         formData.append(key, String(value));
       });
+
       fileList.forEach((item) => {
-        if (item.file) formData.append("images", item.file);
+        if (item.file) {
+          formData.append("images", item.file);
+        }
       });
+
       console.log("Отправка:", Object.fromEntries(formData));
+
+      trackOnboardingGoal("listing_created", {
+        title: data.title,
+        category: data.category,
+      });
+
       alert("Объявление создано!");
+
       navigate("/");
     } catch {
       alert("Ошибка при создании");
@@ -135,12 +149,12 @@ function AddItemComponent() {
               )}
             />
           </div>
-          <div data-onboarding='photo-upload'>
-               <Upload
-            fileList={fileList}
-            onFileChange={setFileList}
-            openPreview={openPreview}
-          />
+          <div data-onboarding="photo-upload">
+            <Upload
+              fileList={fileList}
+              onFileChange={setFileList}
+              openPreview={openPreview}
+            />
           </div>
 
           <div className={styles.actions}>

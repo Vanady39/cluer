@@ -1,33 +1,309 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TourRunner } from "./TourRunner";
 import { Builder } from "./Builder";
 import type { Tour } from "../../types/sdk";
-import { usePublishedTour } from "../../Hooks/usePublishedTour";
+import { resolveTour } from "./client";
+import { sendOnboardingEvent } from "./events";
+import { getOnboardingGoalEventName, type OnboardingGoalDetail } from "./goal";
+
+const API_URL = "http://localhost:8080";
+const APP_KEY = "pk_4e17b539-07c4-429a-9b30-12a34b2059f5";
+
+type ResolvePayload = Partial<Tour> & {
+  tour_id?: string;
+  tour_version_id?: string;
+  current_hint_id?: string;
+  hints?: Tour["hints"];
+  tour?: Partial<Tour>;
+};
+
+interface PreviewVersion {
+  id: string;
+  trigger_type?: Tour["trigger_type"];
+  target_path?: string;
+  audience?: Tour["audience"];
+  hints?: Tour["hints"];
+}
+
+interface PreviewTourCard {
+  tour: {
+    id: string;
+    title?: string;
+    description?: string;
+    priority?: number;
+  };
+  draft?: PreviewVersion | null;
+  published?: PreviewVersion | null;
+}
 
 export function OnboardingProvider() {
-  const [isOpen, setIsOpen] = useState(true);
-  const [manualTour, setManualTour] = useState<Tour | null>(null);
+  const [tour, setTour] = useState<Tour | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const sentGoalsRef = useRef<Set<string>>(new Set());
+
   const params = new URLSearchParams(window.location.search);
+
   const isPreview = params.get("preview") === "true";
   const isBuilder = params.get("builder") === "true";
-  const { data: tour, isLoading } = usePublishedTour(window.location.pathname);
+  const previewTourId = params.get("tourId");
+
+  // =========================
+  // RUNTIME RESOLVE
+  // =========================
 
   useEffect(() => {
-    window.startOnboarding = (id: string) => {
-      const tours = JSON.parse(localStorage.getItem("tours") || "[]");
-      const tour = tours.find(
-        (item: Tour) => item.id === id && item.trigger_type === "manual",
-      );
-      if (!tour) return;
-      setManualTour(tour);
+    if (isBuilder || isPreview) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function start() {
+      try {
+        const response = await resolveTour({
+          apiUrl: API_URL,
+          appKey: APP_KEY,
+
+          props: {
+            isNewUser: true,
+          },
+        });
+
+        console.log("[Onboarding] RESOLVE RESPONSE", response);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!response) {
+          setTour(null);
+          setIsOpen(false);
+          return;
+        }
+
+        const raw = response as ResolvePayload;
+        const source = raw.tour ?? raw;
+
+        const tourId = source.id ?? raw.tour_id;
+
+        if (!tourId) {
+          throw new Error("Resolve response does not contain tour id");
+        }
+
+        const resolvedTour: Tour = {
+          id: tourId,
+
+          title: source.title ?? "",
+
+          description: source.description ?? "",
+
+          target_path: source.target_path ?? "/",
+
+          priority: source.priority ?? 0,
+
+          trigger_type: source.trigger_type ?? "on_load",
+
+          audience: source.audience ?? {
+            show_once: false,
+            max_shows: 0,
+            only_new: false,
+          },
+
+          hints: source.hints ?? raw.hints ?? [],
+
+          current_hint_id: raw.current_hint_id ?? source.current_hint_id,
+
+          version_id: raw.tour_version_id ?? source.version_id,
+        };
+
+        console.log("[Onboarding] NORMALIZED TOUR", resolvedTour);
+
+        setTour(resolvedTour);
+        setIsOpen(true);
+      } catch (error) {
+        console.error("[Onboarding] RESOLVE ERROR", error);
+
+        setTour(null);
+        setIsOpen(false);
+      }
+    }
+
+    void start();
+
+    return () => {
+      cancelled = true;
     };
-  }, []);
+  }, [isBuilder, isPreview]);
+
+  // =========================
+  // PREVIEW
+  // =========================
+
+  useEffect(() => {
+    if (!isPreview || !previewTourId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPreview() {
+      try {
+        console.log("[Onboarding] PREVIEW REQUEST", previewTourId);
+
+        const response = await fetch(`${API_URL}/v1/tours/${previewTourId}`);
+
+        if (!response.ok) {
+          throw new Error(`Preview request failed: ${response.status}`);
+        }
+
+        const card = (await response.json()) as PreviewTourCard;
+
+        if (cancelled) {
+          return;
+        }
+
+        // Если есть draft — показываем его.
+        // Иначе опубликованную версию.
+        const source = card.draft ?? card.published;
+
+        if (!source) {
+          console.warn(
+            "[Onboarding] PREVIEW: tour has no draft or published version",
+          );
+
+          setTour(null);
+          setIsOpen(false);
+          return;
+        }
+
+        const hints = [...(source.hints ?? [])].sort((a, b) => a.step - b.step);
+
+        const previewTour: Tour = {
+          id: card.tour.id,
+
+          title: card.tour.title ?? "",
+
+          description: card.tour.description ?? "",
+
+          target_path: source.target_path ?? "/",
+
+          priority: card.tour.priority ?? 0,
+
+          trigger_type: source.trigger_type ?? "on_load",
+
+          audience: source.audience ?? {
+            show_once: false,
+            max_shows: 0,
+            only_new: false,
+          },
+
+          hints,
+
+          current_hint_id: hints[0]?.id,
+
+          version_id: source.id,
+        };
+
+        console.log("[Onboarding] PREVIEW TOUR", previewTour);
+
+        setTour(previewTour);
+        setIsOpen(true);
+      } catch (error) {
+        console.error("[Onboarding] PREVIEW ERROR", error);
+
+        if (!cancelled) {
+          setTour(null);
+          setIsOpen(false);
+        }
+      }
+    }
+
+    void loadPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPreview, previewTourId]);
+
+  // =========================
+  // GOAL REACHED
+  // =========================
+
+  useEffect(() => {
+    // Builder и preview не должны
+    // портить реальную аналитику.
+    if (isBuilder || isPreview) {
+      return;
+    }
+
+    const handleGoal = (event: Event) => {
+      if (!tour?.version_id) {
+        console.warn("[Onboarding] goal ignored: active tour is missing");
+
+        return;
+      }
+
+      const customEvent = event as CustomEvent<OnboardingGoalDetail>;
+
+      const goal = customEvent.detail;
+
+      if (!goal?.name) {
+        return;
+      }
+
+      const key = `${tour.id}:${tour.version_id}:${goal.name}`;
+
+      if (sentGoalsRef.current.has(key)) {
+        return;
+      }
+
+      sentGoalsRef.current.add(key);
+
+      console.log("[Onboarding] goal reached", goal.name);
+
+      void sendOnboardingEvent(
+        {
+          apiUrl: API_URL,
+          appKey: APP_KEY,
+        },
+        {
+          type: "goal_reached",
+          tourId: tour.id,
+          tourVersionId: tour.version_id,
+          hintId: null,
+
+          payload: {
+            goal: goal.name,
+            ...goal.payload,
+          },
+        },
+      ).catch((error) => {
+        sentGoalsRef.current.delete(key);
+
+        console.error("[Onboarding] goal event failed", error);
+      });
+    };
+
+    const eventName = getOnboardingGoalEventName();
+
+    window.addEventListener(eventName, handleGoal);
+
+    return () => {
+      window.removeEventListener(eventName, handleGoal);
+    };
+  }, [isBuilder, isPreview, tour?.id, tour?.version_id]);
+
+  // =========================
+  // BUILDER
+  // =========================
 
   if (isBuilder) {
     return (
       <Builder
         onSelect={(selector) => {
           localStorage.setItem("selected_element", selector);
+
           if (window.opener) {
             window.opener.postMessage(
               {
@@ -36,6 +312,7 @@ export function OnboardingProvider() {
               },
               "*",
             );
+
             window.close();
           }
         }}
@@ -43,93 +320,21 @@ export function OnboardingProvider() {
     );
   }
 
-  if (manualTour) {
-    return (
-      <>
-        <TourRunner
-          tour={manualTour}
-          onClose={() => {
-            setManualTour(null);
-          }}
-        />
-      </>
-    );
+  // =========================
+  // RUNTIME / PREVIEW
+  // =========================
+
+  if (!tour || !isOpen) {
+    return null;
   }
-
-  if (isLoading) return null;
-  if (!tour) return null;
-
-  const completedKey = `onboarding_completed_${tour.id}`;
-  const showsKey = `onboarding_shows_${tour.id}`;
-  const shows = Number(localStorage.getItem(showsKey) || 0);
-
-  if (!isPreview) {
-    if (tour.audience?.show_once && localStorage.getItem(completedKey)) return null;
-    if (tour.audience?.max_shows > 0 && shows >= tour.audience.max_shows) return null;
-    if (tour.audience?.only_new && localStorage.getItem("user_seen")) return null;
-  }
-
-  const closeTour = () => {
-    setIsOpen(false);
-    if (!isPreview && tour.audience?.show_once) {
-      localStorage.setItem(completedKey, "true");
-    }
-  };
 
   return (
-    <>
-      <AutoStartTrigger tour={tour} isPreview={isPreview} showsKey={showsKey} />
-      {isOpen ? <TourRunner tour={tour} onClose={closeTour} /> : null}
-    </>
+    <TourRunner
+      tour={tour}
+      isPreview={isPreview}
+      onClose={() => {
+        setIsOpen(false);
+      }}
+    />
   );
-}
-
-// Its own component so the effect is reached by rendering rather than by a hook
-// call placed after the guards above: hook order stays the same on every
-// render, and the guards keep deciding whether the trigger exists at all.
-function AutoStartTrigger({
-  tour,
-  isPreview,
-  showsKey,
-}: {
-  tour: Tour;
-  isPreview: boolean;
-  showsKey: string;
-}) {
-  useEffect(() => {
-    if (isPreview) return;
-
-    const startTour = () => {
-      const shows = Number(localStorage.getItem(showsKey) || 0);
-      localStorage.setItem(showsKey, String(shows + 1));
-      localStorage.setItem("user_seen", "true");
-    };
-
-    if (tour.trigger_type === "delay") {
-      // Was `clearTimeout(setTimeout(startTour, 2000))` inside the cleanup,
-      // which created a timer and cancelled it in the same breath, so a delay
-      // tour never actually started.
-      const timer = setTimeout(startTour, 2000);
-      return () => clearTimeout(timer);
-    }
-
-    if (tour.trigger_type === "exit_intent") {
-      const handleExit = (event: MouseEvent) => {
-        if (event.clientY <= 0) {
-          startTour();
-        }
-      };
-
-      document.addEventListener("mouseleave", handleExit);
-      return () => {
-        document.removeEventListener("mouseleave", handleExit);
-      };
-    }
-
-    if (tour.trigger_type === "on_load") {
-      startTour();
-    }
-  }, [tour, isPreview, showsKey]);
-
-  return null;
 }
