@@ -13,8 +13,10 @@ function SearchBarComponent() {
   const [localSearch, setLocalSearch] = useState(searchQuery || "");
 
   useEffect(() => {
-    if (searchQuery) setLocalSearch(searchQuery);
-  }, [searchQuery]);
+    if (searchQuery && searchQuery !== localSearch) {
+      setLocalSearch(searchQuery);
+    }
+  }, [searchQuery, localSearch]);
 
   const handleFind = () => {
     if (localSearch.trim()) {
@@ -24,7 +26,7 @@ function SearchBarComponent() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && localSearch.trim()) handleFind();
+    if (e.key === "Enter" && localSearch.trim()) handleFind();
   };
 
   const handleClear = () => {
@@ -48,7 +50,11 @@ function SearchBarComponent() {
           className={styles.search__input}
         />
         {localSearch && (
-          <button type="button" className={styles.search__clear} onClick={handleClear}>
+          <button
+            type="button"
+            className={styles.search__clear}
+            onClick={handleClear}
+          >
             ✕
           </button>
         )}

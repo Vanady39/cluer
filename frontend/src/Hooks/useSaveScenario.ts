@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
+<<<<<<< HEAD
 import type { CreateHintRequest, CreateTourRequest, Tour } from "../types/sdk";
 
 // What the scenario form hands over: the tour fields it actually collects, plus
@@ -9,12 +10,26 @@ type SaveScenarioInput = Omit<CreateTourRequest, "target_path" | "priority"> & {
   hints: CreateHintRequest[];
   status: Tour["status"];
 };
+=======
+import type { Audience, TourHint, TriggerType } from "../types/sdk";
+
+interface SaveScenarioData {
+  title: string;
+  description: string;
+  target_path: string;
+  trigger_type: TriggerType;
+  audience: Audience;
+  hints: TourHint[];
+  deletedHints: TourHint[];
+  status: "draft" | "published";
+}
+>>>>>>> frontend
 
 export function useSaveScenario(editId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: SaveScenarioData) => {
       if (editId) {
         await onboardingAPI.updateTourMeta(editId, {
           title: data.title,
@@ -93,16 +108,19 @@ export function useSaveScenario(editId?: string | null) {
       window.location.href = "/admin/scenarios";
     },
 
-    onError(error: any) {
+    onError(error: unknown) {
       console.error("FULL ERROR", error);
-      console.error("STATUS", error.response?.status);
-      console.error("RESPONSE", error.response?.data);
+      
+      // Безопасное чтение ошибки
+      const err = error as { response?: { status?: number; data?: unknown } };
+      console.error("STATUS", err.response?.status);
+      console.error("RESPONSE", err.response?.data);
 
       alert(
         JSON.stringify(
           {
-            status: error.response?.status,
-            data: error.response?.data,
+            status: err.response?.status,
+            data: err.response?.data,
           },
           null,
           2,

@@ -4,7 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import type { InferType } from "yup";
 import { useTourLoader } from "./useTourLoader";
 import { useSaveScenario } from "./useSaveScenario";
-import type { Audience, TourHint } from "../types/sdk";
+import type { Audience, TourHint, TriggerType } from "../types/sdk";
 import { scenarioSchema } from "../Components/Admin/Pages/AddScenarios/schema";
 
 type ScenarioHint = InferType<typeof scenarioSchema>["hints"][number];
@@ -110,9 +110,9 @@ export function useCreateScenario(editId: string | null) {
       ) ?? [];
     saveMutation.mutate({
       title: data.title,
-      description: data.description,
+      description: data.description ?? "",
       target_path: data.hints[0]?.page_path || "/",
-      trigger_type: data.trigger_type,
+      trigger_type: data.trigger_type as TriggerType,
       audience: data.audience as Audience,
       hints: data.hints as TourHint[],
       deletedHints,
