@@ -135,7 +135,7 @@ export function OnboardingProvider() {
     return () => {
       cancelled = true;
     };
-  }, [isBuilder, isPreview, previewTourId]);
+  }, [isBuilder, isPreview, previewTourId, loadTour]);
 
   useEffect(() => {
     if (isBuilder || isPreview) return;

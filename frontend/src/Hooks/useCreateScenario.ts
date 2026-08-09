@@ -72,7 +72,10 @@ export function useCreateScenario(editId: string | null) {
       },
       hints: loadedHints,
     });
-    setHasLoaded(true);
+
+    if (!hasLoaded) {
+      setHasLoaded(true);
+    }
   }, [loadedTour, hasLoaded, createForm]);
 
   useEffect(() => {

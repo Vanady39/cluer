@@ -32,8 +32,8 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
 
       if (!element) return;
       const rect = element.getBoundingClientRect();
-      let top = rect.bottom + 12;
-      let left = rect.left;
+      let top: number;
+      let left: number;
 
       switch (hint.placement) {
         case "top":

@@ -9,18 +9,25 @@ function UserMenuComponent() {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const isAuthenticated = true;
-  let hoverTimer: ReturnType<typeof setTimeout> | null = null; // ✅ Заменили NodeJS.Timeout
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
-    if (hoverTimer) clearTimeout(hoverTimer);
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     setIsOpen(true);
   };
 
   const handleMouseLeave = () => {
-    hoverTimer = setTimeout(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
       setIsOpen(false);
     }, 200);
   };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

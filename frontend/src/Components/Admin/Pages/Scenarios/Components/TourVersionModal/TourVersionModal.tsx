@@ -15,11 +15,11 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
   const hasLoaded = useRef(false);
 
   useEffect(() => {
-    if (!hasLoaded.current) {
-      loadVersions(tourId, title);
-      hasLoaded.current = true;
-    }
-  }, [tourId, title]);
+  if (!hasLoaded.current) {
+    loadVersions(tourId, title);
+    hasLoaded.current = true;
+  }
+}, [tourId, title, loadVersions]); 
 
   const formatDate = (value?: string | null) => {
     if (!value) return "—";

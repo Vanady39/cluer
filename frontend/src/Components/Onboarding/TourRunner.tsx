@@ -60,7 +60,7 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
         console.error("[Onboarding] event sending failed", error);
       });
     },
-    [isPreview, tour.id, tour.version_id],
+    [isPreview, tour.id, tour.version_id, tour], 
   );
 
   useEffect(() => {
@@ -70,8 +70,10 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   }, [tour.id, sendEvents]);
 
   useEffect(() => {
-    setStep(initialStep);
-  }, [initialStep]);
+    if (step !== initialStep) {
+      setStep(initialStep); 
+    }
+  }, [initialStep, step]);
 
   useEffect(() => {
     if (!hint) return;
@@ -158,7 +160,7 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
     if (!isVisible) {
       element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     }
-  }, [element, hint]);
+  }, [element, hint]); 
 
   const goToNextStep = useCallback(() => {
     if (!hint) return;
