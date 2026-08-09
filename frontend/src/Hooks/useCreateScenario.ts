@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import type { InferType } from "yup";
@@ -43,7 +43,7 @@ export function useCreateScenario(editId: string | null) {
     },
   });
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!loadedTour || hasLoaded) return;
 
     const loadedHints: ScenarioHint[] = loadedTour.hints?.length
@@ -74,7 +74,11 @@ export function useCreateScenario(editId: string | null) {
     });
 
     setHasLoaded(true);
-  }, [loadedTour, hasLoaded, createForm]); 
+  }, [loadedTour, createForm, hasLoaded]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

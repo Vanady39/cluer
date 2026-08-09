@@ -60,7 +60,7 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
         console.error("[Onboarding] event sending failed", error);
       });
     },
-    [isPreview, tour], 
+    [isPreview, tour],
   );
 
   useEffect(() => {
@@ -87,8 +87,8 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
       return;
     }
 
-    let _interval: number | undefined; 
-    let _missingTimeout: number | undefined; 
+    let _intervalRef: number | undefined;
+    let _missingTimeoutRef: number | undefined;
 
     const reportSelectorMissing = (reason: string) => {
       if (missingSelectorsRef.current.has(hint.id)) return;
@@ -110,26 +110,26 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
         if (target) {
           console.log("[Onboarding] element found", target);
           setElement(target);
-          if (_interval !== undefined) window.clearInterval(_interval);
-          if (_missingTimeout !== undefined) window.clearTimeout(_missingTimeout);
+          if (_intervalRef !== undefined) window.clearInterval(_intervalRef);
+          if (_missingTimeoutRef !== undefined) window.clearTimeout(_missingTimeoutRef);
         }
       } catch (error) {
         console.error("[Onboarding] invalid selector", hint.selector, error);
         reportSelectorMissing("invalid_selector");
-        if (_interval !== undefined) window.clearInterval(_interval);
-        if (_missingTimeout !== undefined) window.clearTimeout(_missingTimeout);
+        if (_intervalRef !== undefined) window.clearInterval(_intervalRef);
+        if (_missingTimeoutRef !== undefined) window.clearTimeout(_missingTimeoutRef);
       }
     };
 
     findElement();
-    _interval = window.setInterval(findElement, 200);
-    _missingTimeout = window.setTimeout(() => {
+    _intervalRef = window.setInterval(findElement, 200);
+    _missingTimeoutRef = window.setTimeout(() => {
       reportSelectorMissing("element_not_found");
     }, SELECTOR_MISSING_TIMEOUT);
 
     return () => {
-      if (_interval !== undefined) window.clearInterval(_interval);
-      if (_missingTimeout !== undefined) window.clearTimeout(_missingTimeout);
+      if (_intervalRef !== undefined) window.clearInterval(_intervalRef);
+      if (_missingTimeoutRef !== undefined) window.clearTimeout(_missingTimeoutRef);
     };
   }, [step, hint?.id, hint?.selector, hint?.placement, sendEvents]);
 

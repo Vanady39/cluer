@@ -45,7 +45,7 @@ export function OnboardingProvider() {
   const isBuilder = params.get("builder") === "true";
   const previewTourId = params.get("tourId");
 
-  const loadRuntimeTour = async (): Promise<Tour | null> => {
+  const loadRuntimeTour = useCallback(async (): Promise<Tour | null> => {
     const response = await resolveTour({
       apiUrl: API_URL,
       appKey: APP_KEY,
@@ -75,45 +75,46 @@ export function OnboardingProvider() {
       current_hint_id: raw.current_hint_id ?? source.current_hint_id,
       version_id: raw.tour_version_id ?? source.version_id,
     };
-  };
+  }, []);
 
-  const loadPreviewTour = async (
-    tourId: string | null,
-  ): Promise<Tour | null> => {
-    if (!tourId) return null;
+  const loadPreviewTour = useCallback(
+    async (tourId: string | null): Promise<Tour | null> => {
+      if (!tourId) return null;
 
-    const response = await fetch(`${API_URL}/v1/tours/${tourId}`);
-    if (!response.ok)
-      throw new Error(`Preview request failed: ${response.status}`);
+      const response = await fetch(`${API_URL}/v1/tours/${tourId}`);
+      if (!response.ok)
+        throw new Error(`Preview request failed: ${response.status}`);
 
-    const card = (await response.json()) as PreviewTourCard;
-    const source = card.draft ?? card.published;
+      const card = (await response.json()) as PreviewTourCard;
+      const source = card.draft ?? card.published;
 
-    if (!source) {
-      console.warn(
-        "[Onboarding] PREVIEW: tour has no draft or published version",
-      );
-      return null;
-    }
+      if (!source) {
+        console.warn(
+          "[Onboarding] PREVIEW: tour has no draft or published version",
+        );
+        return null;
+      }
 
-    const hints = [...(source.hints ?? [])].sort((a, b) => a.step - b.step);
-    return {
-      id: card.tour.id,
-      title: card.tour.title ?? "",
-      description: card.tour.description ?? "",
-      target_path: source.target_path ?? "/",
-      priority: card.tour.priority ?? 0,
-      trigger_type: source.trigger_type ?? "on_load",
-      audience: source.audience ?? {
-        show_once: false,
-        max_shows: 0,
-        only_new: false,
-      },
-      hints,
-      current_hint_id: hints[0]?.id,
-      version_id: source.id,
-    };
-  };
+      const hints = [...(source.hints ?? [])].sort((a, b) => a.step - b.step);
+      return {
+        id: card.tour.id,
+        title: card.tour.title ?? "",
+        description: card.tour.description ?? "",
+        target_path: source.target_path ?? "/",
+        priority: card.tour.priority ?? 0,
+        trigger_type: source.trigger_type ?? "on_load",
+        audience: source.audience ?? {
+          show_once: false,
+          max_shows: 0,
+          only_new: false,
+        },
+        hints,
+        current_hint_id: hints[0]?.id,
+        version_id: source.id,
+      };
+    },
+    [],
+  );
 
   const loadTour = useCallback(
     async (isPreview: boolean, previewTourId: string | null) => {
