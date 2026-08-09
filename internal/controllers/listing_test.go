@@ -15,9 +15,11 @@ import (
 type stubListingDomain struct {
 	listings []domains.Listing
 	err      error
+	filter   domains.ListingFilter
 }
 
-func (s *stubListingDomain) GetListings(_ context.Context) ([]domains.Listing, error) {
+func (s *stubListingDomain) GetListings(_ context.Context, filter domains.ListingFilter) ([]domains.Listing, error) {
+	s.filter = filter
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -43,6 +45,15 @@ func TestListingController_GetListings(t *testing.T) {
 			`{"data":[{"id":1,"title":"iPhone","description":"как новый","price":95000,"imageUrl":"https://x/i.png"}]}`,
 			rec.Body.String(),
 		)
+		assert.Equal(t, domains.ListingFilter{Limit: 20}, domain.filter)
+	})
+
+	t.Run("trims q and passes pagination filter to the domain", func(t *testing.T) {
+		domain := &stubListingDomain{}
+		rec := doJSON(t, listingRouter(domain), http.MethodGet, "/listings?q=+iPhone+&limit=5&offset=2", nil)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, domains.ListingFilter{Query: "iPhone", Limit: 5, Offset: 2}, domain.filter)
 	})
 
 	t.Run("empty result still returns a data array", func(t *testing.T) {
@@ -58,4 +69,19 @@ func TestListingController_GetListings(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, rec.Code)
 		decodeHTTPError(t, rec)
 	})
+
+	for _, path := range []string{
+		"/listings?limit=0",
+		"/listings?limit=51",
+		"/listings?limit=invalid",
+		"/listings?offset=-1",
+		"/listings?offset=invalid",
+	} {
+		t.Run("invalid pagination returns 400: "+path, func(t *testing.T) {
+			rec := doJSON(t, listingRouter(&stubListingDomain{}), http.MethodGet, path, nil)
+
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+			decodeHTTPError(t, rec)
+		})
+	}
 }

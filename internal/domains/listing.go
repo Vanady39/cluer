@@ -8,11 +8,11 @@ type (
 	}
 
 	ListingDomainInterface interface {
-		GetListings(context.Context) ([]Listing, error)
+		GetListings(context.Context, ListingFilter) ([]Listing, error)
 	}
 
 	ListingRepositoryInterface interface {
-		GetListings(context.Context) ([]Listing, error)
+		GetListings(context.Context, ListingFilter) ([]Listing, error)
 	}
 )
 
@@ -20,6 +20,6 @@ func NewListingDomain(repo ListingRepositoryInterface) *ListingDomain {
 	return &ListingDomain{repo: repo}
 }
 
-func (ld *ListingDomain) GetListings(ctx context.Context) ([]Listing, error) {
-	return ld.repo.GetListings(ctx)
+func (ld *ListingDomain) GetListings(ctx context.Context, filter ListingFilter) ([]Listing, error) {
+	return ld.repo.GetListings(ctx, filter)
 }

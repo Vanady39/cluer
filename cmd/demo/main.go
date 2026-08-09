@@ -13,6 +13,7 @@ import (
 	"github.com/Vanady39/cluer/internal/logger"
 	"github.com/Vanady39/cluer/internal/repositories"
 	"github.com/Vanady39/cluer/internal/server"
+	"github.com/Vanady39/cluer/internal/storage"
 )
 
 //	@title			Cluer Demo Site
@@ -27,7 +28,29 @@ func main() {
 	defaultLogger := logger.New(cfg.Logger.Default.Level)
 	defaultLogger.Info().Msg("Logger setup successfully")
 
-	listingDomain := domains.NewListingDomain(repositories.NewListingRepository())
+	if cfg.PostgresConfig == nil {
+		defaultLogger.Fatal().Msg("postgres config is required for the demo service")
+	}
+
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), time.Minute)
+	defer startupCancel()
+
+	dsn := cfg.PostgresConfig.GetDSN()
+	if err := storage.Migrate(dsn, defaultLogger); err != nil {
+		defaultLogger.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Migrations failed")
+	}
+
+	pool, err := storage.Connect(startupCtx, dsn, defaultLogger)
+	if err != nil {
+		defaultLogger.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Database connection failed")
+	}
+	defer pool.Close()
+
+	if err := storage.SeedDemoListings(startupCtx, pool); err != nil {
+		defaultLogger.Fatal().Err(err).Msg("Demo listings seed failed")
+	}
+
+	listingDomain := domains.NewListingDomain(repositories.NewListingRepository(pool))
 	userDomain := domains.NewUserDomain(repositories.NewUserRepository())
 
 	srvLogger := logger.New(cfg.GetLoggerConfig("server").Level)

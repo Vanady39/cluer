@@ -7,3 +7,9 @@ type Listing struct {
 	Price       int64
 	ImageURL    string
 }
+
+type ListingFilter struct {
+	Query  string
+	Limit  int
+	Offset int
+}

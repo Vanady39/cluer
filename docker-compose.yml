@@ -41,6 +41,9 @@ services:
       context: .
       args:
         SERVICE: demo
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./deploy/demo.yml:/run/secrets/cluer.yml:ro
     ports:
