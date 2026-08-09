@@ -36,6 +36,8 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   const shownHintsRef = useRef<Set<string>>(new Set());
   const missingSelectorsRef = useRef<Set<string>>(new Set());
   const tourStartedRef = useRef(false);
+  const intervalRef = useRef<number | undefined>(undefined);
+  const missingTimeoutRef = useRef<number | undefined>(undefined);
 
   const sendEvents = useCallback(
     (events: EventToSend[]) => {
@@ -87,9 +89,6 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
       return;
     }
 
-    let _intervalRef: number | undefined;
-    let _missingTimeoutRef: number | undefined;
-
     const reportSelectorMissing = (reason: string) => {
       if (missingSelectorsRef.current.has(hint.id)) return;
       missingSelectorsRef.current.add(hint.id);
@@ -110,26 +109,45 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
         if (target) {
           console.log("[Onboarding] element found", target);
           setElement(target);
-          if (_intervalRef !== undefined) window.clearInterval(_intervalRef);
-          if (_missingTimeoutRef !== undefined) window.clearTimeout(_missingTimeoutRef);
+          if (intervalRef.current !== undefined) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = undefined;
+          }
+          if (missingTimeoutRef.current !== undefined) {
+            window.clearTimeout(missingTimeoutRef.current);
+            missingTimeoutRef.current = undefined;
+          }
         }
       } catch (error) {
         console.error("[Onboarding] invalid selector", hint.selector, error);
         reportSelectorMissing("invalid_selector");
-        if (_intervalRef !== undefined) window.clearInterval(_intervalRef);
-        if (_missingTimeoutRef !== undefined) window.clearTimeout(_missingTimeoutRef);
+        if (intervalRef.current !== undefined) {
+          window.clearInterval(intervalRef.current);
+          intervalRef.current = undefined;
+        }
+        if (missingTimeoutRef.current !== undefined) {
+          window.clearTimeout(missingTimeoutRef.current);
+          missingTimeoutRef.current = undefined;
+        }
       }
     };
 
     findElement();
-    _intervalRef = window.setInterval(findElement, 200);
-    _missingTimeoutRef = window.setTimeout(() => {
+
+    intervalRef.current = window.setInterval(findElement, 200);
+    missingTimeoutRef.current = window.setTimeout(() => {
       reportSelectorMissing("element_not_found");
     }, SELECTOR_MISSING_TIMEOUT);
 
     return () => {
-      if (_intervalRef !== undefined) window.clearInterval(_intervalRef);
-      if (_missingTimeoutRef !== undefined) window.clearTimeout(_missingTimeoutRef);
+      if (intervalRef.current !== undefined) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = undefined;
+      }
+      if (missingTimeoutRef.current !== undefined) {
+        window.clearTimeout(missingTimeoutRef.current);
+        missingTimeoutRef.current = undefined;
+      }
     };
   }, [step, hint?.id, hint?.selector, hint?.placement, sendEvents]);
 
