@@ -5,9 +5,7 @@ import type { Tour } from "../../types/sdk";
 import { resolveTour } from "./client";
 import { sendOnboardingEvent } from "./events";
 import { getOnboardingGoalEventName, type OnboardingGoalDetail } from "./goal";
-
-const API_URL = "http://localhost:8080";
-const APP_KEY = "pk_4e17b539-07c4-429a-9b30-12a34b2059f5";
+import { API_URL, APP_KEY } from "../../Utils/constants";
 
 type ResolvePayload = Partial<Tour> & {
   tour_id?: string;

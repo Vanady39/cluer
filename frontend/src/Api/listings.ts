@@ -1,4 +1,4 @@
-import { demoApi } from "./api_demo";
+import { demoApi } from "./constants";
 import type { Listing } from "../types/listings";
 
 export const listingsAPI = {
