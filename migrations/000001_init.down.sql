@@ -17,5 +17,3 @@ DROP TABLE IF EXISTS tours;
 DROP TABLE IF EXISTS apps;
 
 DROP FUNCTION IF EXISTS set_updated_at();
-
--- pgcrypto намеренно не удаляем: расширение общее для БД.
