@@ -223,13 +223,16 @@ Ivan Vavilov (Vanady39)
 - Настройка Docker-окружения.
 - Написание тестов, рефакторинг и ревью кода.
 - Написание документации
+Personal contribution repository:
+https://github.com/Vanady39/Avito_personal_contribution
 
 Rodion Shabalin (Night565)
 - Проектирование сущностей объявлений и пользователя.
 - Проектирование JSONB-контрактов Users, Listing.
 - Реализация CRUD endpoints Users, Listing.
 - Написание тестов и ревью кода.
-
+Personal contribution repository:
+https://github.com/Night565/personal_contribution
 
 Max Burenko (lMaxLin)
 - Проектирование сущностей подсказок и сценариев.
@@ -237,6 +240,8 @@ Max Burenko (lMaxLin)
 - Реализация CRUD endpoints Hints, Tours. 
 - Написание тестов и ревью кода.
 - Написание документации
+Personal contribution repository:
+https://github.com/lMaxLin/Cluer_personal_repository.git
 
 ## Использование ИИ
 ИИ-ассистенты применялись как вспомогательный инструмент на протяжении разработки: для написания и рефакторинга отдельных участков кода, поиска и разбора ошибок, а также для точечного ресерча по библиотекам и инфраструктурным решениям. Все результаты проходили ревью участниками команды, архитектурные и продуктовые решения принимались людьми.
