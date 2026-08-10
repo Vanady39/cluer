@@ -3,7 +3,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { Tour } from "../../types/sdk";
 import { Hint } from "./Hint";
 import { sendOnboardingEvents, type EventType } from "./events";
-import { API_URL, APP_KEY, SELECTOR_MISSING_TIMEOUT } from "../../Utils/constants";
+import {
+  API_URL,
+  APP_KEY,
+  SELECTOR_MISSING_TIMEOUT,
+} from "../../Utils/constants";
 
 interface Props {
   tour: Tour;
@@ -90,41 +94,40 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   }, [sendEvents]);
 
   useEffect(() => {
-    setElement(null);
-
     if (!hint || !isHintPage || hint.placement === "center") return;
 
     if (!hint.selector) {
       if (!missingRef.current.has(hint.id)) {
         missingRef.current.add(hint.id);
+
         void sendEvents([
           {
             type: "selector_missing",
             hintId: hint.id,
-            payload: { selector: null, reason: "selector_empty" },
+            payload: {
+              selector: null,
+              reason: "selector_empty",
+            },
           },
         ]);
       }
+
       return;
     }
 
-    let interval: number | undefined;
-    let timeout: number | undefined;
-
-    const cleanup = () => {
-      if (interval !== undefined) clearInterval(interval);
-      if (timeout !== undefined) clearTimeout(timeout);
-    };
-
     const reportMissing = (reason: string) => {
       if (missingRef.current.has(hint.id)) return;
+
       missingRef.current.add(hint.id);
 
       void sendEvents([
         {
           type: "selector_missing",
           hintId: hint.id,
-          payload: { selector: hint.selector, reason },
+          payload: {
+            selector: hint.selector,
+            reason,
+          },
         },
       ]);
     };
@@ -135,25 +138,40 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
           hint.selector!,
         ) as HTMLElement | null;
 
-        if (!target) return;
+        if (!target) return false;
 
         setElement(target);
-        cleanup();
+        return true;
       } catch {
         reportMissing("invalid_selector");
-        cleanup();
+        return true;
       }
     };
 
-    findElement();
+    const interval = window.setInterval(() => {
+      if (findElement()) {
+        window.clearInterval(interval);
+        window.clearTimeout(timeout);
+      }
+    }, 200);
 
-    interval = window.setInterval(findElement, 200);
-    timeout = window.setTimeout(
-      () => reportMissing("element_not_found"),
-      SELECTOR_MISSING_TIMEOUT,
-    );
+    const timeout = window.setTimeout(() => {
+      window.clearInterval(interval);
 
-    return cleanup;
+      if (!findElement()) {
+        reportMissing("element_not_found");
+      }
+    }, SELECTOR_MISSING_TIMEOUT);
+
+    if (findElement()) {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    }
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
   }, [hint, isHintPage, sendEvents]);
 
   useEffect(() => {
