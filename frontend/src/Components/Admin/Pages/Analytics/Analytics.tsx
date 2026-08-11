@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState, memo } from "react";
 import html2pdf from "html2pdf.js";
-import { useAllToursAnalytics, type TourAnalyticsItem } from "../../../../Hooks/useAllToursAnalytics";
+import {
+  useAllToursAnalytics,
+  type TourAnalyticsItem,
+} from "../../../../Hooks/useAllToursAnalytics";
 import { percent, formatDate } from "../../../../Utils/format";
 import styles from "./Styles.module.scss";
 import { ScenarioMenu } from "./Components/ScenarioMenu/ScenarioMenu";
@@ -38,8 +41,10 @@ export function Analytics() {
     );
   }, [successfulTours]);
 
-  const totalCompletionRate = totals.started > 0 ? totals.completed / totals.started : 0;
-  const totalGoalRate = totals.started > 0 ? totals.goalReached / totals.started : 0;
+  const totalCompletionRate =
+    totals.started > 0 ? totals.completed / totals.started : 0;
+  const totalGoalRate =
+    totals.started > 0 ? totals.goalReached / totals.started : 0;
 
   const selectedItem = useMemo(
     () => data.find((item) => item.tour.id === selectedTourId),
@@ -75,7 +80,9 @@ export function Analytics() {
     return (
       <div className={styles.page}>
         <h1>Аналитика</h1>
-        <div className={styles.page__loading}>Загружаем аналитику сценариев...</div>
+        <div className={styles.page__loading}>
+          Загружаем аналитику сценариев...
+        </div>
       </div>
     );
   }
@@ -84,7 +91,9 @@ export function Analytics() {
     return (
       <div className={styles.page}>
         <h1>Аналитика</h1>
-        <div className={styles.page__error}>Не удалось загрузить аналитику.</div>
+        <div className={styles.page__error}>
+          Не удалось загрузить аналитику.
+        </div>
       </div>
     );
   }
@@ -110,7 +119,10 @@ export function Analytics() {
           <MetricCard title="Сценариев" value={data.length} />
           <MetricCard title="Запусков" value={totals.started} />
           <MetricCard title="Завершений" value={totals.completed} />
-          <MetricCard title="Completion rate" value={percent(totalCompletionRate)} />
+          <MetricCard
+            title="Completion rate"
+            value={percent(totalCompletionRate)}
+          />
           <MetricCard title="Достигли цели" value={totals.goalReached} />
           <MetricCard title="Goal rate" value={percent(totalGoalRate)} />
         </section>
@@ -147,26 +159,38 @@ export function Analytics() {
                     return (
                       <tr
                         key={item.tour.id}
-                        onClick={() => setSelectedTourId(isSelected ? null : item.tour.id)}
-                        className={isSelected ? styles.page__selectedRow : undefined}
+                        onClick={() =>
+                          setSelectedTourId(isSelected ? null : item.tour.id)
+                        }
+                        className={
+                          isSelected ? styles.page__selectedRow : undefined
+                        }
                       >
                         <td>
                           <div className={styles.page__tourName}>
                             <strong>{item.tour.title}</strong>
-                            {item.tour.description && <span>{item.tour.description}</span>}
+                            {item.tour.description && (
+                              <span>{item.tour.description}</span>
+                            )}
                           </div>
                         </td>
 
                         {!analytics ? (
                           <td colSpan={7} className={styles.page__noAnalytics}>
-                            {item.unpublished ? "Сценарий ещё не опубликован" : "Аналитика недоступна"}
+                            {item.unpublished
+                              ? "Сценарий ещё не опубликован"
+                              : "Аналитика недоступна"}
                           </td>
                         ) : (
                           <>
                             <td>v{analytics.version}</td>
                             <td>{analytics.totals.started}</td>
                             <td>{analytics.totals.completed}</td>
-                            <td><strong>{percent(analytics.totals.completion_rate)}</strong></td>
+                            <td>
+                              <strong>
+                                {percent(analytics.totals.completion_rate)}
+                              </strong>
+                            </td>
                             <td>{analytics.totals.goal_reached}</td>
                             <td>{percent(analytics.totals.goal_rate)}</td>
                             <td>{analytics.totals.dismissed}</td>
@@ -186,7 +210,13 @@ export function Analytics() {
   );
 }
 
-function MetricCard({ title, value }: { title: string; value: string | number }) {
+function MetricCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: string | number;
+}) {
   return (
     <div className={styles.page__card}>
       <span>{title}</span>
@@ -221,7 +251,9 @@ const TourDetails = memo(({ item }: { item: TourAnalyticsItem }) => {
 
         <h3>Аналитика</h3>
         {analytics.funnel.length === 0 ? (
-          <div className={styles.page__empty}>По этому сценарию пока нет данных</div>
+          <div className={styles.page__empty}>
+            По этому сценарию пока нет данных
+          </div>
         ) : (
           <div className={styles.page__funnel}>
             {analytics.funnel.map((step) => (
@@ -237,7 +269,10 @@ const TourDetails = memo(({ item }: { item: TourAnalyticsItem }) => {
                   <StepMetric title="Показано" value={step.shown} />
                   <StepMetric title="Завершено" value={step.completed} />
                   <StepMetric title="Пропущено" value={step.skipped} />
-                  <StepMetric title="Selector missing" value={step.selector_missing} />
+                  <StepMetric
+                    title="Selector missing"
+                    value={step.selector_missing}
+                  />
                 </div>
               </div>
             ))}
@@ -248,13 +283,30 @@ const TourDetails = memo(({ item }: { item: TourAnalyticsItem }) => {
       <section className={styles.page__section}>
         <h2>Проблемные селекторы</h2>
         {analytics.broken_selectors.length === 0 ? (
-          <div className={styles.page__success}>Проблемных селекторов не обнаружено</div>
+          <div className={styles.page__success}>
+            Проблемных селекторов не обнаружено
+          </div>
         ) : (
           <div className={styles.page__brokenSelectors}>
-            <p>Найдено проблемных подсказок: <strong>{analytics.broken_selectors.length}</strong></p>
-            {analytics.broken_selectors.map((id) => (
-              <code key={id}>{id}</code>
-            ))}
+            <p>
+              Найдено проблемных подсказок:{" "}
+              <strong>{analytics.broken_selectors.length}</strong>
+            </p>
+            {analytics.broken_selectors.map((id) => {
+              const step = analytics.funnel.find((item) => item.hint_id === id);
+
+              return (
+                <div key={id}>
+                  {step ? (
+                    <strong>
+                      Шаг {step.step} — {step.title}
+                    </strong>
+                  ) : (
+                    <code>{id}</code>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
