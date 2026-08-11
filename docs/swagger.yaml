@@ -81,9 +81,52 @@ definitions:
       only_new:
         example: false
         type: boolean
+      rules:
+        items:
+          $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.AudienceRule'
+        type: array
       show_once:
         example: true
         type: boolean
+    type: object
+  github_com_Vanady39_cluer_internal_domains.AudienceRule:
+    properties:
+      key:
+        example: is_premium
+        type: string
+      operator:
+        enum:
+        - exists
+        - not_exists
+        - eq
+        - neq
+        - gt
+        - gte
+        - lt
+        - lte
+        - contains
+        - not_contains
+        - starts_with
+        - ends_with
+        example: eq
+        type: string
+      timeframe:
+        enum:
+        - 1h
+        - 24h
+        - 7d
+        - 30d
+        - all_time
+        example: 7d
+        type: string
+      type:
+        enum:
+        - event_performed
+        - page_visited
+        - user_property
+        example: page_visited
+        type: string
+      value: {}
     type: object
   github_com_Vanady39_cluer_internal_domains.DraftPatch:
     properties:
@@ -91,6 +134,8 @@ definitions:
         $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.Audience'
       target_path:
         type: string
+      trigger_config:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerConfig'
       trigger_type:
         $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
     type: object
@@ -120,6 +165,7 @@ definitions:
     - tour_completed
     - tour_dismissed
     - goal_reached
+    - custom
     type: string
     x-enum-varnames:
     - EventTourStarted
@@ -130,6 +176,7 @@ definitions:
     - EventTourCompleted
     - EventTourDismissed
     - EventGoalReached
+    - EventCustom
   github_com_Vanady39_cluer_internal_domains.FunnelStep:
     properties:
       completed:
@@ -282,6 +329,8 @@ definitions:
       title:
         example: Добро пожаловать в систему
         type: string
+      trigger_config:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerConfig'
       trigger_type:
         allOf:
         - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
@@ -358,6 +407,8 @@ definitions:
       tour_id:
         format: uuid
         type: string
+      trigger_config:
+        $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerConfig'
       trigger_type:
         allOf:
         - $ref: '#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType'
@@ -366,18 +417,37 @@ definitions:
         example: 7
         type: integer
     type: object
+  github_com_Vanady39_cluer_internal_domains.TriggerConfig:
+    properties:
+      element_selector:
+        type: string
+      inactivity_secs:
+        example: 30
+        type: integer
+      scroll_depth:
+        example: 50
+        type: integer
+      url_pattern:
+        type: string
+    type: object
   github_com_Vanady39_cluer_internal_domains.TriggerType:
     enum:
     - on_load
     - delay
     - exit_intent
     - manual
+    - scroll_depth
+    - inactivity
+    - element_visible
     type: string
     x-enum-varnames:
     - TriggerOnLoad
     - TriggerDelay
     - TriggerExitIntent
     - TriggerManual
+    - TriggerScrollDepth
+    - TriggerInactivity
+    - TriggerElementVisible
   github_com_Vanady39_cluer_internal_models.HTTPError:
     properties:
       error:
@@ -654,6 +724,32 @@ paths:
       summary: Resolve a tour for a subject
       tags:
       - Runtime
+  /thours/{tourId}/hints/{hintId}:
+    delete:
+      description: Removes a hint from the draft and closes the gap in step numbering
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Hint ID
+        format: uuid
+        in: path
+        name: hintId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Delete a hint
+      tags:
+      - Hints
   /tours:
     get:
       description: Returns every tour of an app with the status of its current version
@@ -947,31 +1043,6 @@ paths:
       tags:
       - Hints
   /tours/{tourId}/hints/{hintId}:
-    delete:
-      description: Removes a hint from the draft and closes the gap in step numbering
-      parameters:
-      - description: Tour ID
-        format: uuid
-        in: path
-        name: tourId
-        required: true
-        type: string
-      - description: Hint ID
-        format: uuid
-        in: path
-        name: hintId
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-      summary: Delete a hint
-      tags:
-      - Hints
     patch:
       consumes:
       - application/json
