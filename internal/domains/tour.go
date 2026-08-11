@@ -58,9 +58,10 @@ type (
 	}
 
 	DraftPatch struct {
-		TriggerType *TriggerType `json:"trigger_type"`
-		TargetPath  *string      `json:"target_path"`
-		Audience    *Audience    `json:"audience"`
+		TriggerType   *TriggerType   `json:"trigger_type"`
+		TriggerConfig *TriggerConfig `json:"trigger_config"`
+		TargetPath    *string        `json:"target_path"`
+		Audience      *Audience      `json:"audience"`
 	}
 )
 
@@ -179,6 +180,15 @@ func (td *TourDomain) UpdateDraft(ctx context.Context, tourId uuid.UUID, p Draft
 	if p.TriggerType != nil && !p.TriggerType.Valid() {
 		return nil, logicErr(ErrInvalidTriggerType, "draft update", http.StatusBadRequest)
 	}
+	if p.TriggerConfig != nil {
+		triggerType := draft.TriggerType
+		if p.TriggerType != nil {
+			triggerType = *p.TriggerType
+		}
+		if details := validateTriggerConfig(triggerType, p.TriggerConfig); len(details) > 0 {
+			return nil, &ValidationError{Err: ErrTourNotPublishable, Details: details}
+		}
+	}
 	return td.tours.UpdateDraft(ctx, draft.Id, p)
 }
 
@@ -281,6 +291,54 @@ func validateTour(t *Tour) error {
 	return logicErr(err, "tour validation", http.StatusBadRequest)
 }
 
+func validateTriggerConfig(tType TriggerType, cfg *TriggerConfig) []ErrorDetail {
+	var details []ErrorDetail
+
+	if cfg == nil {
+		if tType == "scroll_depth" {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config",
+				Message: "is required for scroll_depth trigger",
+			})
+		}
+		return details
+	}
+
+	if cfg.ScrollDepth != nil {
+		if *cfg.ScrollDepth < 1 || *cfg.ScrollDepth > 100 {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.scroll_depth",
+				Message: "must be an integer between 1 and 100",
+			})
+		}
+	} else if tType == "scroll_depth" {
+		details = append(details, ErrorDetail{
+			Path:    "trigger_config.scroll_depth",
+			Message: "is required when trigger_type is scroll_depth",
+		})
+	}
+
+	if cfg.InactivitySecs != nil {
+		if *cfg.InactivitySecs < 3 {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.inactivity_secs",
+				Message: "must be at least 3 seconds to avoid accidental triggers",
+			})
+		}
+	}
+
+	if cfg.ElementSelector != nil {
+		if strings.TrimSpace(*cfg.ElementSelector) == "" {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.element_selector",
+				Message: "must not be empty if provided",
+			})
+		}
+	}
+
+	return details
+}
+
 func validateForPublish(v *TourVersion, hints []Hint) error {
 	details := make([]ErrorDetail, 0)
 
@@ -289,6 +347,9 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 	}
 	if !v.TriggerType.Valid() {
 		details = append(details, ErrorDetail{Path: "trigger_type", Message: "unknown trigger type"})
+	}
+	if triggerDetails := validateTriggerConfig(v.TriggerType, v.TriggerConfig); len(triggerDetails) > 0 {
+		details = append(details, triggerDetails...)
 	}
 	if len(hints) == 0 {
 		details = append(details, ErrorDetail{Path: "hints", Message: "a tour with no hints has nothing to show"})
