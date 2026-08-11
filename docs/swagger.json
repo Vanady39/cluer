@@ -218,44 +218,6 @@
                 }
             }
         },
-        "/thours/{tourId}/hints/{hintId}": {
-            "delete": {
-                "description": "Removes a hint from the draft and closes the gap in step numbering",
-                "tags": [
-                    "Hints"
-                ],
-                "summary": "Delete a hint",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Tour ID",
-                        "name": "tourId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Hint ID",
-                        "name": "hintId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
-                        }
-                    }
-                }
-            }
-        },
         "/tours": {
             "get": {
                 "description": "Returns every tour of an app with the status of its current version",
@@ -784,6 +746,42 @@
             }
         },
         "/tours/{tourId}/hints/{hintId}": {
+            "delete": {
+                "description": "Removes a hint from the draft and closes the gap in step numbering",
+                "tags": [
+                    "Hints"
+                ],
+                "summary": "Delete a hint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Tour ID",
+                        "name": "tourId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Hint ID",
+                        "name": "hintId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "description": "Edits a hint of the draft version; hints of published versions are immutable",
                 "consumes": [

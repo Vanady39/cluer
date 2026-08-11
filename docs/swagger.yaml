@@ -724,32 +724,6 @@ paths:
       summary: Resolve a tour for a subject
       tags:
       - Runtime
-  /thours/{tourId}/hints/{hintId}:
-    delete:
-      description: Removes a hint from the draft and closes the gap in step numbering
-      parameters:
-      - description: Tour ID
-        format: uuid
-        in: path
-        name: tourId
-        required: true
-        type: string
-      - description: Hint ID
-        format: uuid
-        in: path
-        name: hintId
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
-      summary: Delete a hint
-      tags:
-      - Hints
   /tours:
     get:
       description: Returns every tour of an app with the status of its current version
@@ -1043,6 +1017,31 @@ paths:
       tags:
       - Hints
   /tours/{tourId}/hints/{hintId}:
+    delete:
+      description: Removes a hint from the draft and closes the gap in step numbering
+      parameters:
+      - description: Tour ID
+        format: uuid
+        in: path
+        name: tourId
+        required: true
+        type: string
+      - description: Hint ID
+        format: uuid
+        in: path
+        name: hintId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError'
+      summary: Delete a hint
+      tags:
+      - Hints
     patch:
       consumes:
       - application/json
