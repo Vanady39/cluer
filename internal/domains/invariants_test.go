@@ -2,6 +2,7 @@ package domains
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -123,6 +124,22 @@ func TestValidateForPublish(t *testing.T) {
 			assert.Contains(t, body.Error, d.Path)
 		}
 	})
+	t.Run("scroll_depth без конфига не публикуется", func(t *testing.T) {
+		v := &TourVersion{TargetPath: "/x", TriggerType: TriggerScrollDepth}
+		err := validateForPublish(v, []Hint{validHint(1)})
+		require.Error(t, err)
+		assert.Contains(t, detailPaths(t, err), "trigger_config")
+	})
+
+	t.Run("scroll_depth с валидным конфигом публикуется", func(t *testing.T) {
+		depth := 50
+		v := &TourVersion{
+			TargetPath:    "/x",
+			TriggerType:   TriggerScrollDepth,
+			TriggerConfig: &TriggerConfig{ScrollDepth: &depth},
+		}
+		assert.NoError(t, validateForPublish(v, []Hint{validHint(1)}))
+	})
 }
 
 func TestMatchAudience(t *testing.T) {
@@ -207,6 +224,18 @@ func TestValidateEvent(t *testing.T) {
 		}))
 	})
 
+	t.Run("EventCustom без hint_id проходит", func(t *testing.T) {
+		assert.NoError(t, validateEvent(&Event{
+			EventKey: "k", Type: EventCustom, TourVersionId: versionId,
+		}))
+	})
+
+	t.Run("EventCustom с hint_id тоже проходит (гибкость)", func(t *testing.T) {
+		assert.NoError(t, validateEvent(&Event{
+			EventKey: "k", Type: EventCustom, TourVersionId: versionId, HintId: &hintId,
+		}))
+	})
+
 	t.Run("событие без версии отвергается", func(t *testing.T) {
 		assert.Error(t, validateEvent(&Event{EventKey: "k", Type: EventTourStarted}))
 	})
@@ -276,6 +305,9 @@ func TestEventTypeTourLevel(t *testing.T) {
 
 	assert.False(t, EventHintShown.TourLevel())
 	assert.False(t, EventSelectorMissing.TourLevel())
+
+	assert.True(t, EventCustom.TourLevel())
+	assert.True(t, EventCustom.Valid())
 }
 
 func TestTourStatusValid(t *testing.T) {
@@ -297,4 +329,149 @@ func detailPaths(t *testing.T, err error) []string {
 		paths = append(paths, d.Path)
 	}
 	return paths
+}
+
+func TestValidateTriggerConfig(t *testing.T) {
+	t.Run("scroll_depth без конфига возвращает ошибку", func(t *testing.T) {
+		details := validateTriggerConfig(TriggerScrollDepth, nil)
+		assert.Len(t, details, 1)
+		assert.Equal(t, "trigger_config", details[0].Path)
+	})
+
+	t.Run("on_load без конфига — ок", func(t *testing.T) {
+		details := validateTriggerConfig(TriggerOnLoad, nil)
+		assert.Empty(t, details)
+	})
+
+	t.Run("scroll_depth валидный", func(t *testing.T) {
+		depth := 50
+		details := validateTriggerConfig(TriggerScrollDepth, &TriggerConfig{ScrollDepth: &depth})
+		assert.Empty(t, details)
+	})
+
+	t.Run("scroll_depth вне диапазона 1-100", func(t *testing.T) {
+		depth := 150
+		details := validateTriggerConfig(TriggerScrollDepth, &TriggerConfig{ScrollDepth: &depth})
+		assert.Len(t, details, 1)
+		assert.Equal(t, "trigger_config.scroll_depth", details[0].Path)
+	})
+
+	t.Run("scroll_depth равен 0 — ошибка", func(t *testing.T) {
+		depth := 0
+		details := validateTriggerConfig(TriggerScrollDepth, &TriggerConfig{ScrollDepth: &depth})
+		assert.Len(t, details, 1)
+	})
+
+	t.Run("inactivity_secs меньше 3 — ошибка", func(t *testing.T) {
+		secs := 2
+		details := validateTriggerConfig(TriggerInactivity, &TriggerConfig{InactivitySecs: &secs})
+		assert.Len(t, details, 1)
+		assert.Equal(t, "trigger_config.inactivity_secs", details[0].Path)
+	})
+
+	t.Run("inactivity_secs валидный", func(t *testing.T) {
+		secs := 10
+		details := validateTriggerConfig(TriggerInactivity, &TriggerConfig{InactivitySecs: &secs})
+		assert.Empty(t, details)
+	})
+
+	t.Run("element_selector пустая строка — ошибка", func(t *testing.T) {
+		sel := "   "
+		details := validateTriggerConfig(TriggerElementVisible, &TriggerConfig{ElementSelector: &sel})
+		assert.Len(t, details, 1)
+		assert.Equal(t, "trigger_config.element_selector", details[0].Path)
+	})
+
+	t.Run("element_selector валидный", func(t *testing.T) {
+		sel := "#checkout-btn"
+		details := validateTriggerConfig(TriggerElementVisible, &TriggerConfig{ElementSelector: &sel})
+		assert.Empty(t, details)
+	})
+
+	t.Run("scroll_depth без значения в конфиге — ошибка", func(t *testing.T) {
+		details := validateTriggerConfig(TriggerScrollDepth, &TriggerConfig{})
+		assert.Len(t, details, 1)
+		assert.Contains(t, details[0].Message, "is required when trigger_type is scroll_depth")
+	})
+}
+
+func TestMatchAudienceRules_Integration(t *testing.T) {
+	now := time.Now()
+
+	history := []Event{
+		{
+			Type:       EventCustom,
+			Payload:    map[string]any{"event_name": "checkout_started"},
+			OccurredAt: now.Add(-2 * time.Hour),
+		},
+		{
+			Type:       EventCustom,
+			Payload:    map[string]any{"event_name": "page_view", "url": "/pricing"},
+			OccurredAt: now.Add(-1 * time.Hour),
+		},
+	}
+
+	props := map[string]any{
+		"is_premium":  true,
+		"plan":        "enterprise",
+		"login_count": float64(15),
+		"tags":        []any{"beta", "power-user"},
+	}
+
+	t.Run("event_performed с валидным timeframe", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "event_performed", Key: "checkout_started", Operator: "exists", Timeframe: "24h"},
+		}
+		assert.True(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("event_performed вне timeframe", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "event_performed", Key: "checkout_started", Operator: "exists", Timeframe: "1h"},
+		}
+		assert.False(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("page_visited на конкретный URL", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "page_visited", Key: "/pricing", Operator: "exists", Timeframe: "7d"},
+		}
+		assert.True(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("user_property с оператором eq", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "user_property", Key: "plan", Operator: "eq", Value: "enterprise"},
+		}
+		assert.True(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("user_property с числовым gt", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "user_property", Key: "login_count", Operator: "gt", Value: float64(10)},
+		}
+		assert.True(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("contains в массиве тегов", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "user_property", Key: "tags", Operator: "contains", Value: "beta"},
+		}
+		assert.True(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("Логическое AND: одно правило не совпало", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "user_property", Key: "is_premium", Operator: "eq", Value: true},
+			{Type: "user_property", Key: "plan", Operator: "eq", Value: "free"},
+		}
+		assert.False(t, matchAudienceRules(rules, history, props))
+	})
+
+	t.Run("not_exists инвертирует результат", func(t *testing.T) {
+		rules := []AudienceRule{
+			{Type: "user_property", Key: "missing_field", Operator: "not_exists"},
+		}
+		assert.True(t, matchAudienceRules(rules, history, props))
+	})
 }
