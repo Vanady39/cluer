@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/Vanady39/cluer/internal/domains"
@@ -241,4 +242,43 @@ func (rr *RuntimeRepository) Totals(
 	).Scan(&t.Started, &t.Completed, &t.Dismissed, &t.GoalReached)
 
 	return t, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Retrieve)
+}
+
+func (rr *RuntimeRepository) GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string) ([]domains.Event, error) {
+	rows, err := rr.pool.Query(ctx, `
+		SELECT id, app_id, event_key, tour_id, tour_version_id, hint_id, session_id, subject_id, type, occurred_at, received_at, payload
+		FROM tour_events
+		WHERE app_id = $1 AND subject_id = $2 AND occurred_at >= NOW() - INTERVAL '30 days'
+		ORDER BY occurred_at DESC LIMIT 100`, appId, subjectId)
+	if err != nil {
+		return nil, wrap(err, domains.ErrTourNotFound, subjectId, domains.Retrieve)
+	}
+	defer rows.Close()
+
+	events := make([]domains.Event, 0, 100)
+	for rows.Next() {
+		var e domains.Event
+		var payloadBytes []byte
+
+		if err := rows.Scan(
+			&e.Id, &e.AppId, &e.EventKey, &e.TourId, &e.TourVersionId, &e.HintId,
+			&e.SessionId, &e.SubjectId, &e.Type, &e.OccurredAt, &e.ReceivedAt, &payloadBytes,
+		); err != nil {
+			return nil, wrap(err, domains.ErrTourNotFound, subjectId, domains.Retrieve)
+		}
+
+		if len(payloadBytes) > 0 {
+			var p map[string]any
+			if err := json.Unmarshal(payloadBytes, &p); err == nil {
+				e.Payload = p
+			} else {
+				e.Payload = make(map[string]any)
+			}
+		} else {
+			e.Payload = make(map[string]any)
+		}
+
+		events = append(events, e)
+	}
+	return events, rows.Err()
 }
