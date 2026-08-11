@@ -2,7 +2,10 @@ package domains
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +42,8 @@ type (
 		InsertEvents(ctx context.Context, events []Event) (accepted, duplicates int, err error)
 		Funnel(ctx context.Context, versionId uuid.UUID, from, to time.Time) ([]FunnelStep, error)
 		Totals(ctx context.Context, versionId uuid.UUID, from, to time.Time) (AnalyticsTotals, error)
+		GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string) ([]Event, error)
+
 		Ping(ctx context.Context) error
 	}
 )
@@ -99,12 +104,33 @@ func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*Reso
 
 	path := PathFromURL(req.Url)
 
+	needHistory := false
+	for _, tour := range candidates {
+		if tour.Audience != nil && len(tour.Audience.Rules) > 0 {
+			needHistory = true
+			break
+		}
+	}
+
+	var eventHistory []Event
+	if needHistory {
+		eventHistory, err = rd.runtime.GetSubjectEvents(ctx, req.AppId, req.SubjectId)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for _, tour := range candidates {
 		if !MatchPath(tour.TargetPath, path) {
 			continue
 		}
 		if tour.Audience != nil && !matchAudience(*tour.Audience, req.Props, progress[tour.Id]) {
 			continue
+		}
+		if len(tour.Audience.Rules) > 0 {
+			if !matchAudienceRules(tour.Audience.Rules, eventHistory, req.Props) {
+				continue
+			}
 		}
 		return rd.start(ctx, req, tour, progress[tour.Id])
 	}
@@ -178,6 +204,175 @@ func matchAudience(a Audience, props map[string]any, p *Progress) bool {
 		return false
 	}
 	return true
+}
+
+func matchAudienceRules(rules []AudienceRule, history []Event, props map[string]any) bool {
+	for _, rule := range rules {
+		matched := false
+
+		switch rule.Type {
+		case "event_performed":
+			for _, evt := range history {
+				evtName := ""
+				if name, ok := evt.Payload["event_name"].(string); ok {
+					evtName = name
+				} else {
+					evtName = string(evt.Type)
+				}
+				if evtName == rule.Key && checkTimeframe(evt.OccurredAt, rule.Timeframe) {
+					matched = true
+					break
+				}
+			}
+
+		case "page_visited":
+			for _, evt := range history {
+				isPageView := string(evt.Type) == "page_view" || evt.Payload["event_name"] == "page_view"
+				if isPageView {
+					if url, ok := evt.Payload["url"].(string); ok && url == rule.Key {
+						if checkTimeframe(evt.OccurredAt, rule.Timeframe) {
+							matched = true
+							break
+						}
+					}
+				}
+			}
+		case "user_property":
+			val, exists := props[rule.Key]
+			if rule.Operator == "exists" {
+				matched = exists
+			} else if rule.Operator == "not_exists" {
+				matched = !exists
+			} else if exists {
+				matched = evaluateOperator(rule.Operator, val, rule.Value)
+			}
+		}
+		if rule.Operator == "not_exists" && rule.Type != "user_property" {
+			matched = !matched
+		}
+
+		if !matched {
+			return false
+		}
+	}
+	return true
+}
+func checkTimeframe(eventTime time.Time, timeframe string) bool {
+	if timeframe == "" || timeframe == "all_time" {
+		return true
+	}
+
+	var duration time.Duration
+	switch timeframe {
+	case "1h":
+		duration = time.Hour
+	case "24h":
+		duration = 24 * time.Hour
+	case "7d":
+		duration = 7 * 24 * time.Hour
+	case "30d":
+		duration = 30 * 24 * time.Hour
+	default:
+		return true
+	}
+
+	return time.Since(eventTime) <= duration
+}
+
+func evaluateOperator(op string, actual any, expected any) bool {
+	if actual == nil && expected == nil {
+		return op == "eq"
+	}
+	if actual == nil || expected == nil {
+		return op == "neq"
+	}
+	switch op {
+	case "eq":
+		return fmt.Sprintf("%v", actual) == fmt.Sprintf("%v", expected)
+	case "neq":
+		return fmt.Sprintf("%v", actual) != fmt.Sprintf("%v", expected)
+	}
+
+	actualFloat, actualIsNum := toFloat64(actual)
+	expectedFloat, expectedIsNum := toFloat64(expected)
+
+	if actualIsNum && expectedIsNum {
+		switch op {
+		case "gt":
+			return actualFloat > expectedFloat
+		case "gte":
+			return actualFloat >= expectedFloat
+		case "lt":
+			return actualFloat < expectedFloat
+		case "lte":
+			return actualFloat <= expectedFloat
+		}
+	}
+
+	actualStr, actualIsStr := actual.(string)
+	expectedStr, expectedIsStr := expected.(string)
+
+	if actualIsStr && expectedIsStr {
+		switch op {
+		case "contains":
+			return strings.Contains(actualStr, expectedStr)
+		case "not_contains":
+			return !strings.Contains(actualStr, expectedStr)
+		case "starts_with":
+			return strings.HasPrefix(actualStr, expectedStr)
+		case "ends_with":
+			return strings.HasSuffix(actualStr, expectedStr)
+		case "gt":
+			return actualStr > expectedStr
+		case "gte":
+			return actualStr >= expectedStr
+		case "lt":
+			return actualStr < expectedStr
+		case "lte":
+			return actualStr <= expectedStr
+		}
+	}
+	if actualSlice, ok := actual.([]any); ok {
+		expectedStrFmt := fmt.Sprintf("%v", expected)
+		switch op {
+		case "contains":
+			for _, item := range actualSlice {
+				if fmt.Sprintf("%v", item) == expectedStrFmt {
+					return true
+				}
+			}
+			return false
+		case "not_contains":
+			for _, item := range actualSlice {
+				if fmt.Sprintf("%v", item) == expectedStrFmt {
+					return false
+				}
+			}
+			return true
+		}
+	}
+
+	return false
+}
+
+func toFloat64(v any) (float64, bool) {
+	switch val := v.(type) {
+	case float64:
+		return val, true
+	case float32:
+		return float64(val), true
+	case int:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case int32:
+		return float64(val), true
+	case string:
+		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
 
 func boolProp(props map[string]any, key string) bool {
@@ -306,7 +501,7 @@ func validateEvent(e *Event) error {
 	if e.TourVersionId == uuid.Nil {
 		return ErrVersionRequired
 	}
-	if e.Type.TourLevel() != (e.HintId == nil) {
+	if e.Type != EventCustom && e.Type.TourLevel() != (e.HintId == nil) {
 		return ErrHintIdMismatch
 	}
 	return nil
