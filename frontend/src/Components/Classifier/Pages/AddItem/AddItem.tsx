@@ -75,11 +75,11 @@ function AddItemComponent() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.card}>
-        <h1 className={styles.title}>Создать объявление</h1>
+      <section className={styles.page__card}>
+        <h1 className={styles.page__card__title}>Создать объявление</h1>
 
         <form
-          className={styles.form}
+          className={styles.page__card__form}
           onSubmit={createForm.handleSubmit(onSubmit)}
         >
           <Controller
@@ -108,18 +108,18 @@ function AddItemComponent() {
             )}
           />
 
-          <div className={styles.field}>
-            <label className={styles.label}>Описание</label>
+          <div className={styles.page__card__form__field}>
+            <label className={styles.page__card__form__field__label}>Описание</label>
             <Controller
               name="description"
               control={createForm.control}
               render={({ field }) => (
-                <textarea {...field} className={styles.textarea} rows={6} />
+                <textarea {...field} className={styles.page__card__form__textarea} rows={6} />
               )}
             />
           </div>
 
-          <div className={styles.row}>
+          <div className={styles.page__card__form__row}>
             <Controller
               name="price"
               control={createForm.control}
@@ -157,12 +157,12 @@ function AddItemComponent() {
             />
           </div>
 
-          <div className={styles.actions}>
+          <div className={styles.page__card__form__actions}>
             <Button
               type="button"
               size="main"
               onClick={() => navigate("/")}
-              className={styles.button}
+              className={styles.page__card__form__actions__button}
             >
               Отмена
             </Button>
@@ -171,7 +171,7 @@ function AddItemComponent() {
               disabled={loading}
               color="primary"
               size="main"
-              className={styles.button_pub}
+              className={styles.page__card__form__actions__button_pub}
             >
               {loading ? "Публикация..." : "Опубликовать"}
             </Button>

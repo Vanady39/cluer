@@ -1,0 +1,133 @@
+import { memo } from "react";
+import { Controller } from "react-hook-form";
+import type { Control, FieldErrors } from "react-hook-form";
+import type { InferType } from "yup";
+import { Input } from "../../../../../UI/Input/Input";
+import { scenarioSchema } from "../../schema";
+import styles from './Styles.module.scss';
+
+interface ScenarioMainFieldsProps {
+  control: Control<InferType<typeof scenarioSchema>>;
+  errors: FieldErrors<InferType<typeof scenarioSchema>>;
+}
+
+function ScenarioMainFieldsComponent({ control, errors }: ScenarioMainFieldsProps) {
+  return (
+    <section className={styles.card}>
+      <h2>Основная информация</h2>
+
+      <Controller
+        name="title"
+        control={control}
+        render={({ field }) => (
+          <>
+            <label className={styles.card__label}>Название сценария</label>
+            <Input
+              {...field}
+              placeholder="Например: Первое объявление"
+              error={errors.title?.message}
+            />
+          </>
+        )}
+      />
+
+      <Controller
+        name="description"
+        control={control}
+        render={({ field }) => (
+          <>
+            <label className={styles.card__label}>Описание</label>
+            <textarea
+              {...field}
+              className={styles.card__textarea}
+              placeholder="Зачем нужен этот сценарий"
+            />
+            {errors.description?.message && (
+              <span className={styles.card__error}>
+                {errors.description.message}
+              </span>
+            )}
+          </>
+        )}
+      />
+
+      <div className={styles.card__settingsGroup}>
+        <Controller
+          name="trigger_type"
+          control={control}
+          render={({ field }) => (
+            <>
+              <label className={styles.card__settingsGroup__label}>Тип запуска</label>
+              <select {...field} className={styles.card__settingsGroup__select}>
+                <option value="on_load">При загрузке</option>
+                <option value="delay">С задержкой</option>
+                <option value="exit_intent">При выходе</option>
+                <option value="manual">Вручную</option>
+              </select>
+              {errors.trigger_type?.message && (
+                <span className={styles.card__settingsGroup__error}>
+                  {errors.trigger_type.message}
+                </span>
+              )}
+            </>
+          )}
+        />
+
+        <Controller
+          name="audience.show_once"
+          control={control}
+          render={({ field }) => (
+            <label className={styles.card__checkboxRow}>
+              <input
+                type="checkbox"
+                checked={field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+              Показывать один раз
+            </label>
+          )}
+        />
+
+        <Controller
+          name="audience.only_new"
+          control={control}
+          render={({ field }) => (
+            <label className={styles.card__checkboxRow}>
+              <input
+                type="checkbox"
+                checked={field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+              Только новым пользователям
+            </label>
+          )}
+        />
+
+        <Controller
+          name="audience.max_shows"
+          control={control}
+          render={({ field }) => (
+            <>
+              <label className={styles.card__label}>
+                Максимальное количество показов
+              </label>
+              <Input
+                className={styles.card__numberInput}
+                value={field.value === undefined ? "" : String(field.value)}
+                onChange={(value) => {
+                  const stringValue = String(value);
+                  field.onChange(
+                    stringValue === "" ? undefined : Number(stringValue),
+                  );
+                }}
+                error={errors.audience?.max_shows?.message}
+              />
+            </>
+          )}
+        />
+      </div>
+    </section>
+  );
+}
+
+export const ScenarioMainFields = memo(ScenarioMainFieldsComponent);

@@ -31,6 +31,29 @@ export interface EventBatchResult {
   errors?: string[];
 }
 
+function buildUrl(apiUrl: string): string {
+  return `${apiUrl.replace(/\/$/, "")}/v1/events`;
+}
+
+function buildHeaders(appKey: string): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    "X-App-Key": appKey,
+  };
+}
+
+function buildEventPayload(event: RuntimeEvent) {
+  return {
+    event_key: crypto.randomUUID(),
+    type: event.type,
+    tour_id: event.tourId,
+    tour_version_id: event.tourVersionId,
+    hint_id: event.hintId ?? null,
+    occurred_at: new Date().toISOString(),
+    payload: event.payload ?? {},
+  };
+}
+
 export async function sendOnboardingEvents(
   config: SendEventConfig,
   events: RuntimeEvent[],
@@ -38,57 +61,19 @@ export async function sendOnboardingEvents(
   const body = {
     subject_id: getSubjectId(config.subjectId),
     session_id: getSessionId(),
-
-    events: events.map((event) => ({
-      event_key: crypto.randomUUID(),
-      type: event.type,
-      tour_id: event.tourId,
-      tour_version_id: event.tourVersionId,
-      hint_id: event.hintId ?? null,
-      occurred_at: new Date().toISOString(),
-      payload: event.payload ?? {},
-    })),
+    events: events.map(buildEventPayload),
   };
 
-  console.log(
-    "[Onboarding SDK] EVENT REQUEST",
-    body,
-  );
+  const response = await fetch(buildUrl(config.apiUrl), {
+    method: "POST",
+    headers: buildHeaders(config.appKey),
+    body: JSON.stringify(body),
+    keepalive: true,
+  });
 
-  const response = await fetch(
-    `${config.apiUrl}/v1/events`,
-    {
-      method: "POST",
+  if (!response.ok) throw new Error(`Events request failed: ${response.status} ${await response.text()}`);
 
-      headers: {
-        "Content-Type": "application/json",
-        "X-App-Key": config.appKey,
-      },
-
-      body: JSON.stringify(body),
-
-      // Важно, если клик по элементу
-      // сразу уводит пользователя на другую страницу.
-      keepalive: true,
-    },
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-
-    throw new Error(
-      `Events request failed: ${response.status} ${text}`,
-    );
-  }
-
-  const result: EventBatchResult =
-    await response.json();
-
-  console.log(
-    "[Onboarding SDK] EVENT RESPONSE",
-    result,
-  );
-
+  const result: EventBatchResult = await response.json();
   return result;
 }
 

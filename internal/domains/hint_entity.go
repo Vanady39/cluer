@@ -27,13 +27,16 @@ func (p Placement) Valid() bool {
 }
 
 type Hint struct {
-	Id               uuid.UUID `json:"id" format:"uuid" example:"01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c"`
-	TourVersionId    uuid.UUID `json:"tour_version_id" format:"uuid"`
-	Step             int       `json:"step" example:"1"`
-	Title            string    `json:"title" example:"Нажмите кнопку настроек"`
-	Content          string    `json:"content" example:"Здесь вы можете изменить параметры аккаунта"`
-	Selector         string    `json:"selector" example:"#settings-btn"`
-	Placement        Placement `json:"placement" example:"bottom"`
+	Id            uuid.UUID `json:"id" format:"uuid" example:"01914f6a-8c9b-7a0b-9b0b-8c9b7a0b9b0c"`
+	TourVersionId uuid.UUID `json:"tour_version_id" format:"uuid"`
+	Step          int       `json:"step" example:"1"`
+	Title         string    `json:"title" example:"Нажмите кнопку настроек"`
+	Content       string    `json:"content" example:"Здесь вы можете изменить параметры аккаунта"`
+	Selector      string    `json:"selector" example:"#settings-btn"`
+	Placement     Placement `json:"placement" example:"bottom"`
+	// Пусто — подсказка живёт на той же странице, где тур стартовал,
+	// то есть наследует target_path версии.
+	PagePath         string    `json:"page_path" example:"/dashboard"`
 	MediaUrl         string    `json:"media_url" example:"https://cdn.example.com/onboarding/settings.mp4"`
 	Spotlight        bool      `json:"spotlight" example:"true"`
 	Required         bool      `json:"required" example:"false"`

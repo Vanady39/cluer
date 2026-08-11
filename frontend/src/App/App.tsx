@@ -4,7 +4,6 @@ import { Profile } from "../Components/Classifier/Pages/Profile/Profile";
 import { AddItem } from "../Components/Classifier/Pages/AddItem/AddItem";
 import { Analytics } from "../Components/Admin/Pages/Analytics/Analytics";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-import "./Styles.scss";
 import { Provider } from "react-redux";
 import { Store } from "../Store/Store";
 import { Admin } from "../Components/Admin/Admin";

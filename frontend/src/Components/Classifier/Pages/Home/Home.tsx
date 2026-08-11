@@ -1,5 +1,5 @@
 import styles from "./Styles.module.scss";
-import { memo, useState, useEffect } from "react";
+import { memo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { listingsAPI } from "../../../../Api/listings";
 
 function HomeComponent() {
   const [searchParams] = useSearchParams();
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const selectedCategory = searchParams.get("category") || "all";
   const searchQuery = useSelector((state: RootState) => state.search.search);
 
   const {
@@ -20,11 +20,6 @@ function HomeComponent() {
     queryKey: ["listings"],
     queryFn: listingsAPI.getAll,
   });
-
-  useEffect(() => {
-    const category = searchParams.get("category") || "all";
-    setSelectedCategory(category);
-  }, [searchParams]);
 
   const filteredListings = listings.filter((item) => {
     if (selectedCategory !== "all" && item.category !== selectedCategory) {

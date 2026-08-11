@@ -6,12 +6,7 @@ export function useTourLoader(editId: string | null) {
     queryKey: ["tour", editId],
     queryFn: async () => {
       if (!editId) return null;
-
-      const tour = await onboardingAPI.getTour(editId);
-
-      console.log("TOUR FROM API", tour);
-
-      return tour;
+      return await onboardingAPI.getTour(editId);
     },
     enabled: !!editId,
   });

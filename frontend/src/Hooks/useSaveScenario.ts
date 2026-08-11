@@ -1,59 +1,58 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
+import type { Audience, TourHint, TriggerType } from "../types/sdk";
+
+interface SaveScenarioData {
+  title: string;
+  description: string;
+  target_path: string;
+  trigger_type: TriggerType;
+  audience: Audience;
+  hints: TourHint[];
+  deletedHints: TourHint[];
+  status: "draft" | "published";
+}
 
 export function useSaveScenario(editId?: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: any) => {
-      // =========================
-      // РЕДАКТИРОВАНИЕ
-      // =========================
+    mutationFn: async (data: SaveScenarioData) => {
       if (editId) {
-        // Метаданные самого тура
         await onboardingAPI.updateTourMeta(editId, {
           title: data.title,
           description: data.description,
         });
 
-        // Данные draft-версии
         await onboardingAPI.updateTour(editId, {
           target_path: data.target_path,
           trigger_type: data.trigger_type,
           audience: data.audience,
         });
 
-        console.log("TOUR UPDATED");
-
         for (const hint of data.deletedHints || []) {
-          console.log("DELETE HINT", hint.id);
-
           await onboardingAPI.deleteHint(editId, hint.id);
         }
 
         for (const hint of data.hints || []) {
-          const isNew = hint.id.length !== 36;
-
-          if (isNew) {
-            console.log("CREATE NEW HINT", hint);
-
+          if (hint.id.length !== 36) {
             await onboardingAPI.createHint(editId, {
               title: hint.title,
               content: hint.content,
               selector: hint.selector,
               placement: hint.placement,
+              page_path: hint.page_path,
               spotlight: hint.spotlight,
               wait_for_selector: hint.wait_for_selector,
               media_url: hint.media_url,
             });
           } else {
-            console.log("UPDATE HINT", hint);
-
             await onboardingAPI.updateHint(editId, hint.id, {
               title: hint.title,
               content: hint.content,
               selector: hint.selector,
               placement: hint.placement,
+              page_path: hint.page_path,
               spotlight: hint.spotlight,
               wait_for_selector: hint.wait_for_selector,
               media_url: hint.media_url,
@@ -61,48 +60,35 @@ export function useSaveScenario(editId?: string | null) {
           }
         }
 
-        if (data.status === "published") {
-          await onboardingAPI.publishTour(editId);
-        }
-
+        if (data.status === "published") await onboardingAPI.publishTour(editId);
         return editId;
       }
-
-      // =========================
-      // СОЗДАНИЕ НОВОГО
-      // =========================
-
-      console.log("SAVE DATA", data);
 
       const tourId = await onboardingAPI.createTour({
         title: data.title,
         description: data.description,
-        target_path: data.hints?.[0]?.page_path || "/",
+        target_path: data.target_path || data.hints?.[0]?.page_path || "/",
         priority: 1,
         trigger_type: data.trigger_type,
         audience: data.audience,
       });
 
-      console.log("HINTS BEFORE CREATE", data.hints);
-
-      for (const hint of data.hints || []) {
-        console.log("CREATE HINT", hint);
-
-        await onboardingAPI.createHint(tourId, {
-          title: hint.title,
-          content: hint.content,
-          selector: hint.selector,
-          placement: hint.placement,
-          spotlight: hint.spotlight,
-          wait_for_selector: hint.wait_for_selector,
-          media_url: hint.media_url,
-        });
+      if (data.hints?.length) {
+        for (const hint of data.hints) {
+          await onboardingAPI.createHint(tourId, {
+            title: hint.title,
+            content: hint.content,
+            selector: hint.selector,
+            placement: hint.placement,
+            page_path: hint.page_path,
+            spotlight: hint.spotlight,
+            wait_for_selector: hint.wait_for_selector,
+            media_url: hint.media_url,
+          });
+        }
       }
 
-      if (data.status === "published") {
-        await onboardingAPI.publishTour(tourId);
-      }
-
+      if (data.status === "published") await onboardingAPI.publishTour(tourId);
       return tourId;
     },
 
@@ -110,20 +96,20 @@ export function useSaveScenario(editId?: string | null) {
       queryClient.invalidateQueries({
         queryKey: ["tours"],
       });
-
       window.location.href = "/admin/scenarios";
     },
 
-    onError(error: any) {
+    onError(error: unknown) {
       console.error("FULL ERROR", error);
-      console.error("STATUS", error.response?.status);
-      console.error("RESPONSE", error.response?.data);
+      const err = error as { response?: { status?: number; data?: unknown } };
+      console.error("STATUS", err.response?.status);
+      console.error("RESPONSE", err.response?.data);
 
       alert(
         JSON.stringify(
           {
-            status: error.response?.status,
-            data: error.response?.data,
+            status: err.response?.status,
+            data: err.response?.data,
           },
           null,
           2,

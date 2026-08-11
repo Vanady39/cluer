@@ -8,9 +8,7 @@ export interface TourAnalyticsItem {
     title: string;
     description?: string;
   };
-
   analytics: TourAnalytics | null;
-
   unpublished?: boolean;
   error?: string;
 }
@@ -25,13 +23,7 @@ export function useAllToursAnalytics() {
       return Promise.all(
         tours.map(async (tour) => {
           try {
-            // Получаем карточку тура,
-            // чтобы понять, есть ли published version.
             const card = await onboardingAPI.getTour(tour.id);
-
-            // Draft-only тур.
-            // Analytics backend для него
-            // без versionId вернёт 404.
             if (!card.published) {
               return {
                 tour: {
@@ -39,21 +31,17 @@ export function useAllToursAnalytics() {
                   title: tour.title || "Без названия",
                   description: tour.description,
                 },
-
                 analytics: null,
                 unpublished: true,
               };
             }
-
             const analytics = await onboardingAPI.getAnalytics(tour.id);
-
             return {
               tour: {
                 id: tour.id,
                 title: tour.title || "Без названия",
                 description: tour.description,
               },
-
               analytics,
             };
           } catch (error) {
@@ -65,7 +53,6 @@ export function useAllToursAnalytics() {
                 title: tour.title || "Без названия",
                 description: tour.description,
               },
-
               analytics: null,
 
               error:

@@ -1,4 +1,4 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { FaSearch } from "react-icons/fa";
@@ -12,10 +12,6 @@ function SearchBarComponent() {
   const searchQuery = useSelector((state: RootState) => state.search.search);
   const [localSearch, setLocalSearch] = useState(searchQuery || "");
 
-  useEffect(() => {
-    if (searchQuery) setLocalSearch(searchQuery);
-  }, [searchQuery]);
-
   const handleFind = () => {
     if (localSearch.trim()) {
       dispatch(setSearch(localSearch.trim()));
@@ -24,7 +20,7 @@ function SearchBarComponent() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && localSearch.trim()) handleFind();
+    if (e.key === "Enter" && localSearch.trim()) handleFind();
   };
 
   const handleClear = () => {
@@ -48,7 +44,11 @@ function SearchBarComponent() {
           className={styles.search__input}
         />
         {localSearch && (
-          <button type="button" className={styles.search__clear} onClick={handleClear}>
+          <button
+            type="button"
+            className={styles.search__clear}
+            onClick={handleClear}
+          >
             ✕
           </button>
         )}
