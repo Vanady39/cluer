@@ -2,7 +2,6 @@ import { memo, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styles from "./Styles.module.scss";
 import { Button } from "../../../../../UI/Button";
-import type { Tour } from "../../../../../../types/sdk";
 
 function UserMenuComponent() {
   const navigate = useNavigate();
@@ -61,16 +60,7 @@ function UserMenuComponent() {
               <button
                 className={styles.userMenu__item}
                 onClick={() => {
-                  const tours = JSON.parse(
-                    localStorage.getItem("tours") || "[]",
-                  );
-                  const helpTour = tours.find(
-                    (tour: Tour) => tour.trigger_type === "manual",
-                  );
-
-                  if (helpTour) {
-                    window.startOnboarding(helpTour.id);
-                  }
+                  window.dispatchEvent(new CustomEvent("start-onboarding"));
                 }}
               >
                 Помощь

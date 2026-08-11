@@ -32,7 +32,7 @@ export interface EventBatchResult {
 }
 
 function buildUrl(apiUrl: string): string {
-  return `${apiUrl.replace(/\/$/, "")}/v1/events`;
+  return `${apiUrl.replace(/\/$/, "")}/events`;
 }
 
 function buildHeaders(appKey: string): HeadersInit {
@@ -54,27 +54,119 @@ function buildEventPayload(event: RuntimeEvent) {
   };
 }
 
+class NonRetryableEventError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NonRetryableEventError";
+  }
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export async function sendOnboardingEvents(
   config: SendEventConfig,
   events: RuntimeEvent[],
 ): Promise<EventBatchResult> {
+  // ВАЖНО:
+  // payload создаём ОДИН РАЗ.
+  // Поэтому event_key не меняется между retry.
   const body = {
     subject_id: getSubjectId(config.subjectId),
     session_id: getSessionId(),
     events: events.map(buildEventPayload),
   };
 
-  const response = await fetch(buildUrl(config.apiUrl), {
-    method: "POST",
-    headers: buildHeaders(config.appKey),
-    body: JSON.stringify(body),
-    keepalive: true,
-  });
+  const retryDelays = [0, 500, 1500];
 
-  if (!response.ok) throw new Error(`Events request failed: ${response.status} ${await response.text()}`);
+  let lastError: unknown;
 
-  const result: EventBatchResult = await response.json();
-  return result;
+  for (let attempt = 0; attempt < retryDelays.length; attempt++) {
+    const delay = retryDelays[attempt];
+
+    if (delay > 0) {
+      await wait(delay);
+    }
+
+    try {
+      const response = await fetch(buildUrl(config.apiUrl), {
+        method: "POST",
+        headers: buildHeaders(config.appKey),
+        body: JSON.stringify(body),
+        keepalive: true,
+      });
+
+      // 5xx — временная ошибка сервера.
+      // Есть смысл попробовать ещё раз.
+      if (response.status >= 500) {
+        throw new Error(
+          `Events server error: ${response.status}`,
+        );
+      }
+
+      // 429 — сервер временно ограничил запросы.
+      // Тоже можно повторить.
+      if (response.status === 429) {
+        throw new Error(
+          "Events request rate limited: 429",
+        );
+      }
+
+      // Остальные 4xx повторять бессмысленно:
+      // например неверный app key или плохой payload.
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        throw new NonRetryableEventError(
+          `Events request failed: ${response.status} ${errorText}`,
+        );
+      }
+
+      const result: EventBatchResult =
+        await response.json();
+
+      // HTTP-запрос успешный, но сервер отклонил
+      // одно или несколько событий.
+      // Retry здесь обычно ничего не исправит.
+      if (result.rejected > 0) {
+        console.error(
+          "[Onboarding] events rejected",
+          {
+            rejected: result.rejected,
+            accepted: result.accepted,
+            duplicates: result.duplicates,
+            errors: result.errors,
+          },
+        );
+      }
+
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      // Логическую/клиентскую ошибку не повторяем.
+      if (error instanceof NonRetryableEventError) {
+        throw error;
+      }
+
+      const isLastAttempt =
+        attempt === retryDelays.length - 1;
+
+      if (isLastAttempt) {
+        throw error;
+      }
+
+      console.warn(
+        `[Onboarding] events send failed, retry ${attempt + 1}/${retryDelays.length - 1}`,
+        error,
+      );
+    }
+  }
+
+  throw lastError;
 }
 
 export function sendOnboardingEvent(

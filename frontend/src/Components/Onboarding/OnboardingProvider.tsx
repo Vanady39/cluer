@@ -5,7 +5,8 @@ import type { Tour } from "../../types/sdk";
 import { resolveTour } from "./client";
 import { sendOnboardingEvent } from "./events";
 import { getOnboardingGoalEventName, type OnboardingGoalDetail } from "./goal";
-import { API_URL, APP_KEY } from "../../Utils/constants";
+import { API_URL } from "../../Config/env";
+import { getCurrentApp } from "../../Api/Helpers/Helpers";
 
 type ResolvePayload = Partial<Tour> & {
   tour_id?: string;
@@ -18,6 +19,7 @@ type ResolvePayload = Partial<Tour> & {
 interface PreviewVersion {
   id: string;
   trigger_type?: Tour["trigger_type"];
+  trigger_config?: Tour["trigger_config"];
   target_path?: string;
   audience?: Tour["audience"];
   hints?: Tour["hints"];
@@ -42,11 +44,14 @@ export function OnboardingProvider() {
   const isPreview = params.get("preview") === "true";
   const isBuilder = params.get("builder") === "true";
   const previewTourId = params.get("tourId");
+  const [appKey, setAppKey] = useState<string | null>(null);
 
   const loadRuntimeTour = useCallback(async (): Promise<Tour | null> => {
+    const app = await getCurrentApp();
+    setAppKey(app.public_key);
     const response = await resolveTour({
       apiUrl: API_URL,
-      appKey: APP_KEY,
+      appKey: app.public_key,
       props: { isNewUser: true },
     });
 
@@ -64,6 +69,7 @@ export function OnboardingProvider() {
       target_path: source.target_path ?? "/",
       priority: source.priority ?? 0,
       trigger_type: source.trigger_type ?? "on_load",
+      trigger_config: source.trigger_config,
       audience: source.audience ?? {
         show_once: false,
         max_shows: 0,
@@ -79,7 +85,7 @@ export function OnboardingProvider() {
     async (tourId: string | null): Promise<Tour | null> => {
       if (!tourId) return null;
 
-      const response = await fetch(`${API_URL}/v1/tours/${tourId}`);
+      const response = await fetch(`${API_URL}/tours/${tourId}`);
       if (!response.ok)
         throw new Error(`Preview request failed: ${response.status}`);
 
@@ -101,6 +107,7 @@ export function OnboardingProvider() {
         target_path: source.target_path ?? "/",
         priority: card.tour.priority ?? 0,
         trigger_type: source.trigger_type ?? "on_load",
+        trigger_config: source.trigger_config,
         audience: source.audience ?? {
           show_once: false,
           max_shows: 0,
@@ -124,20 +131,52 @@ export function OnboardingProvider() {
 
   useEffect(() => {
     let cancelled = false;
+    let cleanupTrigger: (() => void) | undefined;
     async function start() {
       try {
         if (isBuilder) return;
         const resolvedTour = await loadTour(isPreview, previewTourId);
 
         if (cancelled) return;
-
         if (!resolvedTour) {
           setTour(null);
           setIsOpen(false);
           return;
         }
         setTour(resolvedTour);
-        setIsOpen(true);
+        setIsOpen(false);
+
+        const startTour = () => setIsOpen(true);
+        switch (resolvedTour.trigger_type) {
+          case "on_load":
+            startTour();
+            break;
+          case "delay": {
+            const delay = resolvedTour.trigger_config?.delay_ms ?? 3000;
+            const timer = setTimeout(() => {
+              startTour();
+            }, delay);
+            cleanupTrigger = () => {
+              window.clearTimeout(timer);
+            };
+            break;
+          }
+          case "exit_intent": {
+            const handleEvent = (event: MouseEvent) => {
+              if (event.clientY <= 0) {
+                startTour();
+                document.removeEventListener("mouseleave", handleEvent);
+              }
+            };
+            document.addEventListener("mouseleave", handleEvent);
+            cleanupTrigger = () => {
+              document.removeEventListener("mouseleave", handleEvent);
+            };
+            break;
+          }
+          case "manual":
+            break;
+        }
       } catch (error) {
         console.error("[Onboarding] LOAD ERROR", error);
         if (!cancelled) {
@@ -149,6 +188,7 @@ export function OnboardingProvider() {
     void start();
     return () => {
       cancelled = true;
+      cleanupTrigger?.();
     };
   }, [isBuilder, isPreview, previewTourId, loadTour]);
 
@@ -160,6 +200,13 @@ export function OnboardingProvider() {
         return;
       }
 
+      if (!appKey) {
+      console.warn(
+        "[Onboarding] goal ignored: app key is missing",
+      );
+      return;
+    }
+
       const goal = (event as CustomEvent<OnboardingGoalDetail>).detail;
       if (!goal?.name) return;
 
@@ -167,8 +214,9 @@ export function OnboardingProvider() {
       if (sentGoalsRef.current.has(key)) return;
       sentGoalsRef.current.add(key);
 
+
       void sendOnboardingEvent(
-        { apiUrl: API_URL, appKey: APP_KEY },
+        { apiUrl: API_URL, appKey},
         {
           type: "goal_reached",
           tourId: tour.id,
@@ -185,7 +233,30 @@ export function OnboardingProvider() {
     const eventName = getOnboardingGoalEventName();
     window.addEventListener(eventName, handleGoal);
     return () => window.removeEventListener(eventName, handleGoal);
-  }, [isBuilder, isPreview, tour?.id, tour?.version_id]);
+  }, [appKey, isBuilder, isPreview, tour?.id, tour?.version_id]);
+
+  useEffect(() => {
+    if (isBuilder) return;
+    const handleManualStart = () => {
+      if (!tour) {
+        console.warn("[Onboarding] manual start: tour is not loaded");
+        return;
+      }
+
+      if (tour.trigger_type !== "manual") {
+        console.warn("[Onboarding] manual start: active tour is not manual");
+        return;
+      }
+
+      setIsOpen(true);
+    };
+
+    window.addEventListener("start-onboarding", handleManualStart);
+
+    return () => {
+      window.removeEventListener("start-onboarding", handleManualStart);
+    };
+  }, [isBuilder, isPreview, tour]);
 
   if (isBuilder) {
     return (

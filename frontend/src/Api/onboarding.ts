@@ -1,8 +1,14 @@
 import { api } from "./api";
 import type { CreateTourRequest, CreateHintRequest, TourAnalytics, TourListItem, TourVersion, UpdateTourRequest,
               UpdateTourMetaRequest, AnalyticsQuery } from "../types/sdk";
-import { APP_ID } from "./constants";
 import { normalizeTour } from "./Mappers/tourMapper";
+
+export interface App {
+  id: string;
+  name: string;
+  public_key: string;
+  allowed_origins: string[];
+}
 
 function getIdFromLocation(location?: string): string {
   if (!location) throw new Error("Location header is missing");
@@ -12,10 +18,15 @@ function getIdFromLocation(location?: string): string {
 }
 
 export const onboardingAPI = {
-  getTours: () =>
+  getApps: () =>
+    api
+      .get<App[]>("/apps")
+      .then((res) => res.data),
+      
+  getTours: (appId: string) =>
     api
       .get<TourListItem[]>("/tours", {
-        params: { appId: APP_ID },
+        params: { appId },
       })
       .then((res) => res.data),
 
@@ -38,21 +49,21 @@ export const onboardingAPI = {
       })
       .then((res) => res.data),
 
-  getPublished: (path: string) =>
+  getPublished: (appId: string, path: string) =>
     api
       .get("/tours/published", {
         params: {
-          appId: APP_ID,
+          appId,
           path,
         },
       })
       .then((res) => res.data),
 
-  createTour: (data: CreateTourRequest) =>
+  createTour: (appId: string, data: CreateTourRequest) =>
     api
       .post("/tours", data, {
         params: {
-          appId: APP_ID,
+          appId,
         },
       })
       .then((res) =>

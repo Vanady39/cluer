@@ -11,6 +11,10 @@ export type Placement =
   | "right"
   | "center";
 
+export interface TriggerConfig {
+  delay_ms?: number;
+}
+
 export interface Audience {
   show_once: boolean;
   max_shows: number;
@@ -38,11 +42,11 @@ export interface Tour {
   target_path: string;
   priority: number;
   trigger_type: TriggerType;
+  trigger_config?: TriggerConfig;
   audience: Audience;
   hints: TourHint[];
   current_hint_id?: string;
   version_id?: string;
-
   updated_at?: string;
   created_at?: string;
 }
@@ -110,16 +114,14 @@ export interface TourVersion {
   tour_id: string;
   version: number;
   status: "draft" | "published" | "archived";
-
   trigger_type: TriggerType;
+  trigger_config?: TriggerConfig;
   target_path: string;
   audience: Audience;
-
   created_by?: string;
   created_at: string;
   published_at?: string | null;
   archived_at?: string | null;
-
   hints?: TourHint[];
 }
 

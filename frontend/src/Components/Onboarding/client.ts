@@ -7,8 +7,8 @@ interface ResolveConfig {
   props?: Record<string, unknown>;
 }
 
-function buildUrl(apiUrl: string): string {
-  return `${apiUrl.replace(/\/$/, "")}/v1/resolve`;
+function buildUrl(apiUrl: string) {
+  return `${apiUrl.replace(/\/$/, "")}/resolve`;
 }
 
 function buildHeaders(appKey: string): HeadersInit {

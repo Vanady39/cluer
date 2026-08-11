@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
 import type { TourAnalytics } from "../types/sdk";
+import { getCurrentApp } from "../Api/Helpers/Helpers";
 
 export interface TourAnalyticsItem {
   tour: {
@@ -18,7 +19,8 @@ export function useAllToursAnalytics() {
     queryKey: ["all-tours-analytics"],
 
     queryFn: async (): Promise<TourAnalyticsItem[]> => {
-      const tours = await onboardingAPI.getTours();
+      const app = await getCurrentApp();
+      const tours = await onboardingAPI.getTours(app.id);
 
       return Promise.all(
         tours.map(async (tour) => {

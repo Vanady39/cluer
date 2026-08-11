@@ -3,11 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { Tour } from "../../types/sdk";
 import { Hint } from "./Hint";
 import { sendOnboardingEvents, type EventType } from "./events";
-import {
-  API_URL,
-  APP_KEY,
-  SELECTOR_MISSING_TIMEOUT,
-} from "../../Utils/constants";
+import { SELECTOR_MISSING_TIMEOUT } from "../../Utils/constants";
+import { API_URL } from "../../Config/env";
+import { getCurrentApp } from "../../Api/Helpers/Helpers";
 
 interface Props {
   tour: Tour;
@@ -68,10 +66,12 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   const sendEvents = useCallback(
     async (events: EventToSend[]) => {
       if (isPreview || !tour.version_id) return;
+      const app = await getCurrentApp();
+      const appKey = app.public_key;
 
       try {
         await sendOnboardingEvents(
-          { apiUrl: API_URL, appKey: APP_KEY },
+          { apiUrl: API_URL, appKey },
           events.map((event) => ({
             type: event.type,
             tourId: tour.id,
@@ -87,6 +87,82 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
     [isPreview, tour],
   );
 
+  const skipCurrentStep = useCallback(
+    async (reason: string) => {
+      if (!hint || advancingRef.current) return;
+
+      advancingRef.current = true;
+
+      try {
+        await sendEvents([
+          {
+            type: "hint_skipped",
+            hintId: hint.id,
+            payload: {
+              reason,
+            },
+          },
+        ]);
+
+        const nextStep = step + 1;
+
+        if (nextStep >= hints.length) {
+          await sendEvents([
+            {
+              type: "tour_completed",
+            },
+          ]);
+
+          setElement(null);
+          onClose();
+          return;
+        }
+
+        const nextHint = hints[nextStep];
+
+        const nextPage = nextHint.page_path || tour.target_path;
+
+        setElement(null);
+        setStep(nextStep);
+
+        if (
+          nextPage &&
+          normalizePath(nextPage) !== normalizePath(location.pathname)
+        ) {
+          navigate(
+            {
+              pathname: nextPage,
+              search: isPreview ? location.search : "",
+            },
+            isPreview
+              ? {
+                  state: {
+                    onboardingPreviewTourId: tour.id,
+                    onboardingPreviewHintId: nextHint.id,
+                  },
+                }
+              : undefined,
+          );
+        }
+      } finally {
+        advancingRef.current = false;
+      }
+    },
+    [
+      hint,
+      step,
+      hints,
+      tour.id,
+      tour.target_path,
+      location.pathname,
+      location.search,
+      isPreview,
+      navigate,
+      sendEvents,
+      onClose,
+    ],
+  );
+
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
@@ -94,12 +170,20 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
   }, [sendEvents]);
 
   useEffect(() => {
+    if (!hint || !isHintPage) return;
+    if (hint.placement !== "center" && !element) return;
+    if (shownRef.current.has(hint.id)) return;
+
+    shownRef.current.add(hint.id);
+    void sendEvents([{ type: "hint_shown", hintId: hint.id }]);
+  }, [hint, element, isHintPage, sendEvents]);
+
+  useEffect(() => {
     if (!hint || !isHintPage || hint.placement === "center") return;
 
     if (!hint.selector) {
       if (!missingRef.current.has(hint.id)) {
         missingRef.current.add(hint.id);
-
         void sendEvents([
           {
             type: "selector_missing",
@@ -109,17 +193,16 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
               reason: "selector_empty",
             },
           },
-        ]);
+        ]).then(() => {
+          void skipCurrentStep("selector_empty");
+        });
       }
-
       return;
     }
 
     const reportMissing = (reason: string) => {
       if (missingRef.current.has(hint.id)) return;
-
       missingRef.current.add(hint.id);
-
       void sendEvents([
         {
           type: "selector_missing",
@@ -129,17 +212,42 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
             reason,
           },
         },
-      ]);
+      ]).then(() => {
+        void skipCurrentStep(reason);
+      });
     };
+
+    if (!hint.wait_for_selector) {
+      try {
+        const target = document.querySelector(
+          hint.selector,
+        ) as HTMLElement | null;
+
+        if (!target) {
+          reportMissing("element_not_found");
+          return;
+        }
+
+        const frameId = requestAnimationFrame(() => {
+          setElement(target);
+        });
+
+        return () => {
+          cancelAnimationFrame(frameId);
+        };
+      } catch {
+        reportMissing("invalid_selector");
+      }
+
+      return;
+    }
 
     const findElement = () => {
       try {
         const target = document.querySelector(
           hint.selector!,
         ) as HTMLElement | null;
-
         if (!target) return false;
-
         setElement(target);
         return true;
       } catch {
@@ -157,7 +265,6 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
 
     const timeout = window.setTimeout(() => {
       window.clearInterval(interval);
-
       if (!findElement()) {
         reportMissing("element_not_found");
       }
@@ -172,36 +279,7 @@ export function TourRunner({ tour, onClose, isPreview = false }: Props) {
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, [hint, isHintPage, sendEvents]);
-
-  useEffect(() => {
-    if (!hint || !isHintPage) return;
-    if (hint.placement !== "center" && !element) return;
-    if (shownRef.current.has(hint.id)) return;
-
-    shownRef.current.add(hint.id);
-    void sendEvents([{ type: "hint_shown", hintId: hint.id }]);
-  }, [hint, element, isHintPage, sendEvents]);
-
-  useEffect(() => {
-    if (!element || !hint || !isHintPage || hint.placement === "center") return;
-
-    const rect = element.getBoundingClientRect();
-
-    const visible =
-      rect.top >= 0 &&
-      rect.left >= 0 &&
-      rect.bottom <= window.innerHeight &&
-      rect.right <= window.innerWidth;
-
-    if (!visible) {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
-    }
-  }, [element, hint, isHintPage]);
+  }, [hint, isHintPage, sendEvents, skipCurrentStep, hint.wait_for_selector]);
 
   const goToNextStep = useCallback(async () => {
     if (!hint || advancingRef.current) return;
