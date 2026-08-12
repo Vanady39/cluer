@@ -309,7 +309,7 @@ func (rr *RuntimeRepository) GetSubjectEvents(ctx context.Context, appId uuid.UU
 
 		if len(payloadBytes) > 0 {
 			var p map[string]any
-			if err := json.Unmarshal(payloadBytes, &p); err == nil {
+			if err := json.Unmarshal(payloadBytes, &p); err != nil {
 				rr.logger.Error().
 					Int64("event_id", e.Id).
 					Str("event_key", e.EventKey).
