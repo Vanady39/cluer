@@ -1,18 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
-import type { TourAnalytics } from "../types/sdk";
+import type { TourAnalyticsItem } from "../types/sdk";
 import { getCurrentApp } from "../Api/Helpers/Helpers";
-
-export interface TourAnalyticsItem {
-  tour: {
-    id: string;
-    title: string;
-    description?: string;
-  };
-  analytics: TourAnalytics | null;
-  unpublished?: boolean;
-  error?: string;
-}
 
 export function useAllToursAnalytics() {
   return useQuery({

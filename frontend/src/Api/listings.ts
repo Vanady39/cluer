@@ -1,5 +1,5 @@
 import { demoApi } from "./constants";
-import type { Listing } from "../types/listings";
+import type { Listing } from "../types";
 
 export const listingsAPI = {
   getAll: () =>

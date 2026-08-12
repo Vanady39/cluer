@@ -4,7 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import type { InferType } from "yup";
 import { useTourLoader } from "./useTourLoader";
 import { useSaveScenario } from "./useSaveScenario";
-import type { Audience, TourHint, TriggerType } from "../types/sdk";
+import type { Audience, TourHint, TriggerType } from "../types/tour";
 import { scenarioSchema } from "../Components/Admin/Pages/AddScenarios/schema";
 
 type ScenarioHint = InferType<typeof scenarioSchema>["hints"][number];

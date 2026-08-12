@@ -1,18 +1,16 @@
 import { api } from "./api";
-import type { CreateTourRequest, CreateHintRequest, TourAnalytics, TourListItem, TourVersion, UpdateTourRequest,
-              UpdateTourMetaRequest, AnalyticsQuery } from "../types/sdk";
+import type { App } from "../types";
+import type { CreateHintRequest, CreateTourRequest, TourAnalytics, TourListItem, UpdateTourRequest, UpdateTourMetaRequest, 
+              AnalyticsQuery } from "../types";
+import type { TourVersion  } from "../types";
 import { normalizeTour } from "./Mappers/tourMapper";
 
-export interface App {
-  id: string;
-  name: string;
-  public_key: string;
-  allowed_origins: string[];
-}
 
 function getIdFromLocation(location?: string): string {
   if (!location) throw new Error("Location header is missing");
+
   const id = location.split("/").pop();
+  
   if (!id) throw new Error("Invalid Location header format");
   return id;
 }

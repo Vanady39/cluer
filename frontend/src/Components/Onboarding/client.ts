@@ -1,11 +1,5 @@
 import { getSessionId, getSubjectId } from "./storage";
-
-interface ResolveConfig {
-  apiUrl: string;
-  appKey: string;
-  subjectId?: string;
-  props?: Record<string, unknown>;
-}
+import type{ ResolveConfig } from "../../types/sdk";
 
 function buildUrl(apiUrl: string) {
   return `${apiUrl.replace(/\/$/, "")}/resolve`;

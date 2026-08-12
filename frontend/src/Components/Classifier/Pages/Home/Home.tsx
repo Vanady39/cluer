@@ -22,25 +22,15 @@ function HomeComponent() {
   });
 
   const filteredListings = listings.filter((item) => {
-    if (selectedCategory !== "all" && item.category !== selectedCategory) {
-      return false;
-    }
-    if (
-      searchQuery.trim() &&
-      !item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
-    ) {
+    if (selectedCategory !== "all" && item.category !== selectedCategory) return false;
+    if (searchQuery.trim() && !item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())) {
       return false;
     }
     return true;
   });
 
-  if (isLoading) {
-    return <div className={styles.home__loading}>Загрузка объявлений...</div>;
-  }
-
-  if (error) {
-    return <div className={styles.home__error}>Ошибка загрузки объявлений</div>;
-  }
+  if (isLoading) return <div className={styles.home__loading}>Загрузка объявлений...</div>;
+  if (error) return <div className={styles.home__error}>Ошибка загрузки объявлений</div>;
 
   return (
     <main className={styles.home}>

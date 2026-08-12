@@ -1,13 +1,7 @@
-export interface OnboardingGoalDetail {
-  name: string;
-  payload?: Record<string, unknown>;
-}
+import type { OnboardingGoalDetail } from "../../types/events";
 
 const GOAL_EVENT = "onboarding:goal-reached";
-
-export function trackOnboardingGoal(
-  name: string,
-  payload?: Record<string, unknown>,
+export function trackOnboardingGoal(name: string, payload?: Record<string, unknown>,
 ) {
   window.dispatchEvent(
     new CustomEvent<OnboardingGoalDetail>(GOAL_EVENT, {

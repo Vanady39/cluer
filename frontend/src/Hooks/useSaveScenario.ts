@@ -1,18 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
-import type { Audience, TourHint, TriggerType } from "../types/sdk";
 import { getCurrentApp } from "../Api/Helpers/Helpers";
-
-interface SaveScenarioData {
-  title: string;
-  description: string;
-  target_path: string;
-  trigger_type: TriggerType;
-  audience: Audience;
-  hints: TourHint[];
-  deletedHints: TourHint[];
-  status: "draft" | "published";
-}
+import type { SaveScenarioData } from "../types/sdk";
 
 export function useSaveScenario(editId?: string | null) {
   const queryClient = useQueryClient();

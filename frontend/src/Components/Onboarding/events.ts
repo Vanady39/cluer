@@ -1,35 +1,6 @@
 import { getSessionId, getSubjectId } from "./storage";
+import type { RuntimeEvent, SendEventConfig, EventBatchResult } from "../../types/events";
 
-export type EventType =
-  | "tour_started"
-  | "hint_shown"
-  | "hint_completed"
-  | "hint_skipped"
-  | "selector_missing"
-  | "tour_completed"
-  | "tour_dismissed"
-  | "goal_reached";
-
-export interface RuntimeEvent {
-  type: EventType;
-  tourId: string;
-  tourVersionId: string;
-  hintId?: string | null;
-  payload?: Record<string, unknown>;
-}
-
-interface SendEventConfig {
-  apiUrl: string;
-  appKey: string;
-  subjectId?: string;
-}
-
-export interface EventBatchResult {
-  accepted: number;
-  duplicates: number;
-  rejected: number;
-  errors?: string[];
-}
 
 function buildUrl(apiUrl: string): string {
   return `${apiUrl.replace(/\/$/, "")}/events`;
@@ -71,9 +42,6 @@ export async function sendOnboardingEvents(
   config: SendEventConfig,
   events: RuntimeEvent[],
 ): Promise<EventBatchResult> {
-  // ВАЖНО:
-  // payload создаём ОДИН РАЗ.
-  // Поэтому event_key не меняется между retry.
   const body = {
     subject_id: getSubjectId(config.subjectId),
     session_id: getSessionId(),
@@ -99,24 +67,18 @@ export async function sendOnboardingEvents(
         keepalive: true,
       });
 
-      // 5xx — временная ошибка сервера.
-      // Есть смысл попробовать ещё раз.
       if (response.status >= 500) {
         throw new Error(
           `Events server error: ${response.status}`,
         );
       }
 
-      // 429 — сервер временно ограничил запросы.
-      // Тоже можно повторить.
       if (response.status === 429) {
         throw new Error(
           "Events request rate limited: 429",
         );
       }
 
-      // Остальные 4xx повторять бессмысленно:
-      // например неверный app key или плохой payload.
       if (!response.ok) {
         const errorText = await response.text();
 
@@ -128,9 +90,6 @@ export async function sendOnboardingEvents(
       const result: EventBatchResult =
         await response.json();
 
-      // HTTP-запрос успешный, но сервер отклонил
-      // одно или несколько событий.
-      // Retry здесь обычно ничего не исправит.
       if (result.rejected > 0) {
         console.error(
           "[Onboarding] events rejected",
@@ -147,7 +106,6 @@ export async function sendOnboardingEvents(
     } catch (error) {
       lastError = error;
 
-      // Логическую/клиентскую ошибку не повторяем.
       if (error instanceof NonRetryableEventError) {
         throw error;
       }

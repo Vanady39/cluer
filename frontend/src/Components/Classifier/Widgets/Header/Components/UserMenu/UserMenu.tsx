@@ -2,6 +2,7 @@ import { memo, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import styles from "./Styles.module.scss";
 import { Button } from "../../../../../UI/Button";
+import { Icon } from "../../../../../UI/Icon/Icon";
 
 function UserMenuComponent() {
   const navigate = useNavigate();
@@ -30,9 +31,7 @@ function UserMenuComponent() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      if (ref.current && !ref.current.contains(event.target as Node)) setIsOpen(false);
     };
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
@@ -48,56 +47,32 @@ function UserMenuComponent() {
       {isAuthenticated ? (
         <>
           <Link to="/profile">
-            <button type="button" className={styles.userMenu__profile}>
+            <Button className={styles.userMenu__profile}>
               <div className={styles.userMenu__avatar}>
-                <UserIcon size={20} />
+                <Icon size={20} />
               </div>
-            </button>
+            </Button>
           </Link>
 
           {isOpen && (
             <div className={styles.userMenu__dropdown}>
-              <button
+              <Button
                 className={styles.userMenu__item}
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent("start-onboarding"));
-                }}
-              >
+                onClick={() => { window.dispatchEvent(new CustomEvent("start-onboarding")); }}>
                 Помощь
-              </button>
-              <button
+              </Button>
+              <Button
                 className={styles.userMenu__item}
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate("/");
-                }}
-              >
+                onClick={() => { setIsOpen(false); navigate("/"); }}>
                 Выйти
-              </button>
+              </Button>
             </div>
           )}
         </>
-      ) : (
-        <Button className={styles.userMenu__login}>Войти через Google</Button>
-      )}
+      ) : ( <Button className={styles.userMenu__login}>Войти через Google</Button> )}
     </div>
   );
 }
 
-function UserIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
 
 export const UserMenu = memo(UserMenuComponent);

@@ -7,7 +7,7 @@ import { ScenarioMenu } from "../Analytics/Components/ScenarioMenu/ScenarioMenu"
 import { useToursQuery } from "../../../../Hooks/useToursQuery";
 import { useDeleteTourMutation } from "../../../../Hooks/useDeleteTourMutation";
 import { onboardingAPI } from "../../../../Api/onboarding";
-import type { TourVersion } from "../../../../types/sdk";
+import type { TourVersion } from "../../../../types/tour";
 import { TourVersionsModal } from "./Components/TourVersionModal/TourVersionModal";
 import logo from "/logo.svg";
 import { ToggleSwitch } from "../../../UI/ToggleSwitch/ToggleSwitch";
@@ -69,7 +69,7 @@ function ScenariosComponent() {
         alert("У сценария пока нет версии для предпросмотра");
         return;
       }
-      const previewUrl = new URL(version.target_path || "/", window.location.origin);
+      const previewUrl = new URL(version.target_path, window.location.origin);
       previewUrl.searchParams.set("preview", "true");
       previewUrl.searchParams.set("tourId", tourId);
       window.open(previewUrl.toString(), "_blank", "noopener,noreferrer");

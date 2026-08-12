@@ -8,7 +8,7 @@ import { Provider } from "react-redux";
 import { Store } from "../Store/Store";
 import { Admin } from "../Components/Admin/Admin";
 import { Scenarios } from "../Components/Admin/Pages/Scenarios";
-import { CreateScenarios } from "../Components/Admin/Pages/AddScenarios/AddScenarios";
+import { AddScenarios } from "../Components/Admin/Pages/AddScenarios/AddScenarios";
 import { OnboardingProvider } from "../Components/Onboarding/OnboardingProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -26,7 +26,7 @@ function App() {
 
             <Route path="/admin" element={<Admin />}>
               <Route path="scenarios" element={<Scenarios />} />
-              <Route path="scenarios/create" element={<CreateScenarios />} />
+              <Route path="scenarios/create" element={<AddScenarios />} />
               <Route path="analytics" element={<Analytics />} />
             </Route>
           </Routes>

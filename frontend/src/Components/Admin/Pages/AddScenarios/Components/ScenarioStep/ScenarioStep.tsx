@@ -22,7 +22,6 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
       <div className={styles.step__stepTitle}>
         Шаг {index + 1}
         <Button
-          type="button"
           size="min"
           color="transparent"
           className={styles.step__removeButton}
@@ -59,9 +58,7 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
               placeholder="Нажмите сюда..."
             />
             {errors.hints?.[index]?.content?.message && (
-              <span className={styles.step__error}>
-                {errors.hints[index]?.content?.message}
-              </span>
+              <span className={styles.step__error}>{errors.hints[index]?.content?.message}</span>
             )}
           </>
         )}
@@ -79,9 +76,7 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
               <option value="/profile">Профиль</option>
             </select>
             {errors.hints?.[index]?.page_path?.message && (
-              <span className={styles.step__error}>
-                {errors.hints[index]?.page_path?.message}
-              </span>
+              <span className={styles.step__error}>{errors.hints[index]?.page_path?.message}</span>
             )}
           </>
         )}
@@ -100,9 +95,7 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
               <option value="right">Справа</option>
             </select>
             {errors.hints?.[index]?.placement?.message && (
-              <span className={styles.step__error}>
-                {errors.hints[index]?.placement?.message}
-              </span>
+              <span className={styles.step__error}>{errors.hints[index]?.placement?.message}</span>
             )}
           </>
         )}
@@ -123,7 +116,6 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
                 error={errors.hints?.[index]?.selector?.message}
               />
               <Button
-                type="button"
                 size="min"
                 color="primary"
                 className={styles.step__pickButton}
