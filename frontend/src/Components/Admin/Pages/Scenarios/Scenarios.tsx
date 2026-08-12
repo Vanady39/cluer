@@ -7,7 +7,7 @@ import { ScenarioMenu } from "../Analytics/Components/ScenarioMenu/ScenarioMenu"
 import { useToursQuery } from "../../../../Hooks/useToursQuery";
 import { useDeleteTourMutation } from "../../../../Hooks/useDeleteTourMutation";
 import { onboardingAPI } from "../../../../Api/onboarding";
-import type { TourVersion } from "../../../../types/tour";
+import { getTourStatus } from "../../../../Utils/status";
 import { TourVersionsModal } from "./Components/TourVersionModal/TourVersionModal";
 import logo from "/logo.svg";
 import { ToggleSwitch } from "../../../UI/ToggleSwitch/ToggleSwitch";
@@ -49,16 +49,6 @@ function ScenariosComponent() {
       console.error("EDIT TOUR ERROR", error);
       alert("Не удалось открыть сценарий");
     }
-  };
-
-  const getTourStatus = (tour: { draft?: TourVersion | null; published?: TourVersion | null  }) => {
-    const hasDraft = Boolean(tour.draft);
-    const hasPublished = Boolean(tour.published);
-
-    if (hasPublished && hasDraft) return { label: "Есть неопубликованные изменения", type: "changes" };
-    if (hasPublished) return { label: "Опубликован", type: "published" };
-    if (hasDraft) return { label: "Черновик", type: "draft" };
-    return { label: "Без версии", type: "unknown" };
   };
 
   const handlePreview = async (tourId: string) => {

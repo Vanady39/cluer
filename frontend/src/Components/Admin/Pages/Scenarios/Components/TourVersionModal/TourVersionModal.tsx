@@ -2,8 +2,9 @@ import { memo, useEffect, useRef } from "react";
 import cn from "classnames";
 import styles from './Styles.module.scss';
 import { useTourVersions } from "../../../../../../Hooks/useTourVersion";
-import { formatDate, getStatusLabel } from "../../../../../../Utils/format";
+import { formatDate } from "../../../../../../Utils/format";
 import { Button } from "../../../../../UI/Button";
+import { getVersionStatusLabel } from "../../../../../../Utils/status";
 
 interface TourVersionsModalProps {
   tourId: string;
@@ -66,7 +67,7 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
                         className={cn(styles.modalOverlay__versionStatus,isPublished
                           ? styles.modalOverlay__versionPublished: version.status === "draft"
                           ? styles.modalOverlay__versionDraft : styles.modalOverlay__versionArchived)}>
-                        {getStatusLabel(version.status)}
+                        {getVersionStatusLabel(version.status)}
                       </span>
                     </div>
                     <span className={styles.modalOverlay__versionDate}>

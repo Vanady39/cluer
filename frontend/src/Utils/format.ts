@@ -20,16 +20,3 @@ export function formatDateTime(value?: string | null): string {
     minute: "2-digit",
   });
 }
-
-export function getStatusLabel(status: "draft" | "published" | "archived"): string {
-  switch (status) {
-    case "published":
-      return "Опубликована";
-    case "draft":
-      return "Черновик";
-    case "archived":
-      return "Архивная";
-    default:
-      return status;
-  }
-}
