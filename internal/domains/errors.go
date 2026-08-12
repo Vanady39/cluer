@@ -259,6 +259,8 @@ var (
 	ErrTourVersionMismatch = errors.New("tour version does not belong to the specified tour")
 	ErrHintNotInVersion    = errors.New("hint does not belong to the specified tour version")
 	ErrCorruptedData       = errors.New("corrupted JSONB data in database")
+	ErrTourUnexpected      = errors.New("tour_id must be empty for app-level custom events")
+	ErrHintUnexpected      = errors.New("hint_id must be empty for app-level custom events")
 )
 
 // ---------------------------- //
