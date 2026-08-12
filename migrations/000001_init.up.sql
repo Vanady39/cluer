@@ -68,10 +68,6 @@ CREATE TABLE tour_versions (
   CHECK (status <> 'archived'  OR archived_at  IS NOT NULL)
 );
 
-ALTER TABLE tour_versions
-    ADD COLUMN IF NOT EXISTS trigger_config JSONB DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS audience_rules JSONB DEFAULT '[]'::jsonb;
-
 CREATE UNIQUE INDEX tour_versions_one_published
   ON tour_versions (tour_id) WHERE status = 'published';
 
