@@ -43,10 +43,6 @@ CREATE TRIGGER tours_set_updated_at
   BEFORE UPDATE ON tours
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-ALTER TABLE tour_versions
-    ADD COLUMN IF NOT EXISTS trigger_config JSONB DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS audience_rules JSONB DEFAULT '[]'::jsonb;
-
 
 CREATE TABLE tour_versions (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -71,6 +67,10 @@ CREATE TABLE tour_versions (
   CHECK (status <> 'published' OR published_at IS NOT NULL),
   CHECK (status <> 'archived'  OR archived_at  IS NOT NULL)
 );
+
+ALTER TABLE tour_versions
+    ADD COLUMN IF NOT EXISTS trigger_config JSONB DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS audience_rules JSONB DEFAULT '[]'::jsonb;
 
 CREATE UNIQUE INDEX tour_versions_one_published
   ON tour_versions (tour_id) WHERE status = 'published';
@@ -179,8 +179,8 @@ CREATE TABLE tour_events (
   id              BIGSERIAL   PRIMARY KEY,
   app_id          UUID        NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
   event_key       TEXT        NOT NULL,   
-  tour_id         UUID        NOT NULL,  
-  tour_version_id UUID        NOT NULL REFERENCES tour_versions(id) ON DELETE RESTRICT,
+  tour_id         UUID,
+  tour_version_id UUID        REFERENCES tour_versions(id) ON DELETE RESTRICT,
   hint_id         UUID        REFERENCES hints(id) ON DELETE RESTRICT,
   session_id      TEXT        NOT NULL,
   subject_id      TEXT        NOT NULL,
