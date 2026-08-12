@@ -64,28 +64,12 @@
     gap: 12px;
     margin-top: 16px;
 
-    &__label {
-      display: block;
-      font-size: 14px;
-      font-weight: 700;
-      color: #434343;
-      margin-bottom: 6px;
-      margin-top: 16px;
-    }
-
     &__select {
       width: 100%;
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid #ddd;
       font-size: 14px;
-    }
-
-    &__error {
-      display: block;
-      color: #ff4d4f;
-      font-size: 13px;
-      margin-top: 4px;
     }
   }
 }

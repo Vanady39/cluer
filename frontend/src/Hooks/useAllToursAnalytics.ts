@@ -1,24 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
-import type { TourAnalytics } from "../types/sdk";
-
-export interface TourAnalyticsItem {
-  tour: {
-    id: string;
-    title: string;
-    description?: string;
-  };
-  analytics: TourAnalytics | null;
-  unpublished?: boolean;
-  error?: string;
-}
+import type { TourAnalyticsItem } from "../types/sdk";
+import { getCurrentApp } from "../Api/Helpers/Helpers";
 
 export function useAllToursAnalytics() {
   return useQuery({
     queryKey: ["all-tours-analytics"],
 
     queryFn: async (): Promise<TourAnalyticsItem[]> => {
-      const tours = await onboardingAPI.getTours();
+      const app = await getCurrentApp();
+      const tours = await onboardingAPI.getTours(app.id);
 
       return Promise.all(
         tours.map(async (tour) => {

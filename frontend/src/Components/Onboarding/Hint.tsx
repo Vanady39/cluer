@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import styles from "./Styles.module.scss";
-import type { TourHint } from "../../types/sdk";
+import type { TourHint } from "../../types/tour";
 import { Button } from "../UI/Button";
+import { TOOLTIP_HEIGHT, TOOLTIP_WIDTH } from "../../Utils/constants";
 
 interface Props {
   hint: TourHint;
@@ -27,8 +28,6 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
 
   useEffect(() => {
     const updatePosition = () => {
-      const width = 320;
-      const height = 120;
 
       if (!element) return;
       const rect = element.getBoundingClientRect();
@@ -37,12 +36,12 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
 
       switch (hint.placement) {
         case "top":
-          top = rect.top - height - 12;
+          top = rect.top - TOOLTIP_HEIGHT - 12;
           left = rect.left;
           break;
         case "left":
           top = rect.top;
-          left = rect.left - width - 12;
+          left = rect.left - TOOLTIP_WIDTH - 12;
           break;
         case "right":
           top = rect.top;
@@ -55,10 +54,10 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
           break;
       }
 
-      if (left + width > window.innerWidth - 20)
-        left = window.innerWidth - width - 20;
+      if (left + TOOLTIP_WIDTH > window.innerWidth - 20)
+        left = window.innerWidth - TOOLTIP_WIDTH - 20;
       if (left < 20) left = 20;
-      if (top + height > window.innerHeight - 20) top = rect.top - height - 12;
+      if (top + TOOLTIP_HEIGHT > window.innerHeight - 20) top = rect.top - TOOLTIP_HEIGHT - 12;
       if (top < 20) top = 20;
 
       setPosition({ top, left });
@@ -104,23 +103,16 @@ export function Hint({ hint, element, step, total, next, skip }: Props) {
         }}
       >
         <h3>{hint.title}</h3>
-        <span>
-          {step + 1}/{total}
-        </span>
+        <span>{step + 1}/{total}</span>
         <p>{hint.content}</p>
-        {hint.media_url && (
-          <img
-            src={hint.media_url}
-            alt=""
-            className={styles.spotlight__media}
-          />
-        )}
+
+        {hint.media_url && <img src={hint.media_url} alt="" className={styles.spotlight__media} />}
 
         <div className={styles.spotlight__footer}>
           {step !== total - 1 && (
-            <button className={styles.spotlight__skip} onClick={skip}>
+            <Button className={styles.spotlight__skip} onClick={skip}>
               Пропустить
-            </button>
+            </Button>
           )}
           <Button onClick={next}>
             {step === total - 1 ? "Завершить" : "Далее"}

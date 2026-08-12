@@ -6,10 +6,10 @@ import { useCreateScenario } from "../../../../Hooks/useCreateScenario";
 import { ScenarioMainFields } from "./Components/ScenarioMainFields/ScenarioMainFields";
 import { ScenarioStep } from "./Components/ScenarioStep/ScenarioStep";
 
-function CreateScenariosComponent() {
+function AddScenariosComponent() {
   const navigate = useNavigate();
   const editId = new URLSearchParams(window.location.search).get("id");
-  const { createForm, saveDraft, onSubmit, addHint, removeHint, selectElement, isPending, errors, } = useCreateScenario(editId);
+  const { createForm, saveDraft, onSubmit, addHint, removeHint, selectElement, isPending, errors } = useCreateScenario(editId);
 
   return (
     <div className={styles.page}>
@@ -45,40 +45,20 @@ function CreateScenariosComponent() {
             ))}
 
             <div>
-              <Button
-                type="button"
-                size="main"
-                color="primary"
-                onClick={addHint}
-              >
+              <Button size="main" color="primary" onClick={addHint}>
                 + Добавить шаг
               </Button>
             </div>
           </section>
         </div>
         <div className={styles.page__actions}>
-          <Button
-            type="button"
-            size="main"
-            onClick={() => navigate("/admin/scenarios")}
-          >
+          <Button size="main" onClick={() => navigate("/admin/scenarios")}>
             Отмена
           </Button>
-          <Button
-            type="button"
-            size="main"
-            onClick={saveDraft}
-            disabled={isPending}
-          >
+          <Button size="main" onClick={saveDraft} disabled={isPending}>
             {isPending ? "Сохранение..." : "Сохранить черновик"}
           </Button>
-          <Button
-            type="submit"
-            size="main"
-            color="primary"
-            className={styles.page__save}
-            disabled={isPending}
-          >
+          <Button type="submit" size="main" color="primary" className={styles.page__save} disabled={isPending}>
             {isPending ? "Сохранение..." : "Опубликовать"}
           </Button>
         </div>
@@ -87,4 +67,4 @@ function CreateScenariosComponent() {
   );
 }
 
-export const CreateScenarios = memo(CreateScenariosComponent);
+export const AddScenarios = memo(AddScenariosComponent);

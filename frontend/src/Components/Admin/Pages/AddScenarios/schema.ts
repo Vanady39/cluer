@@ -1,24 +1,15 @@
 import * as yup from "yup";
 
 export const scenarioSchema = yup.object({
-  title: yup
-    .string()
-    .trim()
-    .required("Введите название сценария")
-    .min(3, "Название должно содержать минимум 3 символа"),
+  title: yup.string().trim().required("Введите название сценария").min(3, "Название должно содержать минимум 3 символа"),
 
-  description: yup
-    .string()
-    .trim(),
+  description: yup.string().trim(),
 
-  trigger_type: yup
-    .string()
-    .required("Выберите тип запуска"),
+  trigger_type: yup.string().required("Выберите тип запуска"),
 
   audience: yup
     .object({
       show_once: yup.boolean().required(),
-
       max_shows: yup
         .number()
         .typeError("Введите количество показов")
@@ -27,8 +18,7 @@ export const scenarioSchema = yup.object({
         .required("Введите количество показов"),
 
       only_new: yup.boolean().required(),
-    })
-    .required(),
+    }).required(),
 
   hints: yup
     .array()
@@ -36,33 +26,13 @@ export const scenarioSchema = yup.object({
       yup.object({
         id: yup.string().required(),
         step: yup.number().required(),
-
-        title: yup
-          .string()
-          .trim()
-          .required("Введите название подсказки"),
-
-        content: yup
-          .string()
-          .trim()
-          .required("Введите текст подсказки"),
-
-        selector: yup
-          .string()
-          .trim()
-          .required("Выберите элемент сайта"),
-
-        placement: yup
-          .string()
-          .required("Выберите позицию подсказки"),
-
-        page_path: yup
-          .string()
-          .required("Выберите страницу"),
-
+        title: yup.string().trim().required("Введите название подсказки"),
+        content: yup.string().trim().required("Введите текст подсказки"),
+        selector: yup.string().trim().required("Выберите элемент сайта"),
+        placement: yup.string().required("Выберите позицию подсказки"),
+        page_path: yup.string().required("Выберите страницу"),
         spotlight: yup.boolean().required(),
         wait_for_selector: yup.boolean().required(),
-
         media_url: yup.string().default(""),
       }),
     )

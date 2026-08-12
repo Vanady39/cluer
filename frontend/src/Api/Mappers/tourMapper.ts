@@ -1,30 +1,6 @@
-import type { Tour, TourVersion, TourHint } from "../../types/sdk";
-
-interface TourResponseDto {
-  tour: {
-    id: string;
-    title: string;
-    description: string;
-    enabled: boolean;
-    priority: number;
-  };
-  draft?: TourVersion | null;
-  published?: TourVersion | null;
-}
-
-export interface NormalizedTour {
-  id: string;
-  title: string;
-  description: string;
-  enabled: boolean;
-  priority: number;
-  trigger_type: Tour["trigger_type"];
-  target_path: string;
-  audience: Tour["audience"];
-  draft?: TourVersion | null;
-  published?: TourVersion | null;
-  hints: TourHint[]; 
-}
+import type { NormalizedTour } from "../../types";
+import type { TourResponseDto } from "../../types";
+import type { TourHint } from "../../types";
 
 export function normalizeTour(data: TourResponseDto, hints: TourHint[] = []): NormalizedTour {
   return {

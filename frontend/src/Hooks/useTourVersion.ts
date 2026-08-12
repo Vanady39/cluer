@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { onboardingAPI } from "../Api/onboarding";
-import type { TourVersion } from "../types/sdk";
+import type { TourVersion } from "../types/tour";
 
 export function useTourVersions() {
   const [versionsTour, setVersionsTour] = useState<{ id: string; title: string } | null>(null);

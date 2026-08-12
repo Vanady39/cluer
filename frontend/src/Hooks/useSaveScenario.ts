@@ -1,17 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { onboardingAPI } from "../Api/onboarding";
-import type { Audience, TourHint, TriggerType } from "../types/sdk";
-
-interface SaveScenarioData {
-  title: string;
-  description: string;
-  target_path: string;
-  trigger_type: TriggerType;
-  audience: Audience;
-  hints: TourHint[];
-  deletedHints: TourHint[];
-  status: "draft" | "published";
-}
+import { getCurrentApp } from "../Api/Helpers/Helpers";
+import type { SaveScenarioData } from "../types/sdk";
 
 export function useSaveScenario(editId?: string | null) {
   const queryClient = useQueryClient();
@@ -35,7 +25,7 @@ export function useSaveScenario(editId?: string | null) {
         }
 
         for (const hint of data.hints || []) {
-          if (hint.id.length !== 36) {
+          if (hint.id.startsWith("new-")) {
             await onboardingAPI.createHint(editId, {
               title: hint.title,
               content: hint.content,
@@ -64,7 +54,8 @@ export function useSaveScenario(editId?: string | null) {
         return editId;
       }
 
-      const tourId = await onboardingAPI.createTour({
+      const app = await getCurrentApp();
+      const tourId = await onboardingAPI.createTour(app.id, {
         title: data.title,
         description: data.description,
         target_path: data.target_path || data.hints?.[0]?.page_path || "/",

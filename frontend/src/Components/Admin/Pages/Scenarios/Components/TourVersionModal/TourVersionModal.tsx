@@ -1,8 +1,10 @@
 import { memo, useEffect, useRef } from "react";
 import cn from "classnames";
 import styles from './Styles.module.scss';
-import type { TourVersion } from "../../../../../../types/sdk";
 import { useTourVersions } from "../../../../../../Hooks/useTourVersion";
+import { formatDate } from "../../../../../../Utils/format";
+import { Button } from "../../../../../UI/Button";
+import { getVersionStatusLabel } from "../../../../../../Utils/status";
 
 interface TourVersionsModalProps {
   tourId: string;
@@ -15,25 +17,11 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
   const hasLoaded = useRef(false);
 
   useEffect(() => {
-  if (!hasLoaded.current) {
-    loadVersions(tourId, title);
-    hasLoaded.current = true;
-  }
-}, [tourId, title, loadVersions]); 
-
-  const formatDate = (value?: string | null) => {
-    if (!value) return "—";
-    return new Date(value).toLocaleString("ru-RU");
-  };
-
-  const getStatusLabel = (status: TourVersion["status"]) => {
-    switch (status) {
-      case "published": return "Опубликована";
-      case "draft": return "Черновик";
-      case "archived": return "Архивная";
-      default: return status;
+    if (!hasLoaded.current) {
+      loadVersions(tourId, title);
+      hasLoaded.current = true;
     }
-  };
+  }, [tourId, title, loadVersions]);
 
   const handleClose = () => {
     if (rollbackVersionId) return;
@@ -43,11 +31,7 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
   return (
     <div
       className={styles.modalOverlay}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          handleClose();
-        }
-      }}
+      onMouseDown={(event) => { if (event.target === event.currentTarget) handleClose(); }}
     >
       <div className={styles.modalOverlay__versionsModal}>
         <div className={styles.modalOverlay__modalHeader}>
@@ -55,14 +39,14 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
             <h2>История версий</h2>
             <p>{title}</p>
           </div>
-          <button
-            type="button"
+          <Button
+            size="min"
             className={styles.modalOverlay__closeButton}
             disabled={Boolean(rollbackVersionId)}
             onClick={handleClose}
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {versionsLoading ? (
@@ -80,16 +64,10 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
                     <div className={styles.modalOverlay__versionTitle}>
                       <strong>v{version.version}</strong>
                       <span
-                        className={cn(
-                          styles.modalOverlay__versionStatus,
-                          isPublished
-                            ? styles.modalOverlay__versionPublished
-                            : version.status === "draft"
-                              ? styles.modalOverlay__versionDraft
-                              : styles.modalOverlay__versionArchived
-                        )}
-                      >
-                        {getStatusLabel(version.status)}
+                        className={cn(styles.modalOverlay__versionStatus,isPublished
+                          ? styles.modalOverlay__versionPublished: version.status === "draft"
+                          ? styles.modalOverlay__versionDraft : styles.modalOverlay__versionArchived)}>
+                        {getVersionStatusLabel(version.status)}
                       </span>
                     </div>
                     <span className={styles.modalOverlay__versionDate}>
@@ -99,14 +77,13 @@ function TourVersionsModalComponent({ tourId, title, onClose }: TourVersionsModa
                   </div>
 
                   {version.status === "archived" && (
-                    <button
-                      type="button"
+                    <Button
                       className={styles.modalOverlay__rollbackButton}
                       disabled={Boolean(rollbackVersionId)}
                       onClick={() => rollback(version)}
                     >
                       {rollbackVersionId === version.id ? "Откат..." : "Откатить"}
-                    </button>
+                    </Button>
                   )}
                   {isPublished && (
                     <span className={styles.modalOverlay__currentVersion}>Текущая</span>

@@ -44,9 +44,9 @@ func main() {
 	}
 	defer pool.Close()
 
-	tourRepo := repositories.NewTourRepository(pool)
-	hintRepo := repositories.NewHintRepository(pool)
-	runtimeRepo := repositories.NewRuntimeRepository(pool)
+	tourRepo := repositories.NewTourRepository(pool, defaultLogger)
+	hintRepo := repositories.NewHintRepository(pool, defaultLogger)
+	runtimeRepo := repositories.NewRuntimeRepository(pool, defaultLogger)
 
 	tourDomain := domains.NewTourDomain(tourRepo, hintRepo)
 	hintDomain := domains.NewHintDomain(tourRepo, hintRepo)

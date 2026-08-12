@@ -7,7 +7,7 @@ import { ScenarioMenu } from "../Analytics/Components/ScenarioMenu/ScenarioMenu"
 import { useToursQuery } from "../../../../Hooks/useToursQuery";
 import { useDeleteTourMutation } from "../../../../Hooks/useDeleteTourMutation";
 import { onboardingAPI } from "../../../../Api/onboarding";
-import type { TourVersion } from "../../../../types/sdk";
+import { getTourStatus } from "../../../../Utils/status";
 import { TourVersionsModal } from "./Components/TourVersionModal/TourVersionModal";
 import logo from "/logo.svg";
 import { ToggleSwitch } from "../../../UI/ToggleSwitch/ToggleSwitch";
@@ -51,16 +51,6 @@ function ScenariosComponent() {
     }
   };
 
-  const getTourStatus = (tour: { draft?: TourVersion | null; published?: TourVersion | null  }) => {
-    const hasDraft = Boolean(tour.draft);
-    const hasPublished = Boolean(tour.published);
-
-    if (hasPublished && hasDraft) return { label: "Есть неопубликованные изменения", type: "changes" };
-    if (hasPublished) return { label: "Опубликован", type: "published" };
-    if (hasDraft) return { label: "Черновик", type: "draft" };
-    return { label: "Без версии", type: "unknown" };
-  };
-
   const handlePreview = async (tourId: string) => {
     try {
       const card = await onboardingAPI.getTour(tourId);
@@ -69,7 +59,7 @@ function ScenariosComponent() {
         alert("У сценария пока нет версии для предпросмотра");
         return;
       }
-      const previewUrl = new URL(version.target_path || "/", window.location.origin);
+      const previewUrl = new URL(version.target_path, window.location.origin);
       previewUrl.searchParams.set("preview", "true");
       previewUrl.searchParams.set("tourId", tourId);
       window.open(previewUrl.toString(), "_blank", "noopener,noreferrer");

@@ -2,6 +2,7 @@ package domains
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -58,9 +59,10 @@ type (
 	}
 
 	DraftPatch struct {
-		TriggerType *TriggerType `json:"trigger_type"`
-		TargetPath  *string      `json:"target_path"`
-		Audience    *Audience    `json:"audience"`
+		TriggerType   *TriggerType   `json:"trigger_type"`
+		TriggerConfig *TriggerConfig `json:"trigger_config"`
+		TargetPath    *string        `json:"target_path"`
+		Audience      *Audience      `json:"audience"`
 	}
 )
 
@@ -80,6 +82,10 @@ func (td *TourDomain) Create(ctx context.Context, appId uuid.UUID, t *Tour) (*To
 	}
 	if t.Audience == nil {
 		t.Audience = &Audience{}
+	}
+
+	if details := validateDraftBody(t.TriggerType, t.TriggerConfig, t.Audience.Rules); len(details) > 0 {
+		return nil, &ValidationError{Err: ErrDraftInvalid, Details: details}
 	}
 
 	return td.tours.CreateWithDraft(ctx, t)
@@ -178,6 +184,25 @@ func (td *TourDomain) UpdateDraft(ctx context.Context, tourId uuid.UUID, p Draft
 	}
 	if p.TriggerType != nil && !p.TriggerType.Valid() {
 		return nil, logicErr(ErrInvalidTriggerType, "draft update", http.StatusBadRequest)
+	}
+
+	triggerType := draft.TriggerType
+	if p.TriggerType != nil {
+		triggerType = *p.TriggerType
+	}
+
+	config := draft.TriggerConfig
+	if p.TriggerConfig != nil {
+		config = p.TriggerConfig
+	}
+
+	rules := draft.Audience.Rules
+	if p.Audience != nil {
+		rules = p.Audience.Rules
+	}
+
+	if details := validateDraftBody(triggerType, config, rules); len(details) > 0 {
+		return nil, &ValidationError{Err: ErrDraftInvalid, Details: details}
 	}
 	return td.tours.UpdateDraft(ctx, draft.Id, p)
 }
@@ -281,6 +306,59 @@ func validateTour(t *Tour) error {
 	return logicErr(err, "tour validation", http.StatusBadRequest)
 }
 
+// Проверяется строго то поле, которое нужно текущему trigger_type. Конфиг
+// присылается целиком и при смене типа тащит за собой поля прежней формы —
+// ругаться на них значит отдавать фронту 400 по полю, которого в форме уже нет.
+// Путь ошибки всегда указывает на конкретное поле, даже когда конфига нет
+// вовсе: для формы это одна и та же ситуация «поле не заполнено».
+func validateTriggerConfig(tType TriggerType, cfg *TriggerConfig) []ErrorDetail {
+	detail := func(field, message string) []ErrorDetail {
+		return []ErrorDetail{{Path: "trigger_config." + field, Message: message}}
+	}
+
+	switch tType {
+	case TriggerDelay:
+		if cfg == nil || cfg.DelayMs == nil {
+			return detail("delay_ms", "is required when trigger_type is delay")
+		}
+		if *cfg.DelayMs < 100 || *cfg.DelayMs > 600000 {
+			return detail("delay_ms", "must be an integer between 100 and 600000 (0.1s to 10min)")
+		}
+
+	case TriggerScrollDepth:
+		if cfg == nil || cfg.ScrollDepth == nil {
+			return detail("scroll_depth", "is required when trigger_type is scroll_depth")
+		}
+		if *cfg.ScrollDepth < 1 || *cfg.ScrollDepth > 100 {
+			return detail("scroll_depth", "must be an integer between 1 and 100")
+		}
+
+	case TriggerInactivity:
+		if cfg == nil || cfg.InactivitySecs == nil {
+			return detail("inactivity_secs", "is required when trigger_type is inactivity")
+		}
+		if *cfg.InactivitySecs < 3 {
+			return detail("inactivity_secs", "must be at least 3 seconds to avoid accidental triggers")
+		}
+
+	case TriggerElementVisible:
+		if cfg == nil || cfg.ElementSelector == nil || strings.TrimSpace(*cfg.ElementSelector) == "" {
+			return detail("element_selector",
+				"is required and must not be empty when trigger_type is element_visible")
+		}
+	}
+
+	return nil
+}
+
+// Тело версии проверяется одним набором правил на всех трёх входах: создание
+// тура, правка черновика и публикация. Иначе админка получает 201 на то, что
+// потом не публикуется, и узнаёт о проблеме на шаг позже, чем могла бы.
+func validateDraftBody(tType TriggerType, cfg *TriggerConfig, rules []AudienceRule) []ErrorDetail {
+	details := validateTriggerConfig(tType, cfg)
+	return append(details, validateAudienceRules(rules)...)
+}
+
 func validateForPublish(v *TourVersion, hints []Hint) error {
 	details := make([]ErrorDetail, 0)
 
@@ -290,6 +368,7 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 	if !v.TriggerType.Valid() {
 		details = append(details, ErrorDetail{Path: "trigger_type", Message: "unknown trigger type"})
 	}
+	details = append(details, validateDraftBody(v.TriggerType, v.TriggerConfig, v.Audience.Rules)...)
 	if len(hints) == 0 {
 		details = append(details, ErrorDetail{Path: "hints", Message: "a tour with no hints has nothing to show"})
 	}
@@ -334,4 +413,93 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 		return &ValidationError{Err: ErrTourNotPublishable, Details: details}
 	}
 	return nil
+}
+
+func validateAudienceRules(rules []AudienceRule) []ErrorDetail {
+	var details []ErrorDetail
+
+	validTypes := map[string]bool{
+		"event_performed": true,
+		"page_visited":    true,
+		"user_property":   true,
+	}
+	validOperators := map[string]bool{
+		"exists": true, "not_exists": true,
+		"eq": true, "neq": true,
+		"gt": true, "gte": true, "lt": true, "lte": true,
+		"contains": true, "not_contains": true,
+		"starts_with": true, "ends_with": true,
+	}
+	existenceOnly := map[string]bool{
+		"event_performed": true,
+		"page_visited":    true,
+	}
+	for i, r := range rules {
+		prefix := "audience.rules[" + strconv.Itoa(i) + "]."
+
+		if r.Type == "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "type",
+				Message: "is required",
+			})
+		} else if !validTypes[r.Type] {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "type",
+				Message: fmt.Sprintf("unknown type %q (expected event_performed, page_visited, or user_property)", r.Type),
+			})
+		}
+		if r.Key == "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "key",
+				Message: "is required",
+			})
+		}
+
+		// Оператор проверяем один раз и запоминаем результат: жаловаться ещё и на
+		// value, когда оператора нет или он неизвестен, — лишний шум для формы.
+		operatorOk := false
+		if r.Operator == "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "operator",
+				Message: "is required",
+			})
+		} else if !validOperators[r.Operator] {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "operator",
+				Message: fmt.Sprintf("unknown operator %q", r.Operator),
+			})
+		} else if existenceOnly[r.Type] && r.Operator != "exists" && r.Operator != "not_exists" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "operator",
+				Message: fmt.Sprintf("must be exists or not_exists for %s rules", r.Type),
+			})
+		} else {
+			operatorOk = true
+		}
+
+		if r.Type == "event_performed" || r.Type == "page_visited" {
+			if _, ok := parseTimeframe(r.Timeframe); !ok {
+				details = append(details, ErrorDetail{
+					Path:    prefix + "timeframe",
+					Message: fmt.Sprintf("unknown timeframe %q (expected 1h, 24h, 7d, 30d, or all_time)", r.Timeframe),
+				})
+			}
+		}
+		if r.Type == "user_property" && r.Timeframe != "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "timeframe",
+				Message: "must be empty for user_property rules",
+			})
+		}
+
+		if r.Type == "user_property" && operatorOk &&
+			r.Operator != "exists" && r.Operator != "not_exists" && r.Value == nil {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "value",
+				Message: "is required for comparison operators",
+			})
+		}
+	}
+
+	return details
 }

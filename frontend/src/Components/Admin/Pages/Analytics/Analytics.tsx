@@ -1,12 +1,14 @@
 import { useMemo, useRef, useState, memo } from "react";
 import html2pdf from "html2pdf.js";
-import { useAllToursAnalytics, type TourAnalyticsItem } from "../../../../Hooks/useAllToursAnalytics";
-import { percent, formatDate } from "../../../../Utils/format";
+import { useAllToursAnalytics } from "../../../../Hooks/useAllToursAnalytics";
+import { percent } from "../../../../Utils/format";
 import styles from "./Styles.module.scss";
 import { ScenarioMenu } from "./Components/ScenarioMenu/ScenarioMenu";
 import { Button } from "../../../UI/Button";
+import { TourDetails } from "./Components/TourDetails/TourDetails";
+import { MetricCard } from "../../../UI/MetricCard/MetricCard";
 
-export function Analytics() {
+function AnalyticsComponent() {
   const reportRef = useRef<HTMLDivElement | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const { data = [], isLoading, isError } = useAllToursAnalytics();
@@ -47,9 +49,7 @@ export function Analytics() {
   );
 
   const downloadPdf = async () => {
-    if (!reportRef.current || isGeneratingPdf) {
-      return;
-    }
+    if (!reportRef.current || isGeneratingPdf) return;
     try {
       setIsGeneratingPdf(true);
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -98,7 +98,6 @@ export function Analytics() {
             <h1>Аналитика</h1>
             <p>Эффективность сценариев</p>
           </div>
-
           {!isGeneratingPdf && (
             <Button className={styles.page__pdfButton} onClick={downloadPdf}>
               Скачать PDF
@@ -186,87 +185,4 @@ export function Analytics() {
   );
 }
 
-function MetricCard({ title, value }: { title: string; value: string | number }) {
-  return (
-    <div className={styles.page__card}>
-      <span>{title}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-const TourDetails = memo(({ item }: { item: TourAnalyticsItem }) => {
-  const analytics = item.analytics;
-  if (!analytics) return null;
-
-  return (
-    <>
-      <section className={styles.page__section}>
-        <div className={styles.page__detailsHeader}>
-          <div>
-            <h2>{item.tour.title}</h2>
-            <p>
-              Версия {analytics.version}
-              {" · "}
-              {formatDate(analytics.from)}
-              {" — "}
-              {formatDate(analytics.to)}
-            </p>
-          </div>
-          <div className={styles.page__versionId}>
-            <span>Version ID</span>
-            <code>{analytics.tour_version_id}</code>
-          </div>
-        </div>
-
-        <h3>Аналитика</h3>
-        {analytics.funnel.length === 0 ? (
-          <div className={styles.page__empty}>По этому сценарию пока нет данных</div>
-        ) : (
-          <div className={styles.page__funnel}>
-            {analytics.funnel.map((step) => (
-              <div key={step.hint_id} className={styles.page__funnelRow}>
-                <div className={styles.page__stepInfo}>
-                  <div className={styles.page__stepNumber}>{step.step}</div>
-                  <div>
-                    <strong>{step.title}</strong>
-                    <span>Drop-off: {percent(step.dropoff)}</span>
-                  </div>
-                </div>
-                <div className={styles.page__stepStats}>
-                  <StepMetric title="Показано" value={step.shown} />
-                  <StepMetric title="Завершено" value={step.completed} />
-                  <StepMetric title="Пропущено" value={step.skipped} />
-                  <StepMetric title="Selector missing" value={step.selector_missing} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className={styles.page__section}>
-        <h2>Проблемные селекторы</h2>
-        {analytics.broken_selectors.length === 0 ? (
-          <div className={styles.page__success}>Проблемных селекторов не обнаружено</div>
-        ) : (
-          <div className={styles.page__brokenSelectors}>
-            <p>Найдено проблемных подсказок: <strong>{analytics.broken_selectors.length}</strong></p>
-            {analytics.broken_selectors.map((id) => (
-              <code key={id}>{id}</code>
-            ))}
-          </div>
-        )}
-      </section>
-    </>
-  );
-});
-
-function StepMetric({ title, value }: { title: string; value: number }) {
-  return (
-    <div>
-      <span>{title}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
+export const Analytics = memo(AnalyticsComponent);

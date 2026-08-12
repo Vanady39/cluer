@@ -1,9 +1,6 @@
 import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import type { InferType } from "yup";
-import { createAdSchema } from "./schema";
+import { Controller } from "react-hook-form";
 import { Input } from "../../../UI/Input";
 import { Button } from "../../../UI/Button";
 import { CitySelect } from "../../../UI/CitySelect/CitySelect";
@@ -11,67 +8,26 @@ import { Categories } from "../../../UI/CategoriesSelect/CategoriesSelect";
 import { Upload } from "../../../UI/Upload/Upload";
 import { PreviewModal } from "../../Layouts/PreviewModal/PreviewModal";
 import styles from "./Styles.module.scss";
-import { trackOnboardingGoal } from "../../../Onboarding/goal";
+import { useCreateAd } from "../../../../Hooks/useCreateAd";
+import { useFileUpload } from "../../../../Hooks/useFileUpload";
+import cn from "classnames";
+import type { InferType } from "yup";
+import type { createAdSchema } from "./schema";
 
-interface FileItem {
-  uid: string;
-  name: string;
-  url?: string;
-  file?: File;
-  size?: number;
-}
 
 function AddItemComponent() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [fileList, setFileList] = useState<FileItem[]>([]);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const { createForm, submitAd } = useCreateAd();
+  const { fileList, setFileList, previewImage, openPreview, closePreview } =
+    useFileUpload();
 
-  const createForm = useForm({
-    resolver: yupResolver(createAdSchema),
-    defaultValues: {
-      category: "",
-      title: "",
-      description: "",
-      city: "",
-    },
-  });
-
-  const onSubmit = async (data: InferType<typeof createAdSchema>) => {
+  const handleSubmit = async (data: InferType<typeof createAdSchema>) => {
     setLoading(true);
-
-    try {
-      const formData = new FormData();
-
-      Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, String(value));
-      });
-
-      fileList.forEach((item) => {
-        if (item.file) {
-          formData.append("images", item.file);
-        }
-      });
-
-      console.log("Отправка:", Object.fromEntries(formData));
-
-      trackOnboardingGoal("listing_created", {
-        title: data.title,
-        category: data.category,
-      });
-
-      alert("Объявление создано!");
-
-      navigate("/");
-    } catch {
-      alert("Ошибка при создании");
-    } finally {
-      setLoading(false);
-    }
+    const files = fileList.map((item) => item.file).filter(Boolean) as File[];
+    await submitAd(data, files, () => navigate("/"), () => alert("Ошибка при создании"));
+    setLoading(false);
   };
-
-  const openPreview = (url: string) => setPreviewImage(url);
-  const closePreview = () => setPreviewImage(null);
 
   return (
     <main className={styles.page}>
@@ -80,7 +36,7 @@ function AddItemComponent() {
 
         <form
           className={styles.page__card__form}
-          onSubmit={createForm.handleSubmit(onSubmit)}
+          onSubmit={createForm.handleSubmit(handleSubmit)}
         >
           <Controller
             name="category"
@@ -113,9 +69,22 @@ function AddItemComponent() {
             <Controller
               name="description"
               control={createForm.control}
-              render={({ field }) => (
-                <textarea {...field} className={styles.page__card__form__textarea} rows={6} />
-              )}
+              render={({ field }) => {
+                const error = createForm.formState.errors.description?.message;
+                return (
+                  <>
+                    <textarea
+                      {...field}
+                      className={cn(styles.page__card__form__textarea,
+                        error && styles.page__card__form__textarea__error)}
+                      rows={6}
+                    />
+                    {error && (
+                      <span className={styles.page__card__form__field__error}>{error}</span>
+                    )}
+                  </>
+                );
+              }}
             />
           </div>
 
@@ -149,6 +118,7 @@ function AddItemComponent() {
               )}
             />
           </div>
+
           <div data-onboarding="photo-upload">
             <Upload
               fileList={fileList}
@@ -159,7 +129,6 @@ function AddItemComponent() {
 
           <div className={styles.page__card__form__actions}>
             <Button
-              type="button"
               size="main"
               onClick={() => navigate("/")}
               className={styles.page__card__form__actions__button}

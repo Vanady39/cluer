@@ -2,6 +2,7 @@ package domains
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -102,7 +103,21 @@ func (hd *HintDomain) Reorder(ctx context.Context, tourId uuid.UUID, ids []uuid.
 	if len(ids) == 0 {
 		return nil, logicErr(ErrReorderMismatch, "hint reorder", http.StatusBadRequest)
 	}
+	// Репозиторий сверяет только count(*) == len(ids), поэтому список с повтором
+	// проходит его проверку, но раздаёт двум подсказкам один и тот же step.
+	seen := make(map[uuid.UUID]struct{}, len(ids))
+	for _, id := range ids {
+		if _, dup := seen[id]; dup {
+			return nil, logicErr(ErrReorderMismatch, "hint reorder", http.StatusBadRequest)
+		}
+		seen[id] = struct{}{}
+	}
 	if err := hd.hints.Reorder(ctx, draft.Id, ids); err != nil {
+		// Наружу должен уходить читаемый текст сентинела, а не «failed to update
+		// entity <id>: invref» из RepositoryError.
+		if errors.Is(err, ErrReorderMismatch) {
+			return nil, logicErr(ErrReorderMismatch, "hint reorder", http.StatusBadRequest)
+		}
 		return nil, err
 	}
 	return hd.hints.ListByVersion(ctx, draft.Id)

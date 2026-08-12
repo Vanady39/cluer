@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Controller } from "react-hook-form";
 import type { Control, FieldErrors } from "react-hook-form";
 import type { InferType } from "yup";
-import { Input } from "../../../../../UI/Input/Input";
+import { Input } from "../../../../../UI/Input";
 import { scenarioSchema } from "../../schema";
 import styles from './Styles.module.scss';
 
@@ -15,18 +15,13 @@ function ScenarioMainFieldsComponent({ control, errors }: ScenarioMainFieldsProp
   return (
     <section className={styles.card}>
       <h2>Основная информация</h2>
-
       <Controller
         name="title"
         control={control}
         render={({ field }) => (
           <>
             <label className={styles.card__label}>Название сценария</label>
-            <Input
-              {...field}
-              placeholder="Например: Первое объявление"
-              error={errors.title?.message}
-            />
+            <Input {...field} placeholder="Например: Первое объявление" error={errors.title?.message} />
           </>
         )}
       />
@@ -37,15 +32,9 @@ function ScenarioMainFieldsComponent({ control, errors }: ScenarioMainFieldsProp
         render={({ field }) => (
           <>
             <label className={styles.card__label}>Описание</label>
-            <textarea
-              {...field}
-              className={styles.card__textarea}
-              placeholder="Зачем нужен этот сценарий"
-            />
+            <textarea {...field} className={styles.card__textarea} placeholder="Зачем нужен этот сценарий" />
             {errors.description?.message && (
-              <span className={styles.card__error}>
-                {errors.description.message}
-              </span>
+              <span className={styles.card__error}> {errors.description.message}</span>
             )}
           </>
         )}
@@ -65,9 +54,7 @@ function ScenarioMainFieldsComponent({ control, errors }: ScenarioMainFieldsProp
                 <option value="manual">Вручную</option>
               </select>
               {errors.trigger_type?.message && (
-                <span className={styles.card__settingsGroup__error}>
-                  {errors.trigger_type.message}
-                </span>
+                <span className={styles.card__settingsGroup__error}>{errors.trigger_type.message}</span>
               )}
             </>
           )}
@@ -108,17 +95,13 @@ function ScenarioMainFieldsComponent({ control, errors }: ScenarioMainFieldsProp
           control={control}
           render={({ field }) => (
             <>
-              <label className={styles.card__label}>
-                Максимальное количество показов
-              </label>
+              <label className={styles.card__label}>Максимальное количество показов</label>
               <Input
                 className={styles.card__numberInput}
                 value={field.value === undefined ? "" : String(field.value)}
                 onChange={(value) => {
                   const stringValue = String(value);
-                  field.onChange(
-                    stringValue === "" ? undefined : Number(stringValue),
-                  );
+                  field.onChange(stringValue === "" ? undefined : Number(stringValue),);
                 }}
                 error={errors.audience?.max_shows?.message}
               />
