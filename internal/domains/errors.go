@@ -237,6 +237,7 @@ var (
 	ErrNoVersionToCopy     = errors.New("tour has no published version to copy")
 	ErrTourNotPublishable  = errors.New("tour cannot be published")
 	ErrMaxShowsNegative    = errors.New("audience.max_shows must be >= 0")
+	ErrDraftInvalid        = errors.New("draft is invalid")
 )
 
 var (
@@ -257,6 +258,7 @@ var (
 	ErrVersionForeignApp   = errors.New("tour version belongs to another application")
 	ErrTourVersionMismatch = errors.New("tour version does not belong to the specified tour")
 	ErrHintNotInVersion    = errors.New("hint does not belong to the specified tour version")
+	ErrCorruptedData       = errors.New("corrupted JSONB data in database")
 )
 
 // ---------------------------- //
@@ -283,7 +285,17 @@ func (ve *ValidationError) Message() string { return capitalise(ve.Err.Error()) 
 
 func (ve *ValidationError) Unwrap() error { return ve.Err }
 
-func (ve *ValidationError) StatusCode() int { return http.StatusUnprocessableEntity }
+func (ve *ValidationError) StatusCode() int {
+	switch ve.Err {
+	case ErrTourNotPublishable:
+		return http.StatusUnprocessableEntity
+	case ErrDraftInvalid:
+		return http.StatusBadRequest
+	default:
+		return http.StatusBadRequest
+	}
+
+}
 
 func (ve *ValidationError) ToHTTPError() *models.HTTPError {
 	problems := make([]string, 0, len(ve.Details))
