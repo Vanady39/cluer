@@ -8,14 +8,14 @@ import (
 )
 
 type listingRepositoryStub struct {
-	listings []Listing
-	err      error
-	filter   ListingFilter
+	page   ListingPage
+	err    error
+	filter ListingFilter
 }
 
-func (s *listingRepositoryStub) GetListings(_ context.Context, filter ListingFilter) ([]Listing, error) {
+func (s *listingRepositoryStub) GetListings(_ context.Context, filter ListingFilter) (ListingPage, error) {
 	s.filter = filter
-	return s.listings, s.err
+	return s.page, s.err
 }
 
 func TestListingServiceGetListings(t *testing.T) {
@@ -28,7 +28,7 @@ func TestListingServiceGetListings(t *testing.T) {
 			ImageURL:    "https://example.com/iphone.png",
 		},
 	}
-	repo := &listingRepositoryStub{listings: expected}
+	repo := &listingRepositoryStub{page: ListingPage{Listings: expected, Total: 1}}
 	service := NewListingDomain(repo)
 	filter := ListingFilter{Query: "iphone", Limit: 5, Offset: 2}
 
@@ -37,8 +37,8 @@ func TestListingServiceGetListings(t *testing.T) {
 		t.Fatalf("GetListings() returned an unexpected error: %v", err)
 	}
 
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("GetListings() = %#v, want %#v", actual, expected)
+	if !reflect.DeepEqual(actual.Listings, expected) || actual.Total != 1 {
+		t.Fatalf("GetListings() = %#v, want listings %#v with total 1", actual, expected)
 	}
 	if !reflect.DeepEqual(repo.filter, filter) {
 		t.Fatalf("repository filter = %#v, want %#v", repo.filter, filter)
@@ -52,5 +52,29 @@ func TestListingServiceGetListingsReturnsRepositoryError(t *testing.T) {
 	_, err := service.GetListings(context.Background(), ListingFilter{Limit: 20})
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("GetListings() error = %v, want %v", err, expectedErr)
+	}
+}
+
+func TestListingDomainNormalizesRepositoryFilter(t *testing.T) {
+	repo := &listingRepositoryStub{}
+	service := NewListingDomain(repo)
+
+	_, err := service.GetListings(context.Background(), ListingFilter{Query: "iphone", Offset: -1})
+	if err != nil {
+		t.Fatalf("GetListings() returned an unexpected error: %v", err)
+	}
+
+	want := ListingFilter{Query: "iphone", Limit: DefaultListingsLimit, Offset: 0}
+	if !reflect.DeepEqual(repo.filter, want) {
+		t.Fatalf("repository filter = %#v, want %#v", repo.filter, want)
+	}
+
+	_, err = service.GetListings(context.Background(), ListingFilter{Limit: MaxListingsLimit + 1, Offset: MaxListingsOffset + 1})
+	if err != nil {
+		t.Fatalf("GetListings() returned an unexpected error: %v", err)
+	}
+	want = ListingFilter{Limit: MaxListingsLimit, Offset: MaxListingsOffset}
+	if !reflect.DeepEqual(repo.filter, want) {
+		t.Fatalf("repository filter = %#v, want %#v", repo.filter, want)
 	}
 }

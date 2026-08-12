@@ -398,6 +398,8 @@ definitions:
         items:
           $ref: '#/definitions/github_com_Vanady39_cluer_internal_models_response.Listing'
         type: array
+      total:
+        type: integer
     type: object
   github_com_Vanady39_cluer_internal_models_response.Listing:
     properties:
@@ -607,7 +609,7 @@ paths:
     get:
       description: Returns listings, optionally filtering by title or description
       parameters:
-      - description: Case-insensitive text search
+      - description: Case-insensitive text search (up to 200 characters)
         in: query
         name: q
         type: string
@@ -615,7 +617,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Result offset (default 0)
+      - description: Result offset (0-100000, default 0)
         in: query
         name: offset
         type: integer

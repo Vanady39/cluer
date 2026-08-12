@@ -11,15 +11,16 @@ type Listing struct {
 }
 
 type GetListingsResponse struct {
-	Data []Listing `json:"data"`
+	Data  []Listing `json:"data"`
+	Total int64     `json:"total"`
 }
 
 func NewGetListingsResponse(
-	domainListings []domains.Listing,
+	page domains.ListingPage,
 ) GetListingsResponse {
-	listings := make([]Listing, 0, len(domainListings))
+	listings := make([]Listing, 0, len(page.Listings))
 
-	for _, listing := range domainListings {
+	for _, listing := range page.Listings {
 		listings = append(listings, Listing{
 			ID:          listing.ID,
 			Title:       listing.Title,
@@ -29,5 +30,5 @@ func NewGetListingsResponse(
 		})
 	}
 
-	return GetListingsResponse{Data: listings}
+	return GetListingsResponse{Data: listings, Total: page.Total}
 }

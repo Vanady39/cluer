@@ -3,6 +3,7 @@ package controllers_test
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/Vanady39/cluer/internal/controllers"
@@ -13,17 +14,17 @@ import (
 )
 
 type stubListingDomain struct {
-	listings []domains.Listing
-	err      error
-	filter   domains.ListingFilter
+	page   domains.ListingPage
+	err    error
+	filter domains.ListingFilter
 }
 
-func (s *stubListingDomain) GetListings(_ context.Context, filter domains.ListingFilter) ([]domains.Listing, error) {
+func (s *stubListingDomain) GetListings(_ context.Context, filter domains.ListingFilter) (domains.ListingPage, error) {
 	s.filter = filter
 	if s.err != nil {
-		return nil, s.err
+		return domains.ListingPage{}, s.err
 	}
-	return s.listings, nil
+	return s.page, nil
 }
 
 func listingRouter(domain domains.ListingDomainInterface) *gin.Engine {
@@ -35,17 +36,18 @@ func listingRouter(domain domains.ListingDomainInterface) *gin.Engine {
 
 func TestListingController_GetListings(t *testing.T) {
 	t.Run("returns listings wrapped in a data envelope", func(t *testing.T) {
-		domain := &stubListingDomain{listings: []domains.Listing{
-			{ID: 1, Title: "iPhone", Description: "как новый", Price: 95000, ImageURL: "https://x/i.png"},
+		domain := &stubListingDomain{page: domains.ListingPage{
+			Listings: []domains.Listing{{ID: 1, Title: "iPhone", Description: "как новый", Price: 95000, ImageURL: "https://x/i.png"}},
+			Total:    3,
 		}}
 		rec := doJSON(t, listingRouter(domain), http.MethodGet, "/listings", nil)
 
 		require.Equal(t, http.StatusOK, rec.Code)
 		assert.JSONEq(t,
-			`{"data":[{"id":1,"title":"iPhone","description":"как новый","price":95000,"imageUrl":"https://x/i.png"}]}`,
+			`{"data":[{"id":1,"title":"iPhone","description":"как новый","price":95000,"imageUrl":"https://x/i.png"}],"total":3}`,
 			rec.Body.String(),
 		)
-		assert.Equal(t, domains.ListingFilter{Limit: 20}, domain.filter)
+		assert.Equal(t, domains.ListingFilter{Limit: domains.DefaultListingsLimit}, domain.filter)
 	})
 
 	t.Run("trims q and passes pagination filter to the domain", func(t *testing.T) {
@@ -57,10 +59,10 @@ func TestListingController_GetListings(t *testing.T) {
 	})
 
 	t.Run("empty result still returns a data array", func(t *testing.T) {
-		rec := doJSON(t, listingRouter(&stubListingDomain{}), http.MethodGet, "/listings", nil)
+		rec := doJSON(t, listingRouter(&stubListingDomain{page: domains.ListingPage{Listings: []domains.Listing{}}}), http.MethodGet, "/listings", nil)
 
 		require.Equal(t, http.StatusOK, rec.Code)
-		assert.JSONEq(t, `{"data":[]}`, rec.Body.String())
+		assert.JSONEq(t, `{"data":[],"total":0}`, rec.Body.String())
 	})
 
 	t.Run("domain failure returns 500 in the standard envelope", func(t *testing.T) {
@@ -71,17 +73,26 @@ func TestListingController_GetListings(t *testing.T) {
 	})
 
 	for _, path := range []string{
+		"/listings?limit=",
+		"/listings?offset=",
 		"/listings?limit=0",
 		"/listings?limit=51",
 		"/listings?limit=invalid",
 		"/listings?offset=-1",
+		"/listings?offset=100001",
 		"/listings?offset=invalid",
+		"/listings?q=" + strings.Repeat("q", domains.MaxListingsQueryRunes+1),
 	} {
-		t.Run("invalid pagination returns 400: "+path, func(t *testing.T) {
+		t.Run("pagination validation: "+path, func(t *testing.T) {
 			rec := doJSON(t, listingRouter(&stubListingDomain{}), http.MethodGet, path, nil)
 
+			if path == "/listings?limit=" || path == "/listings?offset=" {
+				require.Equal(t, http.StatusOK, rec.Code)
+				return
+			}
 			require.Equal(t, http.StatusBadRequest, rec.Code)
 			decodeHTTPError(t, rec)
+			assert.Contains(t, rec.Body.String(), "failed to bind query:")
 		})
 	}
 }

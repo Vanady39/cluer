@@ -86,7 +86,7 @@ func (be *BindingError) Message() string {
 }
 
 func (be *BindingError) ToHTTPError() *models.HTTPError {
-	return &models.HTTPError{Message: be.Message(), Error: fmt.Sprintf("failed to bind %s", be.Zone)}
+	return &models.HTTPError{Message: be.Message(), Error: be.Error()}
 }
 
 func (be *BindingError) Unwrap() error {

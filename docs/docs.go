@@ -161,7 +161,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Case-insensitive text search",
+                        "description": "Case-insensitive text search (up to 200 characters)",
                         "name": "q",
                         "in": "query"
                     },
@@ -173,7 +173,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Result offset (default 0)",
+                        "description": "Result offset (0-100000, default 0)",
                         "name": "offset",
                         "in": "query"
                     }
@@ -1613,6 +1613,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.Listing"
                     }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
