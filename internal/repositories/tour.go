@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/Vanady39/cluer/internal/domains"
@@ -273,7 +274,8 @@ func (tr *TourRepository) UpdateDraft(ctx context.Context, versionId uuid.UUID, 
 		add("audience_max_shows", p.Audience.MaxShows)
 		add("audience_only_new", p.Audience.OnlyNew)
 
-		rulesBytes, err := json.Marshal(p.Audience.Rules)
+		rulesBytes, err := marshalJSON(p.Audience.Rules)
+
 		if err != nil {
 			return nil, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Update)
 		}
@@ -282,7 +284,7 @@ func (tr *TourRepository) UpdateDraft(ctx context.Context, versionId uuid.UUID, 
 	}
 
 	if p.TriggerConfig != nil {
-		configBytes, err := json.Marshal(p.TriggerConfig)
+		configBytes, err := marshalJSON(p.TriggerConfig)
 		if err != nil {
 			return nil, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Update)
 		}
@@ -385,6 +387,15 @@ func marshalJSON(v any) ([]byte, error) {
 	if v == nil {
 		return nil, nil
 	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
+		if rv.IsNil() {
+			return nil, nil
+		}
+	}
+
 	b, err := json.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("json marshal: %w", err)
@@ -433,15 +444,30 @@ func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID
 			&t.Audience.ShowOnce, &t.Audience.MaxShows, &t.Audience.OnlyNew,
 			&audienceRulesBytes, &triggerConfigBytes,
 		); err != nil {
-			return nil, wrap(err, domains.ErrTourNotFound, appId.String(), domains.Retrieve)
+			tr.logger.Error().
+				Err(err).
+				Str("app_id", appId.String()).
+				Msg("failed to scan tour row in ResolveCandidates, skipping")
+			continue
 		}
-
 		if err := unmarshalJSONB(audienceRulesBytes, &t.Audience.Rules); err != nil {
-			return nil, wrap(err, domains.ErrTourNotFound, t.Id.String(), domains.Retrieve)
+			tr.logger.Error().
+				Err(err).
+				Str("tour_id", t.Id.String()).
+				Str("version_id", t.VersionId.String()).
+				Str("app_id", appId.String()).
+				Msg("corrupted audience_rules in published tour, skipping tour")
+			continue
 		}
 
 		if err := unmarshalJSONB(triggerConfigBytes, &t.TriggerConfig); err != nil {
-			return nil, wrap(err, domains.ErrTourNotFound, t.Id.String(), domains.Retrieve)
+			tr.logger.Error().
+				Err(err).
+				Str("tour_id", t.Id.String()).
+				Str("version_id", t.VersionId.String()).
+				Str("app_id", appId.String()).
+				Msg("corrupted trigger_config in published tour, skipping tour")
+			continue
 		}
 
 		t.Status = domains.TourPublished

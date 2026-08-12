@@ -158,21 +158,17 @@ func computeMinSince(rules []AudienceRule) time.Time {
 	now := time.Now()
 	var min time.Time
 	for _, r := range rules {
-		var t time.Time
-		switch r.Timeframe {
-		case "1h":
-			t = now.Add(-time.Hour)
-		case "24h":
-			t = now.Add(-24 * time.Hour)
-		case "7d":
-			t = now.Add(-7 * 24 * time.Hour)
-		case "30d":
-			t = now.Add(-30 * 24 * time.Hour)
-		case "all_time", "":
-			return time.Time{} // Нулевое время означает "без ограничений"
-		default:
-			t = now.Add(-30 * 24 * time.Hour) // Фоллбэк на 30 дней
+		if r.Type == "user_property" {
+			continue
 		}
+		duration, ok := parseTimeframe(r.Timeframe)
+		if !ok {
+			return time.Time{}
+		}
+		if duration == 0 {
+			return time.Time{}
+		}
+		t := now.Add(-duration)
 		if min.IsZero() || t.Before(min) {
 			min = t
 		}
@@ -317,25 +313,31 @@ func matchAudienceRules(rules []AudienceRule, history []Event, props map[string]
 	return true
 }
 
-func checkTimeframe(eventTime time.Time, timeframe string) bool {
-	if timeframe == "" || timeframe == "all_time" {
-		return true
-	}
-
-	var duration time.Duration
-	switch timeframe {
+func parseTimeframe(tf string) (time.Duration, bool) {
+	switch tf {
+	case "", "all_time":
+		return 0, true
 	case "1h":
-		duration = time.Hour
+		return time.Hour, true
 	case "24h":
-		duration = 24 * time.Hour
+		return 24 * time.Hour, true
 	case "7d":
-		duration = 7 * 24 * time.Hour
+		return 7 * 24 * time.Hour, true
 	case "30d":
-		duration = 30 * 24 * time.Hour
+		return 30 * 24 * time.Hour, true
 	default:
+		return 0, false
+	}
+}
+
+func checkTimeframe(eventTime time.Time, timeframe string) bool {
+	duration, ok := parseTimeframe(timeframe)
+	if !ok {
+		return false
+	}
+	if duration == 0 {
 		return true
 	}
-
 	return time.Since(eventTime) <= duration
 }
 
@@ -562,7 +564,16 @@ func validateEvent(e *Event) error {
 	if !e.Type.Valid() {
 		return ErrUnknownEventType
 	}
-	if e.Type != EventCustom && e.TourVersionId == uuid.Nil {
+	if e.Type == EventCustom && e.TourVersionId == uuid.Nil {
+		if e.TourId != uuid.Nil {
+			return ErrTourUnexpected
+		}
+		if e.HintId != nil {
+			return ErrHintUnexpected
+		}
+		return nil
+	}
+	if e.TourVersionId == uuid.Nil {
 		return ErrVersionRequired
 	}
 	if e.Type != EventCustom && e.Type.TourLevel() != (e.HintId == nil) {

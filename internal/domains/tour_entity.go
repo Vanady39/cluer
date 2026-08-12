@@ -39,6 +39,7 @@ type TriggerConfig struct {
 	InactivitySecs  *int    `json:"inactivity_secs,omitempty" example:"30"`
 	ElementSelector *string `json:"element_selector,omitempty"`
 	URLPattern      *string `json:"url_pattern,omitempty"`
+	DelayMs         *int    `json:"delay_ms,omitempty" example:"1500"`
 }
 
 func (t TriggerType) Valid() bool {

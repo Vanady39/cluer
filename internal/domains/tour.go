@@ -2,6 +2,7 @@ package domains
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -316,6 +317,11 @@ func validateTriggerConfig(tType TriggerType, cfg *TriggerConfig) []ErrorDetail 
 				Path:    "trigger_config",
 				Message: "is required for element_visible trigger",
 			})
+		case TriggerDelay:
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config",
+				Message: "is required for delay trigger",
+			})
 		}
 		return details
 	}
@@ -373,6 +379,26 @@ func validateTriggerConfig(tType TriggerType, cfg *TriggerConfig) []ErrorDetail 
 			Message: "must not be empty if provided",
 		})
 	}
+
+	if tType == TriggerDelay {
+		if cfg.DelayMs == nil {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.delay_ms",
+				Message: "is required when trigger_type is delay",
+			})
+		} else if *cfg.DelayMs < 100 || *cfg.DelayMs > 600000 {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.delay_ms",
+				Message: "must be an integer between 100 and 600000 (0.1s to 10min)",
+			})
+		}
+	} else if cfg.DelayMs != nil && (*cfg.DelayMs < 100 || *cfg.DelayMs > 600000) {
+		details = append(details, ErrorDetail{
+			Path:    "trigger_config.delay_ms",
+			Message: "must be an integer between 100 and 600000 (0.1s to 10min)",
+		})
+	}
+
 	return details
 }
 
@@ -387,6 +413,9 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 	}
 	if triggerDetails := validateTriggerConfig(v.TriggerType, v.TriggerConfig); len(triggerDetails) > 0 {
 		details = append(details, triggerDetails...)
+	}
+	if audienceDetails := validateAudienceRules(v.Audience.Rules); len(audienceDetails) > 0 {
+		details = append(details, audienceDetails...)
 	}
 	if len(hints) == 0 {
 		details = append(details, ErrorDetail{Path: "hints", Message: "a tour with no hints has nothing to show"})
@@ -409,9 +438,6 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 		if h.Placement != PlacementCenter && h.Selector == "" {
 			details = append(details, ErrorDetail{Path: field("selector"), Message: "required unless placement is center"})
 		}
-		// Пустой путь — законное «наследую target_path». А вот относительный
-		// никогда не совпадёт с location.pathname, и тур молча встанет на этом
-		// шаге, дожидаясь элемента со страницы, куда он не перешёл.
 		if h.PagePath != "" && !strings.HasPrefix(h.PagePath, "/") {
 			details = append(details, ErrorDetail{Path: field("page_path"), Message: "must start with /"})
 		}
@@ -432,4 +458,87 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 		return &ValidationError{Err: ErrTourNotPublishable, Details: details}
 	}
 	return nil
+}
+
+func validateAudienceRules(rules []AudienceRule) []ErrorDetail {
+	var details []ErrorDetail
+
+	validTypes := map[string]bool{
+		"event_performed": true,
+		"page_visited":    true,
+		"user_property":   true,
+	}
+	validOperators := map[string]bool{
+		"exists": true, "not_exists": true,
+		"eq": true, "neq": true,
+		"gt": true, "gte": true, "lt": true, "lte": true,
+		"contains": true, "not_contains": true,
+		"starts_with": true, "ends_with": true,
+	}
+	existenceOnly := map[string]bool{
+		"event_performed": true,
+		"page_visited":    true,
+	}
+	for i, r := range rules {
+		prefix := "audience.rules[" + strconv.Itoa(i) + "]."
+
+		if r.Type == "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "type",
+				Message: "is required",
+			})
+		} else if !validTypes[r.Type] {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "type",
+				Message: fmt.Sprintf("unknown type %q (expected event_performed, page_visited, or user_property)", r.Type),
+			})
+		}
+		if r.Key == "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "key",
+				Message: "is required",
+			})
+		}
+
+		if r.Operator == "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "operator",
+				Message: "is required",
+			})
+		} else if !validOperators[r.Operator] {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "operator",
+				Message: fmt.Sprintf("unknown operator %q", r.Operator),
+			})
+		} else if existenceOnly[r.Type] && r.Operator != "exists" && r.Operator != "not_exists" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "operator",
+				Message: fmt.Sprintf("must be exists or not_exists for %s rules", r.Type),
+			})
+		}
+
+		if r.Type == "event_performed" || r.Type == "page_visited" {
+			if _, ok := parseTimeframe(r.Timeframe); !ok {
+				details = append(details, ErrorDetail{
+					Path:    prefix + "timeframe",
+					Message: fmt.Sprintf("unknown timeframe %q (expected 1h, 24h, 7d, 30d, or all_time)", r.Timeframe),
+				})
+			}
+		}
+		if r.Type == "user_property" && r.Timeframe != "" {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "timeframe",
+				Message: "must be empty for user_property rules",
+			})
+		}
+
+		if r.Type == "user_property" && r.Operator != "exists" && r.Operator != "not_exists" && r.Value == nil {
+			details = append(details, ErrorDetail{
+				Path:    prefix + "value",
+				Message: "is required for comparison operators",
+			})
+		}
+	}
+
+	return details
 }
