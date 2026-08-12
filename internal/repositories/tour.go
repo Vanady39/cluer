@@ -444,11 +444,10 @@ func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID
 			&t.Audience.ShowOnce, &t.Audience.MaxShows, &t.Audience.OnlyNew,
 			&audienceRulesBytes, &triggerConfigBytes,
 		); err != nil {
-			tr.logger.Error().
-				Err(err).
-				Str("app_id", appId.String()).
-				Msg("failed to scan tour row in ResolveCandidates, skipping")
-			continue
+			// Ошибка скана — это несовпадение типов или порванное соединение,
+			// а не одна плохая строка: пропустить её значило бы отдать неполный
+			// список как полный.
+			return nil, wrap(err, domains.ErrTourNotFound, appId.String(), domains.Retrieve)
 		}
 		if err := unmarshalJSONB(audienceRulesBytes, &t.Audience.Rules); err != nil {
 			tr.logger.Error().

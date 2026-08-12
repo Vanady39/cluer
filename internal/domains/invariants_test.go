@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -128,7 +129,7 @@ func TestValidateForPublish(t *testing.T) {
 		v := &TourVersion{TargetPath: "/x", TriggerType: TriggerScrollDepth}
 		err := validateForPublish(v, []Hint{validHint(1)})
 		require.Error(t, err)
-		assert.Contains(t, detailPaths(t, err), "trigger_config")
+		assert.Contains(t, detailPaths(t, err), "trigger_config.scroll_depth")
 	})
 
 	t.Run("scroll_depth с валидным конфигом публикуется", func(t *testing.T) {
@@ -366,7 +367,7 @@ func TestValidateTriggerConfig(t *testing.T) {
 	t.Run("delay без конфига возвращает ошибку", func(t *testing.T) {
 		details := validateTriggerConfig(TriggerDelay, nil)
 		require.Len(t, details, 1)
-		assert.Equal(t, "trigger_config", details[0].Path)
+		assert.Equal(t, "trigger_config.delay_ms", details[0].Path)
 	})
 
 	t.Run("delay с пустым конфигом возвращает ошибку", func(t *testing.T) {
@@ -396,7 +397,7 @@ func TestValidateTriggerConfig(t *testing.T) {
 	t.Run("scroll_depth без конфига возвращает ошибку", func(t *testing.T) {
 		details := validateTriggerConfig(TriggerScrollDepth, nil)
 		assert.Len(t, details, 1)
-		assert.Equal(t, "trigger_config", details[0].Path)
+		assert.Equal(t, "trigger_config.scroll_depth", details[0].Path)
 	})
 
 	t.Run("on_load без конфига — ок", func(t *testing.T) {
@@ -452,7 +453,7 @@ func TestValidateTriggerConfig(t *testing.T) {
 	t.Run("inactivity без конфига возвращает ошибку", func(t *testing.T) {
 		details := validateTriggerConfig(TriggerInactivity, nil)
 		require.Len(t, details, 1)
-		assert.Equal(t, "trigger_config", details[0].Path)
+		assert.Equal(t, "trigger_config.inactivity_secs", details[0].Path)
 		assert.Contains(t, details[0].Message, "is required")
 	})
 
@@ -465,7 +466,7 @@ func TestValidateTriggerConfig(t *testing.T) {
 	t.Run("element_visible без конфига возвращает ошибку", func(t *testing.T) {
 		details := validateTriggerConfig(TriggerElementVisible, nil)
 		require.Len(t, details, 1)
-		assert.Equal(t, "trigger_config", details[0].Path)
+		assert.Equal(t, "trigger_config.element_selector", details[0].Path)
 		assert.Contains(t, details[0].Message, "is required")
 	})
 
@@ -744,4 +745,127 @@ func TestValidateForPublish_RejectsBadAudienceRules(t *testing.T) {
 	require.Error(t, err)
 	paths := detailPaths(t, err)
 	assert.Contains(t, paths, "audience.rules[0].type")
+}
+
+// Тело черновика валидируется одинаково на всех входах, поэтому проверяем не
+// только сам набор правил, но и то, что Create и UpdateDraft его вызывают:
+// раньше создание тура принимало конфиг, который потом не публиковался.
+type stubTourRepo struct {
+	TourRepositoryInterface
+	draft   *TourVersion
+	created bool
+	updated bool
+}
+
+func (s *stubTourRepo) CreateWithDraft(_ context.Context, t *Tour) (*Tour, error) {
+	s.created = true
+	return t, nil
+}
+
+func (s *stubTourRepo) VersionByStatus(_ context.Context, _ uuid.UUID, _ TourStatus) (*TourVersion, error) {
+	return s.draft, nil
+}
+
+func (s *stubTourRepo) UpdateDraft(_ context.Context, _ uuid.UUID, _ DraftPatch) (*TourVersion, error) {
+	s.updated = true
+	return s.draft, nil
+}
+
+func TestValidateDraftBody(t *testing.T) {
+	t.Run("собирает проблемы и триггера, и правил", func(t *testing.T) {
+		details := validateDraftBody(
+			TriggerScrollDepth,
+			nil,
+			[]AudienceRule{{Type: "user_property", Key: "plan", Operator: "bogus"}},
+		)
+		paths := make([]string, 0, len(details))
+		for _, d := range details {
+			paths = append(paths, d.Path)
+		}
+		assert.Contains(t, paths, "trigger_config.scroll_depth")
+		assert.Contains(t, paths, "audience.rules[0].operator")
+	})
+}
+
+func TestCreateValidatesDraftBody(t *testing.T) {
+	appId := uuid.New()
+
+	t.Run("тур с невалидным конфигом не доходит до репозитория", func(t *testing.T) {
+		repo := &stubTourRepo{}
+		td := NewTourDomain(repo, nil)
+
+		_, err := td.Create(context.Background(), appId, &Tour{
+			Title: "t", TargetPath: "/x", TriggerType: TriggerScrollDepth,
+		})
+
+		require.Error(t, err)
+		assert.False(t, repo.created, "невалидный тур не должен создаваться")
+		assert.Contains(t, detailPaths(t, err), "trigger_config.scroll_depth")
+	})
+
+	t.Run("тур с невалидным правилом аудитории отвергается", func(t *testing.T) {
+		repo := &stubTourRepo{}
+		td := NewTourDomain(repo, nil)
+
+		_, err := td.Create(context.Background(), appId, &Tour{
+			Title: "t", TargetPath: "/x",
+			Audience: &Audience{Rules: []AudienceRule{{
+				Type: "event_performed", Key: "checkout", Operator: "neq", Timeframe: "7d",
+			}}},
+		})
+
+		require.Error(t, err)
+		assert.False(t, repo.created)
+		assert.Contains(t, detailPaths(t, err), "audience.rules[0].operator")
+	})
+
+	t.Run("валидный тур создаётся", func(t *testing.T) {
+		repo := &stubTourRepo{}
+		td := NewTourDomain(repo, nil)
+
+		depth := 50
+		_, err := td.Create(context.Background(), appId, &Tour{
+			Title: "t", TargetPath: "/x", TriggerType: TriggerScrollDepth,
+			TriggerConfig: &TriggerConfig{ScrollDepth: &depth},
+		})
+
+		require.NoError(t, err)
+		assert.True(t, repo.created)
+	})
+}
+
+func TestUpdateDraftValidatesAudienceRules(t *testing.T) {
+	draft := &TourVersion{
+		Id: uuid.New(), Status: TourDraft,
+		TriggerType: TriggerOnLoad, TargetPath: "/x",
+	}
+
+	t.Run("невалидное правило в патче отвергается", func(t *testing.T) {
+		repo := &stubTourRepo{draft: draft}
+		td := NewTourDomain(repo, nil)
+
+		_, err := td.UpdateDraft(context.Background(), uuid.New(), DraftPatch{
+			Audience: &Audience{Rules: []AudienceRule{{
+				Type: "user_property", Key: "plan", Operator: "eq", Timeframe: "7d",
+			}}},
+		})
+
+		require.Error(t, err)
+		assert.False(t, repo.updated, "невалидный патч не должен доходить до репозитория")
+		assert.Contains(t, detailPaths(t, err), "audience.rules[0].timeframe")
+	})
+
+	t.Run("валидный патч проходит", func(t *testing.T) {
+		repo := &stubTourRepo{draft: draft}
+		td := NewTourDomain(repo, nil)
+
+		_, err := td.UpdateDraft(context.Background(), uuid.New(), DraftPatch{
+			Audience: &Audience{Rules: []AudienceRule{{
+				Type: "user_property", Key: "plan", Operator: "eq", Value: "free",
+			}}},
+		})
+
+		require.NoError(t, err)
+		assert.True(t, repo.updated)
+	})
 }

@@ -263,11 +263,12 @@ func matchAudienceRules(rules []AudienceRule, history []Event, props map[string]
 		case "event_performed":
 			found := false
 			for _, evt := range history {
-				evtName := ""
-				if name, ok := evt.Payload["event_name"].(string); ok {
-					evtName = name
-				} else {
-					evtName = string(evt.Type)
+				// Матчим строго по payload.event_name: фолбэк на evt.Type открыл бы
+				// таргетинг по служебным типам SDK (tour_completed, hint_shown), чего
+				// контракт не обещает.
+				evtName, ok := evt.Payload["event_name"].(string)
+				if !ok {
+					continue
 				}
 				if evtName == rule.Key && checkTimeframe(evt.OccurredAt, rule.Timeframe) {
 					found = true

@@ -1625,9 +1625,6 @@ const docTemplate = `{
                 "scroll_depth": {
                     "type": "integer",
                     "example": 50
-                },
-                "url_pattern": {
-                    "type": "string"
                 }
             }
         },

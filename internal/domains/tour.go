@@ -84,6 +84,10 @@ func (td *TourDomain) Create(ctx context.Context, appId uuid.UUID, t *Tour) (*To
 		t.Audience = &Audience{}
 	}
 
+	if details := validateDraftBody(t.TriggerType, t.TriggerConfig, t.Audience.Rules); len(details) > 0 {
+		return nil, &ValidationError{Err: ErrDraftInvalid, Details: details}
+	}
+
 	return td.tours.CreateWithDraft(ctx, t)
 }
 
@@ -192,7 +196,12 @@ func (td *TourDomain) UpdateDraft(ctx context.Context, tourId uuid.UUID, p Draft
 		config = p.TriggerConfig
 	}
 
-	if details := validateTriggerConfig(triggerType, config); len(details) > 0 {
+	rules := draft.Audience.Rules
+	if p.Audience != nil {
+		rules = p.Audience.Rules
+	}
+
+	if details := validateDraftBody(triggerType, config, rules); len(details) > 0 {
 		return nil, &ValidationError{Err: ErrDraftInvalid, Details: details}
 	}
 	return td.tours.UpdateDraft(ctx, draft.Id, p)
@@ -297,109 +306,57 @@ func validateTour(t *Tour) error {
 	return logicErr(err, "tour validation", http.StatusBadRequest)
 }
 
+// Проверяется строго то поле, которое нужно текущему trigger_type. Конфиг
+// присылается целиком и при смене типа тащит за собой поля прежней формы —
+// ругаться на них значит отдавать фронту 400 по полю, которого в форме уже нет.
+// Путь ошибки всегда указывает на конкретное поле, даже когда конфига нет
+// вовсе: для формы это одна и та же ситуация «поле не заполнено».
 func validateTriggerConfig(tType TriggerType, cfg *TriggerConfig) []ErrorDetail {
-	var details []ErrorDetail
-
-	if cfg == nil {
-		switch tType {
-		case TriggerScrollDepth:
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config",
-				Message: "is required for scroll_depth trigger",
-			})
-		case TriggerInactivity:
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config",
-				Message: "is required for inactivity trigger",
-			})
-		case TriggerElementVisible:
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config",
-				Message: "is required for element_visible trigger",
-			})
-		case TriggerDelay:
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config",
-				Message: "is required for delay trigger",
-			})
-		}
-		return details
+	detail := func(field, message string) []ErrorDetail {
+		return []ErrorDetail{{Path: "trigger_config." + field, Message: message}}
 	}
 
-	if tType == TriggerScrollDepth {
-		if cfg.ScrollDepth == nil {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.scroll_depth",
-				Message: "is required when trigger_type is scroll_depth",
-			})
-		} else if *cfg.ScrollDepth < 1 || *cfg.ScrollDepth > 100 {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.scroll_depth",
-				Message: "must be an integer between 1 and 100",
-			})
+	switch tType {
+	case TriggerDelay:
+		if cfg == nil || cfg.DelayMs == nil {
+			return detail("delay_ms", "is required when trigger_type is delay")
 		}
-	} else if cfg.ScrollDepth != nil {
+		if *cfg.DelayMs < 100 || *cfg.DelayMs > 600000 {
+			return detail("delay_ms", "must be an integer between 100 and 600000 (0.1s to 10min)")
+		}
+
+	case TriggerScrollDepth:
+		if cfg == nil || cfg.ScrollDepth == nil {
+			return detail("scroll_depth", "is required when trigger_type is scroll_depth")
+		}
 		if *cfg.ScrollDepth < 1 || *cfg.ScrollDepth > 100 {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.scroll_depth",
-				Message: "must be an integer between 1 and 100",
-			})
+			return detail("scroll_depth", "must be an integer between 1 and 100")
+		}
+
+	case TriggerInactivity:
+		if cfg == nil || cfg.InactivitySecs == nil {
+			return detail("inactivity_secs", "is required when trigger_type is inactivity")
+		}
+		if *cfg.InactivitySecs < 3 {
+			return detail("inactivity_secs", "must be at least 3 seconds to avoid accidental triggers")
+		}
+
+	case TriggerElementVisible:
+		if cfg == nil || cfg.ElementSelector == nil || strings.TrimSpace(*cfg.ElementSelector) == "" {
+			return detail("element_selector",
+				"is required and must not be empty when trigger_type is element_visible")
 		}
 	}
 
-	if tType == TriggerInactivity {
-		if cfg.InactivitySecs == nil {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.inactivity_secs",
-				Message: "is required when trigger_type is inactivity",
-			})
-		} else if *cfg.InactivitySecs < 3 {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.inactivity_secs",
-				Message: "must be at least 3 seconds to avoid accidental triggers",
-			})
-		}
-	} else if cfg.InactivitySecs != nil && *cfg.InactivitySecs < 3 {
-		details = append(details, ErrorDetail{
-			Path:    "trigger_config.inactivity_secs",
-			Message: "must be at least 3 seconds to avoid accidental triggers",
-		})
-	}
+	return nil
+}
 
-	if tType == TriggerElementVisible {
-		if cfg.ElementSelector == nil || strings.TrimSpace(*cfg.ElementSelector) == "" {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.element_selector",
-				Message: "is required and must not be empty when trigger_type is element_visible",
-			})
-		}
-	} else if cfg.ElementSelector != nil && strings.TrimSpace(*cfg.ElementSelector) == "" {
-		details = append(details, ErrorDetail{
-			Path:    "trigger_config.element_selector",
-			Message: "must not be empty if provided",
-		})
-	}
-
-	if tType == TriggerDelay {
-		if cfg.DelayMs == nil {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.delay_ms",
-				Message: "is required when trigger_type is delay",
-			})
-		} else if *cfg.DelayMs < 100 || *cfg.DelayMs > 600000 {
-			details = append(details, ErrorDetail{
-				Path:    "trigger_config.delay_ms",
-				Message: "must be an integer between 100 and 600000 (0.1s to 10min)",
-			})
-		}
-	} else if cfg.DelayMs != nil && (*cfg.DelayMs < 100 || *cfg.DelayMs > 600000) {
-		details = append(details, ErrorDetail{
-			Path:    "trigger_config.delay_ms",
-			Message: "must be an integer between 100 and 600000 (0.1s to 10min)",
-		})
-	}
-
-	return details
+// Тело версии проверяется одним набором правил на всех трёх входах: создание
+// тура, правка черновика и публикация. Иначе админка получает 201 на то, что
+// потом не публикуется, и узнаёт о проблеме на шаг позже, чем могла бы.
+func validateDraftBody(tType TriggerType, cfg *TriggerConfig, rules []AudienceRule) []ErrorDetail {
+	details := validateTriggerConfig(tType, cfg)
+	return append(details, validateAudienceRules(rules)...)
 }
 
 func validateForPublish(v *TourVersion, hints []Hint) error {
@@ -411,12 +368,7 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 	if !v.TriggerType.Valid() {
 		details = append(details, ErrorDetail{Path: "trigger_type", Message: "unknown trigger type"})
 	}
-	if triggerDetails := validateTriggerConfig(v.TriggerType, v.TriggerConfig); len(triggerDetails) > 0 {
-		details = append(details, triggerDetails...)
-	}
-	if audienceDetails := validateAudienceRules(v.Audience.Rules); len(audienceDetails) > 0 {
-		details = append(details, audienceDetails...)
-	}
+	details = append(details, validateDraftBody(v.TriggerType, v.TriggerConfig, v.Audience.Rules)...)
 	if len(hints) == 0 {
 		details = append(details, ErrorDetail{Path: "hints", Message: "a tour with no hints has nothing to show"})
 	}
@@ -438,6 +390,9 @@ func validateForPublish(v *TourVersion, hints []Hint) error {
 		if h.Placement != PlacementCenter && h.Selector == "" {
 			details = append(details, ErrorDetail{Path: field("selector"), Message: "required unless placement is center"})
 		}
+		// Пустой путь — законное «наследую target_path». А вот относительный
+		// никогда не совпадёт с location.pathname, и тур молча встанет на этом
+		// шаге, дожидаясь элемента со страницы, куда он не перешёл.
 		if h.PagePath != "" && !strings.HasPrefix(h.PagePath, "/") {
 			details = append(details, ErrorDetail{Path: field("page_path"), Message: "must start with /"})
 		}
@@ -500,6 +455,9 @@ func validateAudienceRules(rules []AudienceRule) []ErrorDetail {
 			})
 		}
 
+		// Оператор проверяем один раз и запоминаем результат: жаловаться ещё и на
+		// value, когда оператора нет или он неизвестен, — лишний шум для формы.
+		operatorOk := false
 		if r.Operator == "" {
 			details = append(details, ErrorDetail{
 				Path:    prefix + "operator",
@@ -515,6 +473,8 @@ func validateAudienceRules(rules []AudienceRule) []ErrorDetail {
 				Path:    prefix + "operator",
 				Message: fmt.Sprintf("must be exists or not_exists for %s rules", r.Type),
 			})
+		} else {
+			operatorOk = true
 		}
 
 		if r.Type == "event_performed" || r.Type == "page_visited" {
@@ -532,7 +492,8 @@ func validateAudienceRules(rules []AudienceRule) []ErrorDetail {
 			})
 		}
 
-		if r.Type == "user_property" && r.Operator != "exists" && r.Operator != "not_exists" && r.Value == nil {
+		if r.Type == "user_property" && operatorOk &&
+			r.Operator != "exists" && r.Operator != "not_exists" && r.Value == nil {
 			details = append(details, ErrorDetail{
 				Path:    prefix + "value",
 				Message: "is required for comparison operators",

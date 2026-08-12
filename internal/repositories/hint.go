@@ -86,6 +86,13 @@ func (hr *HintRepository) Delete(ctx context.Context, versionId, id uuid.UUID) e
 	}
 	defer tx.Rollback(ctx)
 
+	// Пересчёт шагов сдвигает хвост на -1, а порядок обработки строк в UPDATE не
+	// определён: без отложенной проверки уникальный (tour_version_id, step) может
+	// сорваться на промежуточном состоянии.
+	if _, err := tx.Exec(ctx, `SET CONSTRAINTS ALL DEFERRED`); err != nil {
+		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Update)
+	}
+
 	var step int
 	err = tx.QueryRow(ctx,
 		`DELETE FROM hints WHERE id = $1 AND tour_version_id = $2 RETURNING step`, id, versionId,

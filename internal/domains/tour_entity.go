@@ -38,7 +38,6 @@ type TriggerConfig struct {
 	ScrollDepth     *int    `json:"scroll_depth,omitempty" example:"50"`
 	InactivitySecs  *int    `json:"inactivity_secs,omitempty" example:"30"`
 	ElementSelector *string `json:"element_selector,omitempty"`
-	URLPattern      *string `json:"url_pattern,omitempty"`
 	DelayMs         *int    `json:"delay_ms,omitempty" example:"1500"`
 }
 

@@ -83,8 +83,12 @@ CREATE TABLE hints (
   step              INT         NOT NULL,
   title             TEXT        NOT NULL,
   content           TEXT        NOT NULL,
-  selector          TEXT        NOT NULL DEFAULT '', 
+  selector          TEXT        NOT NULL DEFAULT '',
   placement         TEXT        NOT NULL,
+  -- Пусто — подсказка живёт на той же странице, где стартовал тур, то есть
+  -- наследует target_path версии. Иначе абсолютный путь: относительный
+  -- никогда не совпадёт с location.pathname.
+  page_path         TEXT        NOT NULL DEFAULT '',
   media_url         TEXT        NOT NULL DEFAULT '',
   spotlight         BOOLEAN     NOT NULL DEFAULT false,
   required          BOOLEAN     NOT NULL DEFAULT false,
