@@ -34,6 +34,7 @@ export function useCreateScenario(editId: string | null) {
       title: "",
       description: "",
       trigger_type: "on_load",
+      trigger_config: {},
       audience: {
         show_once: true,
         max_shows: 1,
@@ -63,11 +64,7 @@ export function useCreateScenario(editId: string | null) {
       title: loadedTour.title,
       description: loadedTour.description || "",
       trigger_type: loadedTour.trigger_type || "on_load",
-      audience: loadedTour.audience || {
-        show_once: true,
-        max_shows: 1,
-        only_new: false,
-      },
+      trigger_config: loadedTour.trigger_config || {},
       hints: loadedHints,
     });
 
@@ -112,6 +109,7 @@ export function useCreateScenario(editId: string | null) {
       description: data.description ?? "",
       target_path: data.hints[0]?.page_path || "/",
       trigger_type: data.trigger_type as TriggerType,
+      trigger_config: data.trigger_config,
       audience: data.audience as Audience,
       hints: data.hints as TourHint[],
       deletedHints,

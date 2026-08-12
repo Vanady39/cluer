@@ -28,6 +28,7 @@ function createTour(triggerType: TriggerType, triggerConfig?: TriggerConfig) {
       show_once: false,
       max_shows: 0,
       only_new: false,
+      rules: []
     },
 
     hints: [],
@@ -56,7 +57,7 @@ describe("триггеры onboarding", () => {
     vi.mocked(resolveTour).mockResolvedValue(createTour("on_load"));
 
     const setIsOpen = vi.fn();
-    renderHook(() => useLoadTour(false, null, false, setIsOpen, false));
+    renderHook(() => useLoadTour(false, null, false, setIsOpen));
 
     await waitFor(() => {
       expect(setIsOpen).toHaveBeenCalledWith(true);
@@ -68,7 +69,7 @@ describe("триггеры onboarding", () => {
 
     const setIsOpen = vi.fn();
     const { result } = renderHook(() =>
-      useLoadTour(false, null, false, setIsOpen, false),
+      useLoadTour(false, null, false, setIsOpen),
     );
 
     await waitFor(() => {
@@ -83,7 +84,7 @@ describe("триггеры onboarding", () => {
     const setIsOpen = vi.fn();
 
     const { result } = renderHook(() => {
-      const loadedTour = useLoadTour(false, null, false, setIsOpen, false);
+      const loadedTour = useLoadTour(false, null, false, setIsOpen);
       useManualStart(loadedTour.tour, false, setIsOpen);
       return loadedTour;
     });
@@ -104,7 +105,7 @@ describe("триггеры onboarding", () => {
 
     const setIsOpen = vi.fn();
     const { result } = renderHook(() =>
-      useLoadTour(false, null, false, setIsOpen, false),
+      useLoadTour(false, null, false, setIsOpen),
     );
 
     await waitFor(() => {
@@ -132,7 +133,7 @@ describe("триггеры onboarding", () => {
 
     const setIsOpen = vi.fn();
     const { result } = renderHook(() =>
-      useLoadTour(false, null, false, setIsOpen, false),
+      useLoadTour(false, null, false, setIsOpen),
     );
 
     // Завершаем асинхронную загрузку тура, не двигая виртуальный таймер

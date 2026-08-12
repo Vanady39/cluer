@@ -1,4 +1,4 @@
-import type { Tour, TourHint, TriggerType, Audience } from "./tour";
+import type { Tour, TourHint, TriggerType, Audience, TriggerConfig } from "./tour";
 import type { TourAnalytics } from "./api";
 import type { TourVersion } from "./tour";
 
@@ -9,6 +9,7 @@ export interface NormalizedTour {
   enabled: boolean;
   priority: number;
   trigger_type: Tour["trigger_type"];
+  trigger_config: TriggerConfig;
   target_path: string;
   audience: Tour["audience"];
   draft?: TourVersion | null;
@@ -79,6 +80,7 @@ export interface SaveScenarioData {
   description: string;
   target_path: string;
   trigger_type: TriggerType;
+  trigger_config: TriggerConfig;
   audience: Audience;
   hints: TourHint[];
   deletedHints: TourHint[];

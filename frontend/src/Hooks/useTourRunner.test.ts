@@ -64,7 +64,6 @@ const tour: Tour = {
 describe("useTourRunner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
     vi.mocked(getCurrentApp).mockResolvedValue({
       id: "app-1",
       name: "Test app",

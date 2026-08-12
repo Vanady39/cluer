@@ -1,4 +1,4 @@
-import type { TourVersion, Audience, TriggerType, Placement } from "./tour";
+import type { TourVersion, Audience, TriggerType, Placement, TriggerConfig } from "./tour";
 
 export interface CreateTourRequest {
   title: string;
@@ -6,6 +6,7 @@ export interface CreateTourRequest {
   description: string;
   priority: number;
   trigger_type: TriggerType;
+  trigger_config: TriggerConfig,
   audience: Audience;
 }
 
@@ -60,6 +61,7 @@ export interface TourListItem {
 
 export interface UpdateTourRequest {
   trigger_type?: TriggerType;
+  trigger_config: TriggerConfig,
   target_path?: string;
   audience?: Audience;
 }

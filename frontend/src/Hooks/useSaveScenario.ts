@@ -17,6 +17,7 @@ export function useSaveScenario(editId?: string | null) {
         await onboardingAPI.updateTour(editId, {
           target_path: data.target_path,
           trigger_type: data.trigger_type,
+          trigger_config: data.trigger_config,
           audience: data.audience,
         });
 
@@ -61,6 +62,7 @@ export function useSaveScenario(editId?: string | null) {
         target_path: data.target_path || data.hints?.[0]?.page_path || "/",
         priority: 1,
         trigger_type: data.trigger_type,
+        trigger_config: data.trigger_config,
         audience: data.audience,
       });
 

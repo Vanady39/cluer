@@ -2,7 +2,10 @@ import type { NormalizedTour } from "../../types";
 import type { TourResponseDto } from "../../types";
 import type { TourHint } from "../../types";
 
-export function normalizeTour(data: TourResponseDto, hints: TourHint[] = []): NormalizedTour {
+export function normalizeTour(
+  data: TourResponseDto,
+  hints: TourHint[] = [],
+): NormalizedTour {
   return {
     id: data.tour.id,
     title: data.tour.title,
@@ -14,6 +17,11 @@ export function normalizeTour(data: TourResponseDto, hints: TourHint[] = []): No
       data.draft?.trigger_type ??
       data.published?.trigger_type ??
       "on_load",
+
+    trigger_config:
+      data.draft?.trigger_config ??
+      data.published?.trigger_config ??
+      {},
 
     target_path:
       data.draft?.target_path ??

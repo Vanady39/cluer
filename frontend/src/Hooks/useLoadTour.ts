@@ -9,7 +9,6 @@ export function useLoadTour(
   previewTourId: string | null,
   isBuilder: boolean,
   setIsOpen: (open: boolean) => void,
-  hasSeenOnboarding: boolean
 ) {
   const [tour, setTour] = useState<Tour | null>(null);
   const [appKey, setAppKey] = useState<string | null>(null);
@@ -38,7 +37,11 @@ export function useLoadTour(
       priority: source.priority ?? 0,
       trigger_type: source.trigger_type ?? "on_load",
       trigger_config: source.trigger_config,
-      audience: source.audience ?? { show_once: false, max_shows: 0, only_new: false },
+      audience: source.audience ?? {
+        show_once: false,
+        max_shows: 0,
+        only_new: false,
+      },
       hints: source.hints ?? raw.hints ?? [],
       current_hint_id: raw.current_hint_id ?? source.current_hint_id,
       version_id: raw.tour_version_id ?? source.version_id,
@@ -50,13 +53,16 @@ export function useLoadTour(
       if (!tourId) return null;
 
       const response = await fetch(`${API_URL}/tours/${tourId}`);
-      if (!response.ok) throw new Error(`Preview request failed: ${response.status}`);
+      if (!response.ok)
+        throw new Error(`Preview request failed: ${response.status}`);
 
       const card = (await response.json()) as PreviewTourCard;
       const source = card.draft ?? card.published;
 
       if (!source) {
-        console.warn("[Onboarding] PREVIEW: tour has no draft or published version");
+        console.warn(
+          "[Onboarding] PREVIEW: tour has no draft or published version",
+        );
         return null;
       }
 
@@ -69,7 +75,11 @@ export function useLoadTour(
         priority: card.tour.priority ?? 0,
         trigger_type: source.trigger_type ?? "on_load",
         trigger_config: source.trigger_config,
-        audience: source.audience ?? { show_once: false, max_shows: 0, only_new: false },
+        audience: source.audience ?? {
+          show_once: false,
+          max_shows: 0,
+          only_new: false,
+        },
         hints,
         current_hint_id: hints[0]?.id,
         version_id: source.id,
@@ -101,11 +111,6 @@ export function useLoadTour(
           return;
         }
         setTour(resolvedTour);
-
-        if (hasSeenOnboarding) {
-          setIsOpen(false);
-          return;
-        }
         setIsOpen(false);
 
         const startTour = () => setIsOpen(true);
@@ -113,6 +118,7 @@ export function useLoadTour(
           case "on_load":
             startTour();
             break;
+
           case "delay": {
             const delay = resolvedTour.trigger_config?.delay_ms ?? 3000;
             const timer = setTimeout(() => {
@@ -123,6 +129,7 @@ export function useLoadTour(
             };
             break;
           }
+
           case "exit_intent": {
             const handleEvent = (event: MouseEvent) => {
               if (event.clientY <= 0) {
@@ -136,8 +143,79 @@ export function useLoadTour(
             };
             break;
           }
+
           case "manual":
             break;
+
+          case "scroll_depth": {
+            const requiredDepth = resolvedTour.trigger_config?.scroll_depth;
+            if (requiredDepth === undefined) break;
+
+            const handleScroll = () => {
+              const currentDepth =
+                ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100;
+
+              if (currentDepth >= requiredDepth) {
+                startTour();
+                window.removeEventListener("scroll", handleScroll);
+              }
+            };
+            window.addEventListener("scroll", handleScroll, { passive: true });
+            handleScroll();
+
+            cleanupTrigger = () => {
+              window.removeEventListener("scroll", handleScroll);
+            };
+            break;
+          }
+
+          case "inactivity": {
+            const inactivitySecs = resolvedTour.trigger_config?.inactivity_secs;
+            if (inactivitySecs === undefined) break;
+
+            let timer: number;
+            const resetTimer = () => {
+              window.clearTimeout(timer);
+              timer = window.setTimeout(startTour, inactivitySecs * 1000);
+            };
+
+            const events = ["mousemove", "keydown", "scroll"] as const;
+            events.forEach((eventName) => {
+              window.addEventListener(eventName, resetTimer, {
+                passive: true,
+              });
+            });
+
+            resetTimer();
+            cleanupTrigger = () => {
+              window.clearTimeout(timer);
+              events.forEach((eventName) => {
+                window.removeEventListener(eventName, resetTimer);
+              });
+            };
+            break;
+          }
+
+          case "element_visible": {
+            const selector = resolvedTour.trigger_config?.element_selector;
+            if (!selector) break;
+
+            const element = document.querySelector(selector);
+            if (!element) break;
+
+            const observer = new IntersectionObserver((entries) => {
+              if (entries.some((entry) => entry.isIntersecting)) {
+                startTour();
+                observer.disconnect();
+              }
+            });
+            observer.observe(element);
+
+            cleanupTrigger = () => {
+              observer.disconnect();
+            };
+            break;
+          }
         }
       } catch (error) {
         console.error("[Onboarding] LOAD ERROR", error);

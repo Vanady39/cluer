@@ -1,9 +1,11 @@
-export type TriggerType = "on_load" | "delay" | "exit_intent" | "manual";
-
+export type TriggerType = "on_load" | "delay" | "exit_intent" | "manual" | "scroll_depth" |  "inactivity" | "element_visible";
 export type Placement = "top" | "bottom" | "left" | "right" | "center";
 
 export interface TriggerConfig {
   delay_ms?: number;
+  scroll_depth?: number;
+  inactivity_secs?: number;
+  element_selector?: string;
 }
 
 export interface Audience {
