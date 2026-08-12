@@ -11,8 +11,7 @@ type Listing struct {
 }
 
 type GetListingsResponse struct {
-	Data  []Listing `json:"data"`
-	Total int64     `json:"total"`
+	Data []Listing `json:"data"`
 }
 
 func NewGetListingsResponse(
@@ -30,5 +29,5 @@ func NewGetListingsResponse(
 		})
 	}
 
-	return GetListingsResponse{Data: listings, Total: page.Total}
+	return GetListingsResponse{Data: listings}
 }

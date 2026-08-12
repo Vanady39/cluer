@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -101,9 +102,11 @@ func optionalListingQueryInt(ctx *gin.Context, name string, defaultValue, minVal
 }
 
 func invalidListingQuery(format string, args ...any) error {
+	detail := fmt.Sprintf(format, args...)
 	return &BindingError{
-		Err:  fmt.Errorf(format, args...),
-		Zone: Query,
-		Code: http.StatusBadRequest,
+		Err:    errors.New(detail),
+		Zone:   Query,
+		Code:   http.StatusBadRequest,
+		Detail: detail,
 	}
 }

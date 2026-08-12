@@ -23,7 +23,6 @@ type ListingFilter struct {
 
 type ListingPage struct {
 	Listings []Listing
-	Total    int64
 }
 
 // NormalizeListingFilter keeps repository callers safe when they do not come

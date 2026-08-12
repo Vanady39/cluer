@@ -82,8 +82,9 @@ CREATE TABLE hints (
   step              INT         NOT NULL,
   title             TEXT        NOT NULL,
   content           TEXT        NOT NULL,
-  selector          TEXT        NOT NULL DEFAULT '', 
+  selector          TEXT        NOT NULL DEFAULT '',
   placement         TEXT        NOT NULL,
+  page_path         TEXT        NOT NULL DEFAULT '',
   media_url         TEXT        NOT NULL DEFAULT '',
   spotlight         BOOLEAN     NOT NULL DEFAULT false,
   required          BOOLEAN     NOT NULL DEFAULT false,
@@ -206,3 +207,13 @@ CREATE TABLE reports (
 );
 
 CREATE INDEX reports_tour_created_idx ON reports (tour_id, created_at DESC);
+
+
+CREATE TABLE listings (
+  id          BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title       TEXT        NOT NULL,
+  description TEXT        NOT NULL DEFAULT '',
+  price       BIGINT      NOT NULL CHECK (price >= 0),
+  image_url   TEXT        NOT NULL DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

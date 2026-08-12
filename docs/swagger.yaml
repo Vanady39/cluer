@@ -398,8 +398,6 @@ definitions:
         items:
           $ref: '#/definitions/github_com_Vanady39_cluer_internal_models_response.Listing'
         type: array
-      total:
-        type: integer
     type: object
   github_com_Vanady39_cluer_internal_models_response.Listing:
     properties:

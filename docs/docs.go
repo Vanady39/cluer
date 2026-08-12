@@ -1613,9 +1613,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.Listing"
                     }
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },

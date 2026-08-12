@@ -28,7 +28,7 @@ func TestListingServiceGetListings(t *testing.T) {
 			ImageURL:    "https://example.com/iphone.png",
 		},
 	}
-	repo := &listingRepositoryStub{page: ListingPage{Listings: expected, Total: 1}}
+	repo := &listingRepositoryStub{page: ListingPage{Listings: expected}}
 	service := NewListingDomain(repo)
 	filter := ListingFilter{Query: "iphone", Limit: 5, Offset: 2}
 
@@ -37,8 +37,8 @@ func TestListingServiceGetListings(t *testing.T) {
 		t.Fatalf("GetListings() returned an unexpected error: %v", err)
 	}
 
-	if !reflect.DeepEqual(actual.Listings, expected) || actual.Total != 1 {
-		t.Fatalf("GetListings() = %#v, want listings %#v with total 1", actual, expected)
+	if !reflect.DeepEqual(actual.Listings, expected) || len(actual.Listings) != 1 {
+		t.Fatalf("GetListings() = %#v, want listings %#v", actual, expected)
 	}
 	if !reflect.DeepEqual(repo.filter, filter) {
 		t.Fatalf("repository filter = %#v, want %#v", repo.filter, filter)

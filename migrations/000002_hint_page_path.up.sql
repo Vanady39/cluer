@@ -1,1 +1,0 @@
-ALTER TABLE hints ADD COLUMN page_path TEXT NOT NULL DEFAULT '';
