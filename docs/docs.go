@@ -1611,6 +1611,10 @@ const docTemplate = `{
         "github_com_Vanady39_cluer_internal_domains.TriggerConfig": {
             "type": "object",
             "properties": {
+                "delay_ms": {
+                    "type": "integer",
+                    "example": 1500
+                },
                 "element_selector": {
                     "type": "string"
                 },

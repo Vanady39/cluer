@@ -419,6 +419,9 @@ definitions:
     type: object
   github_com_Vanady39_cluer_internal_domains.TriggerConfig:
     properties:
+      delay_ms:
+        example: 1500
+        type: integer
       element_selector:
         type: string
       inactivity_secs:
