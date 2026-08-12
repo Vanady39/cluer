@@ -249,6 +249,36 @@ func TestValidateEvent(t *testing.T) {
 	t.Run("событие без ключа отвергается", func(t *testing.T) {
 		assert.Error(t, validateEvent(&Event{Type: EventTourStarted, TourVersionId: versionId}))
 	})
+	t.Run("app-level custom с tour_id отвергается", func(t *testing.T) {
+		assert.ErrorIs(t, validateEvent(&Event{
+			EventKey: "k", Type: EventCustom,
+			TourId: uuid.New(), // ← не должно быть
+		}), ErrTourUnexpected)
+	})
+
+	t.Run("app-level custom с hint_id отвергается", func(t *testing.T) {
+		hintId := uuid.New()
+		assert.ErrorIs(t, validateEvent(&Event{
+			EventKey: "k", Type: EventCustom,
+			HintId: &hintId, // ← не должно быть
+		}), ErrHintUnexpected)
+	})
+
+	t.Run("app-level custom без привязок проходит", func(t *testing.T) {
+		assert.NoError(t, validateEvent(&Event{
+			EventKey: "k", Type: EventCustom,
+			// TourId, TourVersionId, HintId — все пустые
+		}))
+	})
+	t.Run("tour-bound custom с tour_version_id и hint_id проходит", func(t *testing.T) {
+		hintId := uuid.New()
+		versionId := uuid.New()
+		assert.NoError(t, validateEvent(&Event{
+			EventKey: "k", Type: EventCustom,
+			TourVersionId: versionId,
+			HintId:        &hintId, // разрешено для tour-bound custom
+		}))
+	})
 }
 
 func TestValidateEventScope(t *testing.T) {
@@ -332,6 +362,37 @@ func detailPaths(t *testing.T, err error) []string {
 }
 
 func TestValidateTriggerConfig(t *testing.T) {
+
+	t.Run("delay без конфига возвращает ошибку", func(t *testing.T) {
+		details := validateTriggerConfig(TriggerDelay, nil)
+		require.Len(t, details, 1)
+		assert.Equal(t, "trigger_config", details[0].Path)
+	})
+
+	t.Run("delay с пустым конфигом возвращает ошибку", func(t *testing.T) {
+		details := validateTriggerConfig(TriggerDelay, &TriggerConfig{})
+		require.Len(t, details, 1)
+		assert.Equal(t, "trigger_config.delay_ms", details[0].Path)
+	})
+
+	t.Run("delay_ms меньше 100 — ошибка", func(t *testing.T) {
+		ms := 50
+		details := validateTriggerConfig(TriggerDelay, &TriggerConfig{DelayMs: &ms})
+		require.Len(t, details, 1)
+	})
+
+	t.Run("delay_ms валидный", func(t *testing.T) {
+		ms := 1500
+		details := validateTriggerConfig(TriggerDelay, &TriggerConfig{DelayMs: &ms})
+		assert.Empty(t, details)
+	})
+
+	t.Run("delay_ms больше 600000 — ошибка", func(t *testing.T) {
+		ms := 700000
+		details := validateTriggerConfig(TriggerDelay, &TriggerConfig{DelayMs: &ms})
+		require.Len(t, details, 1)
+	})
+
 	t.Run("scroll_depth без конфига возвращает ошибку", func(t *testing.T) {
 		details := validateTriggerConfig(TriggerScrollDepth, nil)
 		assert.Len(t, details, 1)
@@ -427,7 +488,7 @@ func TestValidateTriggerConfig(t *testing.T) {
 		assert.Equal(t, "trigger_config.scroll_depth", details[0].Path)
 	})
 
-	for _, tt := range []TriggerType{TriggerDelay, TriggerOnLoad, TriggerExitIntent, TriggerManual} {
+	for _, tt := range []TriggerType{TriggerOnLoad, TriggerExitIntent, TriggerManual} {
 		t.Run(string(tt)+" без конфига — ок", func(t *testing.T) {
 			details := validateTriggerConfig(tt, nil)
 			assert.Empty(t, details)
@@ -484,18 +545,6 @@ func TestMatchAudienceRules_Integration(t *testing.T) {
 			{Type: "", Key: "x", Operator: "exists"},
 		}
 		assert.False(t, matchAudienceRules(rules, history, nil))
-	})
-}
-
-func TestValidateEvent_AppLevelCustom(t *testing.T) {
-	t.Run("custom без tour_version_id проходит", func(t *testing.T) {
-		err := validateEvent(&Event{EventKey: "k", Type: EventCustom})
-		assert.NoError(t, err)
-	})
-
-	t.Run("custom без версии проходит scope-проверку", func(t *testing.T) {
-		err := validateEventScope(&Event{Type: EventCustom}, uuid.New(), nil)
-		assert.NoError(t, err)
 	})
 }
 
@@ -560,4 +609,139 @@ func TestToFloat64(t *testing.T) {
 		_, ok = toFloat64([]int{1, 2, 3})
 		assert.False(t, ok)
 	})
+}
+
+func TestParseTimeframe(t *testing.T) {
+	t.Run("пустая строка — безлимитно", func(t *testing.T) {
+		d, ok := parseTimeframe("")
+		assert.True(t, ok)
+		assert.Equal(t, time.Duration(0), d)
+	})
+
+	t.Run("all_time — безлимитно", func(t *testing.T) {
+		d, ok := parseTimeframe("all_time")
+		assert.True(t, ok)
+		assert.Equal(t, time.Duration(0), d)
+	})
+
+	t.Run("7d — 168 часов", func(t *testing.T) {
+		d, ok := parseTimeframe("7d")
+		assert.True(t, ok)
+		assert.Equal(t, 7*24*time.Hour, d)
+	})
+
+	t.Run("90d — невалидно", func(t *testing.T) {
+		_, ok := parseTimeframe("90d")
+		assert.False(t, ok)
+	})
+
+	t.Run("опечатка — невалидно", func(t *testing.T) {
+		_, ok := parseTimeframe("7days")
+		assert.False(t, ok)
+	})
+}
+
+func TestTimeframeConsistency(t *testing.T) {
+	for _, tf := range []string{"1h", "24h", "7d", "30d", "all_time", "", "90d", "typo"} {
+		t.Run(tf, func(t *testing.T) {
+			rules := []AudienceRule{{Type: "event_performed", Timeframe: tf}}
+			minSince := computeMinSince(rules)
+
+			recentEvent := time.Now().Add(-59 * time.Minute)
+			matches := checkTimeframe(recentEvent, tf)
+
+			_, ok := parseTimeframe(tf)
+			if !ok {
+				assert.True(t, minSince.IsZero(), "invalid timeframe should expand window to unbounded")
+				assert.False(t, matches, "invalid timeframe should fail-closed in checkTimeframe")
+			} else {
+				if minSince.IsZero() {
+					assert.True(t, matches, "unbounded window must accept any event")
+				} else {
+					assert.True(t, matches, "59-min-old event must fit in any valid timeframe ≥ 1h")
+				}
+			}
+		})
+	}
+}
+
+func TestValidateAudienceRules(t *testing.T) {
+	t.Run("пустой список — ок", func(t *testing.T) {
+		assert.Empty(t, validateAudienceRules(nil))
+	})
+
+	t.Run("валидное правило event_performed", func(t *testing.T) {
+		rules := []AudienceRule{{
+			Type: "event_performed", Key: "checkout",
+			Operator: "exists", Timeframe: "7d",
+		}}
+		assert.Empty(t, validateAudienceRules(rules))
+	})
+
+	t.Run("опечатка в type ловится", func(t *testing.T) {
+		rules := []AudienceRule{{
+			Type: "pag_visited", Key: "/pricing", // опечатка!
+			Operator: "exists", Timeframe: "7d",
+		}}
+		details := validateAudienceRules(rules)
+		require.Len(t, details, 1)
+		assert.Contains(t, details[0].Path, "type")
+		assert.Contains(t, details[0].Message, "unknown type")
+	})
+
+	t.Run("невалидный timeframe ловится", func(t *testing.T) {
+		rules := []AudienceRule{{
+			Type: "event_performed", Key: "x",
+			Operator: "exists", Timeframe: "90d",
+		}}
+		details := validateAudienceRules(rules)
+		require.Len(t, details, 1)
+		assert.Contains(t, details[0].Path, "timeframe")
+	})
+
+	t.Run("neq для event_performed отвергается", func(t *testing.T) {
+		rules := []AudienceRule{{
+			Type: "event_performed", Key: "x",
+			Operator: "neq", Timeframe: "7d",
+		}}
+		details := validateAudienceRules(rules)
+		require.Len(t, details, 1)
+		assert.Contains(t, details[0].Message, "must be exists or not_exists")
+	})
+
+	t.Run("user_property не требует timeframe", func(t *testing.T) {
+		rules := []AudienceRule{{
+			Type: "user_property", Key: "plan",
+			Operator: "eq", Value: "pro",
+		}}
+		assert.Empty(t, validateAudienceRules(rules))
+	})
+
+	t.Run("user_property с timeframe отвергается", func(t *testing.T) {
+		rules := []AudienceRule{{
+			Type: "user_property", Key: "plan",
+			Operator: "eq", Value: "pro", Timeframe: "7d",
+		}}
+		details := validateAudienceRules(rules)
+		require.Len(t, details, 1)
+		assert.Contains(t, details[0].Path, "timeframe")
+	})
+}
+
+func TestValidateForPublish_RejectsBadAudienceRules(t *testing.T) {
+	validHint := Hint{Step: 1, Title: "t", Content: "c", Selector: "#id", Placement: PlacementBottom}
+	v := &TourVersion{
+		TargetPath:  "/x",
+		TriggerType: TriggerOnLoad,
+		Audience: Audience{
+			Rules: []AudienceRule{{
+				Type: "pag_visited", Key: "/pricing", // опечатка
+				Operator: "exists", Timeframe: "7d",
+			}},
+		},
+	}
+	err := validateForPublish(v, []Hint{validHint})
+	require.Error(t, err)
+	paths := detailPaths(t, err)
+	assert.Contains(t, paths, "audience.rules[0].type")
 }
