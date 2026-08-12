@@ -6,14 +6,16 @@ import (
 	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
 )
 
 type HintRepository struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zerolog.Logger
 }
 
-func NewHintRepository(pool *pgxpool.Pool) *HintRepository {
-	return &HintRepository{pool: pool}
+func NewHintRepository(pool *pgxpool.Pool, logger *zerolog.Logger) *HintRepository {
+	return &HintRepository{pool: pool, logger: logger}
 }
 
 const hintColumns = `id, tour_version_id, step, title, content, selector, placement,
