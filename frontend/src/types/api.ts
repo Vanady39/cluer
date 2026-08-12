@@ -88,3 +88,23 @@ export interface TourResponseDto {
   draft?: TourVersion | null;
   published?: TourVersion | null;
 }
+
+export interface Listing {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+}
+
+export interface User {
+  id: number;
+  name: string;
+  avatarUrl?: string;
+}
+
+export interface ListingsQuery {
+  q?: string;
+  limit?: number;
+  offset?: number;
+}

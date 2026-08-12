@@ -1,26 +1,26 @@
-import { memo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { memo, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FaSearch } from "react-icons/fa";
 import { setSearch, cleanSearch } from "../../../Reducers/searchReduce";
 import { type RootState } from "../../../Store/Store";
 import styles from "./Styles.module.scss";
+import { SEARCH_DEBOUNCE_MS } from "../../../Utils/constants";
 
 function SearchBarComponent() {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const searchQuery = useSelector((state: RootState) => state.search.search);
   const [localSearch, setLocalSearch] = useState(searchQuery || "");
 
-  const handleFind = () => {
-    if (localSearch.trim()) {
-      dispatch(setSearch(localSearch.trim()));
-      navigate(`/search?q=${encodeURIComponent(localSearch.trim())}`);
-    }
-  };
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      dispatch(setSearch(localSearch));
+    }, SEARCH_DEBOUNCE_MS);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && localSearch.trim()) handleFind();
+    return () => window.clearTimeout(timeoutId);
+  }, [dispatch, localSearch]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") dispatch(setSearch(localSearch));
   };
 
   const handleClear = () => {
@@ -32,22 +32,22 @@ function SearchBarComponent() {
     <div className={styles.search}>
       <div className={styles.search__wrapper}>
         <FaSearch className={styles.search__icon} />
+
         <input
           type="text"
           placeholder="Поиск..."
           value={localSearch}
-          onChange={(e) => {
-            setLocalSearch(e.target.value);
-            dispatch(setSearch(e.target.value));
-          }}
+          onChange={(event) => setLocalSearch(event.target.value)}
           onKeyDown={handleKeyDown}
           className={styles.search__input}
         />
+
         {localSearch && (
           <button
             type="button"
             className={styles.search__clear}
             onClick={handleClear}
+            aria-label="Очистить поиск"
           >
             ✕
           </button>

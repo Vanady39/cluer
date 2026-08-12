@@ -1,10 +1,16 @@
 import { demoApi } from "./constants";
-import type { Listing } from "../types";
+import type { Listing, ListingsQuery } from "../types";
 
 export const listingsAPI = {
-  getAll: () =>
+  getAll: ({ q, limit = 20, offset = 0 }: ListingsQuery = {}) =>
     demoApi
-      .get<{ data: Listing[] }>("/listings")
+      .get<{ data: Listing[] }>("/listings", {
+        params: {
+          ...(q?.trim() ? { q: q.trim() } : {}),
+          limit,
+          offset,
+        },
+      })
       .then((res) => res.data.data),
 
   getById: (id: number) =>
@@ -17,12 +23,9 @@ export const listingsAPI = {
       .post<{ data: Listing }>("/listings", data)
       .then((res) => res.data.data),
 
-  update: (id: number,data: Partial<Omit<Listing, "id">>) =>
+  update: (id: number, data: Partial<Omit<Listing, "id">>) =>
     demoApi
-      .put<{ data: Listing }>(
-        `/listings/${id}`,
-        data,
-      )
+      .put<{ data: Listing }>(`/listings/${id}`, data)
       .then((res) => res.data.data),
 
   delete: (id: number) =>
@@ -30,3 +33,4 @@ export const listingsAPI = {
       .delete<{ data: null }>(`/listings/${id}`)
       .then((res) => res.data.data),
 };
+

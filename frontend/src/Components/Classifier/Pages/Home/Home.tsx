@@ -1,56 +1,75 @@
 import styles from "./Styles.module.scss";
 import { memo } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Card } from "../../Layouts/Card";
 import { type RootState } from "../../../../Store/Store";
 import { listingsAPI } from "../../../../Api/listings";
+import { Button } from "../../../UI/Button";
+import { PAGE_SIZE } from "../../../../Utils/constants";
 
 function HomeComponent() {
-  const [searchParams] = useSearchParams();
-  const selectedCategory = searchParams.get("category") || "all";
-  const searchQuery = useSelector((state: RootState) => state.search.search);
+  const searchQuery = useSelector(
+    (state: RootState) => state.search.search,
+  ).trim();
 
   const {
-    data: listings = [],
+    data,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ["listings"],
-    queryFn: listingsAPI.getAll,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["listings", searchQuery],
+    initialPageParam: 0,
+
+    queryFn: ({ pageParam }) =>
+      listingsAPI.getAll({
+        q: searchQuery || undefined,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
+
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < PAGE_SIZE ? undefined : allPages.length * PAGE_SIZE,
   });
 
-  const filteredListings = listings.filter((item) => {
-    if (selectedCategory !== "all" && item.category !== selectedCategory) return false;
-    if (searchQuery.trim() && !item.title.toLowerCase().includes(searchQuery.toLowerCase().trim())) {
-      return false;
-    }
-    return true;
-  });
-
+  const listings = data?.pages.flat() ?? [];
+  
   if (isLoading) return <div className={styles.home__loading}>Загрузка объявлений...</div>;
   if (error) return <div className={styles.home__error}>Ошибка загрузки объявлений</div>;
 
   return (
     <main className={styles.home}>
       <div className={styles.home__cards}>
-        {filteredListings.map((listing) => (
+        {listings.map((listing) => (
           <div key={listing.id} className={styles.home__card}>
             <Card
               title={listing.title}
               price={listing.price}
               imageUrl={listing.imageUrl}
-              city={listing.city || "Город не указан"}
               onClick={() => console.log(`Открыть объявление ${listing.id}`)}
             />
           </div>
         ))}
       </div>
 
-      {filteredListings.length === 0 && (
+      {listings.length === 0 && (
         <div className={styles.home__empty}>
           <p>Ничего не найдено</p>
+        </div>
+      )}
+
+      {hasNextPage && (
+        <div className={styles.home__more}>
+          <Button
+            type="button"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? "Загрузка..." : "Показать ещё"}
+          </Button>
         </div>
       )}
     </main>

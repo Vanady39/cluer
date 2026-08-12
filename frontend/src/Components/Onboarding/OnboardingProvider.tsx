@@ -11,11 +11,19 @@ export function OnboardingProvider() {
   const isPreview = params.get("preview") === "true";
   const isBuilder = params.get("builder") === "true";
   const previewTourId = params.get("tourId");
-
-  const { tour, appKey } = useLoadTour(isPreview, previewTourId, isBuilder, setIsOpen);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
+    return localStorage.getItem('onboarding_seen') === 'true';
+  });
+  const { tour, appKey } = useLoadTour(isPreview, previewTourId, isBuilder, setIsOpen, hasSeenOnboarding);
 
   useOnboardingGoals(tour, appKey, isPreview, isBuilder);
   useManualStart(tour, isBuilder, setIsOpen);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    localStorage.setItem('onboarding_seen', 'true');
+    setHasSeenOnboarding(true);
+  };
 
   if (isBuilder) {
     return (
@@ -40,7 +48,7 @@ export function OnboardingProvider() {
     <TourRunner
       tour={tour}
       isPreview={isPreview}
-      onClose={() => setIsOpen(false)}
+      onClose={handleClose}
     />
   );
 }

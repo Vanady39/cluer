@@ -8,7 +8,8 @@ export function useLoadTour(
   isPreview: boolean,
   previewTourId: string | null,
   isBuilder: boolean,
-  setIsOpen: (open: boolean) => void
+  setIsOpen: (open: boolean) => void,
+  hasSeenOnboarding: boolean
 ) {
   const [tour, setTour] = useState<Tour | null>(null);
   const [appKey, setAppKey] = useState<string | null>(null);
@@ -100,6 +101,11 @@ export function useLoadTour(
           return;
         }
         setTour(resolvedTour);
+
+        if (hasSeenOnboarding) {
+          setIsOpen(false);
+          return;
+        }
         setIsOpen(false);
 
         const startTour = () => setIsOpen(true);

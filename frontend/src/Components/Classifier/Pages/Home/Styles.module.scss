@@ -17,7 +17,7 @@
     color: #666;
 
     &::before {
-      content: '';
+      content: "";
       display: inline-block;
       width: 24px;
       height: 24px;
@@ -47,6 +47,12 @@
     text-align: center;
     color: #999;
     font-size: 16px;
+  }
+
+  &__more {
+    display: flex;
+    justify-content: center;
+    padding: 32px 20px 8px;
   }
 }
 
