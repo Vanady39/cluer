@@ -180,14 +180,19 @@ func (td *TourDomain) UpdateDraft(ctx context.Context, tourId uuid.UUID, p Draft
 	if p.TriggerType != nil && !p.TriggerType.Valid() {
 		return nil, logicErr(ErrInvalidTriggerType, "draft update", http.StatusBadRequest)
 	}
+
+	triggerType := draft.TriggerType
+	if p.TriggerType != nil {
+		triggerType = *p.TriggerType
+	}
+
+	config := draft.TriggerConfig
 	if p.TriggerConfig != nil {
-		triggerType := draft.TriggerType
-		if p.TriggerType != nil {
-			triggerType = *p.TriggerType
-		}
-		if details := validateTriggerConfig(triggerType, p.TriggerConfig); len(details) > 0 {
-			return nil, &ValidationError{Err: ErrTourNotPublishable, Details: details}
-		}
+		config = p.TriggerConfig
+	}
+
+	if details := validateTriggerConfig(triggerType, config); len(details) > 0 {
+		return nil, &ValidationError{Err: ErrDraftInvalid, Details: details}
 	}
 	return td.tours.UpdateDraft(ctx, draft.Id, p)
 }
@@ -295,47 +300,79 @@ func validateTriggerConfig(tType TriggerType, cfg *TriggerConfig) []ErrorDetail 
 	var details []ErrorDetail
 
 	if cfg == nil {
-		if tType == "scroll_depth" {
+		switch tType {
+		case TriggerScrollDepth:
 			details = append(details, ErrorDetail{
 				Path:    "trigger_config",
 				Message: "is required for scroll_depth trigger",
+			})
+		case TriggerInactivity:
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config",
+				Message: "is required for inactivity trigger",
+			})
+		case TriggerElementVisible:
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config",
+				Message: "is required for element_visible trigger",
 			})
 		}
 		return details
 	}
 
-	if cfg.ScrollDepth != nil {
+	if tType == TriggerScrollDepth {
+		if cfg.ScrollDepth == nil {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.scroll_depth",
+				Message: "is required when trigger_type is scroll_depth",
+			})
+		} else if *cfg.ScrollDepth < 1 || *cfg.ScrollDepth > 100 {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.scroll_depth",
+				Message: "must be an integer between 1 and 100",
+			})
+		}
+	} else if cfg.ScrollDepth != nil {
 		if *cfg.ScrollDepth < 1 || *cfg.ScrollDepth > 100 {
 			details = append(details, ErrorDetail{
 				Path:    "trigger_config.scroll_depth",
 				Message: "must be an integer between 1 and 100",
 			})
 		}
-	} else if tType == "scroll_depth" {
-		details = append(details, ErrorDetail{
-			Path:    "trigger_config.scroll_depth",
-			Message: "is required when trigger_type is scroll_depth",
-		})
 	}
 
-	if cfg.InactivitySecs != nil {
-		if *cfg.InactivitySecs < 3 {
+	if tType == TriggerInactivity {
+		if cfg.InactivitySecs == nil {
+			details = append(details, ErrorDetail{
+				Path:    "trigger_config.inactivity_secs",
+				Message: "is required when trigger_type is inactivity",
+			})
+		} else if *cfg.InactivitySecs < 3 {
 			details = append(details, ErrorDetail{
 				Path:    "trigger_config.inactivity_secs",
 				Message: "must be at least 3 seconds to avoid accidental triggers",
 			})
 		}
+	} else if cfg.InactivitySecs != nil && *cfg.InactivitySecs < 3 {
+		details = append(details, ErrorDetail{
+			Path:    "trigger_config.inactivity_secs",
+			Message: "must be at least 3 seconds to avoid accidental triggers",
+		})
 	}
 
-	if cfg.ElementSelector != nil {
-		if strings.TrimSpace(*cfg.ElementSelector) == "" {
+	if tType == TriggerElementVisible {
+		if cfg.ElementSelector == nil || strings.TrimSpace(*cfg.ElementSelector) == "" {
 			details = append(details, ErrorDetail{
 				Path:    "trigger_config.element_selector",
-				Message: "must not be empty if provided",
+				Message: "is required and must not be empty when trigger_type is element_visible",
 			})
 		}
+	} else if cfg.ElementSelector != nil && strings.TrimSpace(*cfg.ElementSelector) == "" {
+		details = append(details, ErrorDetail{
+			Path:    "trigger_config.element_selector",
+			Message: "must not be empty if provided",
+		})
 	}
-
 	return details
 }
 

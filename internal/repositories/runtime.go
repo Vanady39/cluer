@@ -3,20 +3,23 @@ package repositories
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
 )
 
 type RuntimeRepository struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zerolog.Logger
 }
 
-func NewRuntimeRepository(pool *pgxpool.Pool) *RuntimeRepository {
-	return &RuntimeRepository{pool: pool}
+func NewRuntimeRepository(pool *pgxpool.Pool, logger *zerolog.Logger) *RuntimeRepository {
+	return &RuntimeRepository{pool: pool, logger: logger}
 }
 
 func (rr *RuntimeRepository) Ping(ctx context.Context) error {
@@ -127,13 +130,24 @@ func (rr *RuntimeRepository) InsertEvents(ctx context.Context, events []domains.
 	for i := range events {
 		e := events[i]
 
+		var tourID, versionID, hintID any
+		if e.TourId != uuid.Nil {
+			tourID = e.TourId
+		}
+		if e.TourVersionId != uuid.Nil {
+			versionID = e.TourVersionId
+		}
+		if e.HintId != nil {
+			hintID = *e.HintId
+		}
+
 		tag, err := tx.Exec(ctx, `
 			INSERT INTO tour_events (
 				app_id, event_key, tour_id, tour_version_id, hint_id,
 				session_id, subject_id, type, occurred_at, payload)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 			ON CONFLICT (app_id, event_key) DO NOTHING`,
-			e.AppId, e.EventKey, e.TourId, e.TourVersionId, e.HintId,
+			e.AppId, e.EventKey, tourID, versionID, hintID,
 			e.SessionId, e.SubjectId, e.Type, e.OccurredAt, e.Payload)
 		if err != nil {
 			return 0, 0, wrap(err, domains.ErrTourNotFound, e.EventKey, domains.Create)
@@ -145,8 +159,10 @@ func (rr *RuntimeRepository) InsertEvents(ctx context.Context, events []domains.
 		}
 		accepted++
 
-		if err := applyProgress(ctx, tx, &e); err != nil {
-			return 0, 0, err
+		if e.TourVersionId != uuid.Nil {
+			if err := applyProgress(ctx, tx, &e); err != nil {
+				return 0, 0, err
+			}
 		}
 	}
 
@@ -244,40 +260,69 @@ func (rr *RuntimeRepository) Totals(
 	return t, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Retrieve)
 }
 
-func (rr *RuntimeRepository) GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string) ([]domains.Event, error) {
-	rows, err := rr.pool.Query(ctx, `
+func (rr *RuntimeRepository) GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string, since time.Time, limit int) ([]domains.Event, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	query := `
 		SELECT id, app_id, event_key, tour_id, tour_version_id, hint_id, session_id, subject_id, type, occurred_at, received_at, payload
 		FROM tour_events
-		WHERE app_id = $1 AND subject_id = $2 AND occurred_at >= NOW() - INTERVAL '30 days'
-		ORDER BY occurred_at DESC LIMIT 100`, appId, subjectId)
+		WHERE app_id = $1 AND subject_id = $2`
+
+	args := []any{appId, subjectId}
+	argIdx := 3
+
+	if !since.IsZero() {
+		query += fmt.Sprintf(" AND occurred_at >= $%d", argIdx)
+		args = append(args, since)
+		argIdx++
+	}
+
+	query += fmt.Sprintf(" ORDER BY occurred_at DESC LIMIT $%d", argIdx)
+	args = append(args, limit)
+
+	rows, err := rr.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, wrap(err, domains.ErrTourNotFound, subjectId, domains.Retrieve)
 	}
 	defer rows.Close()
 
-	events := make([]domains.Event, 0, 100)
+	events := make([]domains.Event, 0, limit)
 	for rows.Next() {
 		var e domains.Event
 		var payloadBytes []byte
+		var tourID, versionID *uuid.UUID
 
 		if err := rows.Scan(
-			&e.Id, &e.AppId, &e.EventKey, &e.TourId, &e.TourVersionId, &e.HintId,
+			&e.Id, &e.AppId, &e.EventKey, &tourID, &versionID, &e.HintId,
 			&e.SessionId, &e.SubjectId, &e.Type, &e.OccurredAt, &e.ReceivedAt, &payloadBytes,
 		); err != nil {
 			return nil, wrap(err, domains.ErrTourNotFound, subjectId, domains.Retrieve)
 		}
 
+		if tourID != nil {
+			e.TourId = *tourID
+		}
+		if versionID != nil {
+			e.TourVersionId = *versionID
+		}
+
 		if len(payloadBytes) > 0 {
 			var p map[string]any
 			if err := json.Unmarshal(payloadBytes, &p); err == nil {
-				e.Payload = p
-			} else {
+				rr.logger.Error().
+					Int64("event_id", e.Id).
+					Str("event_key", e.EventKey).
+					Str("subject_id", e.SubjectId).
+					Err(err).
+					Msg("corrupted event payload in tour_events")
 				e.Payload = make(map[string]any)
+			} else {
+				e.Payload = p
 			}
 		} else {
 			e.Payload = make(map[string]any)
 		}
-
 		events = append(events, e)
 	}
 	return events, rows.Err()

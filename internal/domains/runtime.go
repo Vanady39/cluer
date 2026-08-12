@@ -42,7 +42,7 @@ type (
 		InsertEvents(ctx context.Context, events []Event) (accepted, duplicates int, err error)
 		Funnel(ctx context.Context, versionId uuid.UUID, from, to time.Time) ([]FunnelStep, error)
 		Totals(ctx context.Context, versionId uuid.UUID, from, to time.Time) (AnalyticsTotals, error)
-		GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string) ([]Event, error)
+		GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string, minSince time.Time, limit int) ([]Event, error)
 
 		Ping(ctx context.Context) error
 	}
@@ -103,18 +103,32 @@ func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*Reso
 	}
 
 	path := PathFromURL(req.Url)
-
+	unbounded := false
+	var minSince time.Time
 	needHistory := false
 	for _, tour := range candidates {
-		if tour.Audience != nil && len(tour.Audience.Rules) > 0 {
-			needHistory = true
+		if tour.Audience == nil || len(tour.Audience.Rules) == 0 {
+			continue
+		}
+
+		needHistory = true
+
+		since := computeMinSince(tour.Audience.Rules)
+		if since.IsZero() {
+			unbounded = true
 			break
+		}
+		if minSince.IsZero() || since.Before(minSince) {
+			minSince = since
 		}
 	}
 
 	var eventHistory []Event
 	if needHistory {
-		eventHistory, err = rd.runtime.GetSubjectEvents(ctx, req.AppId, req.SubjectId)
+		if unbounded {
+			minSince = time.Time{}
+		}
+		eventHistory, err = rd.runtime.GetSubjectEvents(ctx, req.AppId, req.SubjectId, minSince, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -124,18 +138,46 @@ func (rd *RuntimeDomain) Resolve(ctx context.Context, req ResolveRequest) (*Reso
 		if !MatchPath(tour.TargetPath, path) {
 			continue
 		}
-		if tour.Audience != nil && !matchAudience(*tour.Audience, req.Props, progress[tour.Id]) {
-			continue
-		}
-		if len(tour.Audience.Rules) > 0 {
-			if !matchAudienceRules(tour.Audience.Rules, eventHistory, req.Props) {
+
+		if tour.Audience != nil {
+			if !matchAudience(*tour.Audience, req.Props, progress[tour.Id]) {
 				continue
+			}
+			if len(tour.Audience.Rules) > 0 {
+				if !matchAudienceRules(tour.Audience.Rules, eventHistory, req.Props) {
+					continue
+				}
 			}
 		}
 		return rd.start(ctx, req, tour, progress[tour.Id])
 	}
-
 	return nil, nil
+}
+
+func computeMinSince(rules []AudienceRule) time.Time {
+	now := time.Now()
+	var min time.Time
+	for _, r := range rules {
+		var t time.Time
+		switch r.Timeframe {
+		case "1h":
+			t = now.Add(-time.Hour)
+		case "24h":
+			t = now.Add(-24 * time.Hour)
+		case "7d":
+			t = now.Add(-7 * 24 * time.Hour)
+		case "30d":
+			t = now.Add(-30 * 24 * time.Hour)
+		case "all_time", "":
+			return time.Time{} // Нулевое время означает "без ограничений"
+		default:
+			t = now.Add(-30 * 24 * time.Hour) // Фоллбэк на 30 дней
+		}
+		if min.IsZero() || t.Before(min) {
+			min = t
+		}
+	}
+	return min
 }
 
 func (rd *RuntimeDomain) start(ctx context.Context, req ResolveRequest, tour *Tour, current *Progress) (*ResolveResult, error) {
@@ -206,12 +248,24 @@ func matchAudience(a Audience, props map[string]any, p *Progress) bool {
 	return true
 }
 
+func applyExistenceOperator(op string, found bool) bool {
+	switch op {
+	case "not_exists":
+		return !found
+	case "exists", "":
+		return found
+	default:
+		return false
+	}
+}
+
 func matchAudienceRules(rules []AudienceRule, history []Event, props map[string]any) bool {
 	for _, rule := range rules {
 		matched := false
 
 		switch rule.Type {
 		case "event_performed":
+			found := false
 			for _, evt := range history {
 				evtName := ""
 				if name, ok := evt.Payload["event_name"].(string); ok {
@@ -220,43 +274,49 @@ func matchAudienceRules(rules []AudienceRule, history []Event, props map[string]
 					evtName = string(evt.Type)
 				}
 				if evtName == rule.Key && checkTimeframe(evt.OccurredAt, rule.Timeframe) {
-					matched = true
+					found = true
 					break
 				}
 			}
+			matched = applyExistenceOperator(rule.Operator, found)
 
 		case "page_visited":
+			found := false
 			for _, evt := range history {
 				isPageView := string(evt.Type) == "page_view" || evt.Payload["event_name"] == "page_view"
 				if isPageView {
 					if url, ok := evt.Payload["url"].(string); ok && url == rule.Key {
 						if checkTimeframe(evt.OccurredAt, rule.Timeframe) {
-							matched = true
+							found = true
 							break
 						}
 					}
 				}
 			}
+			matched = applyExistenceOperator(rule.Operator, found)
+
 		case "user_property":
 			val, exists := props[rule.Key]
-			if rule.Operator == "exists" {
+			switch rule.Operator {
+			case "exists":
 				matched = exists
-			} else if rule.Operator == "not_exists" {
+			case "not_exists":
 				matched = !exists
-			} else if exists {
-				matched = evaluateOperator(rule.Operator, val, rule.Value)
+			default:
+				if exists {
+					matched = evaluateOperator(rule.Operator, val, rule.Value)
+				}
 			}
+		default:
+			matched = false
 		}
-		if rule.Operator == "not_exists" && rule.Type != "user_property" {
-			matched = !matched
-		}
-
 		if !matched {
 			return false
 		}
 	}
 	return true
 }
+
 func checkTimeframe(eventTime time.Time, timeframe string) bool {
 	if timeframe == "" || timeframe == "all_time" {
 		return true
@@ -422,13 +482,17 @@ func (rd *RuntimeDomain) Ingest(
 			continue
 		}
 
-		scope, err := rd.scopeOf(ctx, scopes, e.TourVersionId)
-		if err != nil {
-			if IsNotFound(err) {
-				result.reject(ErrVersionNotFound)
-				continue
+		var scope *eventScope
+		if e.TourVersionId != uuid.Nil {
+			s, err := rd.scopeOf(ctx, scopes, e.TourVersionId)
+			if err != nil {
+				if IsNotFound(err) {
+					result.reject(ErrVersionNotFound)
+					continue
+				}
+				return nil, err
 			}
-			return nil, err
+			scope = s
 		}
 		if err := validateEventScope(&e, appId, scope); err != nil {
 			result.reject(err)
@@ -498,7 +562,7 @@ func validateEvent(e *Event) error {
 	if !e.Type.Valid() {
 		return ErrUnknownEventType
 	}
-	if e.TourVersionId == uuid.Nil {
+	if e.Type != EventCustom && e.TourVersionId == uuid.Nil {
 		return ErrVersionRequired
 	}
 	if e.Type != EventCustom && e.Type.TourLevel() != (e.HintId == nil) {
@@ -508,7 +572,10 @@ func validateEvent(e *Event) error {
 }
 
 func validateEventScope(e *Event, appId uuid.UUID, scope *eventScope) error {
-	if scope.AppId != appId {
+	if e.Type == EventCustom && e.TourVersionId == uuid.Nil {
+		return nil
+	}
+	if scope == nil || scope.AppId != appId {
 		return ErrVersionForeignApp
 	}
 	if e.TourId == uuid.Nil {
