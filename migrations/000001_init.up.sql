@@ -44,7 +44,6 @@ CREATE TRIGGER tours_set_updated_at
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 
-
 CREATE TABLE tour_versions (
   id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   tour_id      UUID        NOT NULL REFERENCES tours(id) ON DELETE RESTRICT,
@@ -56,6 +55,8 @@ CREATE TABLE tour_versions (
   audience_show_once BOOLEAN NOT NULL DEFAULT false,
   audience_max_shows INT     NOT NULL DEFAULT 0,  
   audience_only_new  BOOLEAN NOT NULL DEFAULT false,
+  trigger_config JSONB DEFAULT '{}'::jsonb,
+  audience_rules JSONB DEFAULT '[]'::jsonb,
   -- ---------------------------------------------------------------
 
   created_by   TEXT,
@@ -82,8 +83,12 @@ CREATE TABLE hints (
   step              INT         NOT NULL,
   title             TEXT        NOT NULL,
   content           TEXT        NOT NULL,
-  selector          TEXT        NOT NULL DEFAULT '', 
+  selector          TEXT        NOT NULL DEFAULT '',
   placement         TEXT        NOT NULL,
+  -- Пусто — подсказка живёт на той же странице, где стартовал тур, то есть
+  -- наследует target_path версии. Иначе абсолютный путь: относительный
+  -- никогда не совпадёт с location.pathname.
+  page_path         TEXT        NOT NULL DEFAULT '',
   media_url         TEXT        NOT NULL DEFAULT '',
   spotlight         BOOLEAN     NOT NULL DEFAULT false,
   required          BOOLEAN     NOT NULL DEFAULT false,
@@ -109,7 +114,9 @@ BEGIN
        OR NEW.target_path        <> OLD.target_path
        OR NEW.audience_show_once <> OLD.audience_show_once
        OR NEW.audience_max_shows <> OLD.audience_max_shows
-       OR NEW.audience_only_new  <> OLD.audience_only_new) THEN
+       OR NEW.audience_only_new  <> OLD.audience_only_new
+       OR NEW.trigger_config     IS DISTINCT FROM OLD.trigger_config
+       OR NEW.audience_rules     IS DISTINCT FROM OLD.audience_rules) THEN
     RAISE EXCEPTION 'tour_version %: body of a % version is immutable', OLD.id, OLD.status
       USING ERRCODE = 'restrict_violation';
   END IF;
@@ -172,8 +179,8 @@ CREATE TABLE tour_events (
   id              BIGSERIAL   PRIMARY KEY,
   app_id          UUID        NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
   event_key       TEXT        NOT NULL,   
-  tour_id         UUID        NOT NULL,  
-  tour_version_id UUID        NOT NULL REFERENCES tour_versions(id) ON DELETE RESTRICT,
+  tour_id         UUID,
+  tour_version_id UUID        REFERENCES tour_versions(id) ON DELETE RESTRICT,
   hint_id         UUID        REFERENCES hints(id) ON DELETE RESTRICT,
   session_id      TEXT        NOT NULL,
   subject_id      TEXT        NOT NULL,

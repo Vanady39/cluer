@@ -16,6 +16,9 @@ func TestTriggerType_Valid(t *testing.T) {
 		{"delay валиден", TriggerDelay, true},
 		{"exit_intent валиден", TriggerExitIntent, true},
 		{"manual валиден", TriggerManual, true},
+		{"scroll_depth валиден", TriggerScrollDepth, true},
+		{"inactivity валиден", TriggerInactivity, true},
+		{"element_visible валиден", TriggerElementVisible, true},
 		{"пустая строка невалидна", TriggerType(""), false},
 		{"произвольное значение невалидно", TriggerType("on_click"), false},
 	}

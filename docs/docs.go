@@ -1144,10 +1144,64 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": false
                 },
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.AudienceRule"
+                    }
+                },
                 "show_once": {
                     "type": "boolean",
                     "example": true
                 }
+            }
+        },
+        "github_com_Vanady39_cluer_internal_domains.AudienceRule": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "is_premium"
+                },
+                "operator": {
+                    "type": "string",
+                    "enum": [
+                        "exists",
+                        "not_exists",
+                        "eq",
+                        "neq",
+                        "gt",
+                        "gte",
+                        "lt",
+                        "lte",
+                        "contains",
+                        "not_contains",
+                        "starts_with",
+                        "ends_with"
+                    ],
+                    "example": "eq"
+                },
+                "timeframe": {
+                    "type": "string",
+                    "enum": [
+                        "1h",
+                        "24h",
+                        "7d",
+                        "30d",
+                        "all_time"
+                    ],
+                    "example": "7d"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "event_performed",
+                        "page_visited",
+                        "user_property"
+                    ],
+                    "example": "page_visited"
+                },
+                "value": {}
             }
         },
         "github_com_Vanady39_cluer_internal_domains.DraftPatch": {
@@ -1158,6 +1212,9 @@ const docTemplate = `{
                 },
                 "target_path": {
                     "type": "string"
+                },
+                "trigger_config": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerConfig"
                 },
                 "trigger_type": {
                     "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerType"
@@ -1197,7 +1254,8 @@ const docTemplate = `{
                 "selector_missing",
                 "tour_completed",
                 "tour_dismissed",
-                "goal_reached"
+                "goal_reached",
+                "custom"
             ],
             "x-enum-varnames": [
                 "EventTourStarted",
@@ -1207,7 +1265,8 @@ const docTemplate = `{
                 "EventSelectorMissing",
                 "EventTourCompleted",
                 "EventTourDismissed",
-                "EventGoalReached"
+                "EventGoalReached",
+                "EventCustom"
             ]
         },
         "github_com_Vanady39_cluer_internal_domains.FunnelStep": {
@@ -1416,6 +1475,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Добро пожаловать в систему"
                 },
+                "trigger_config": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerConfig"
+                },
                 "trigger_type": {
                     "allOf": [
                         {
@@ -1529,6 +1591,9 @@ const docTemplate = `{
                     "type": "string",
                     "format": "uuid"
                 },
+                "trigger_config": {
+                    "$ref": "#/definitions/github_com_Vanady39_cluer_internal_domains.TriggerConfig"
+                },
                 "trigger_type": {
                     "allOf": [
                         {
@@ -1543,19 +1608,45 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Vanady39_cluer_internal_domains.TriggerConfig": {
+            "type": "object",
+            "properties": {
+                "delay_ms": {
+                    "type": "integer",
+                    "example": 1500
+                },
+                "element_selector": {
+                    "type": "string"
+                },
+                "inactivity_secs": {
+                    "type": "integer",
+                    "example": 30
+                },
+                "scroll_depth": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
         "github_com_Vanady39_cluer_internal_domains.TriggerType": {
             "type": "string",
             "enum": [
                 "on_load",
                 "delay",
                 "exit_intent",
-                "manual"
+                "manual",
+                "scroll_depth",
+                "inactivity",
+                "element_visible"
             ],
             "x-enum-varnames": [
                 "TriggerOnLoad",
                 "TriggerDelay",
                 "TriggerExitIntent",
-                "TriggerManual"
+                "TriggerManual",
+                "TriggerScrollDepth",
+                "TriggerInactivity",
+                "TriggerElementVisible"
             ]
         },
         "github_com_Vanady39_cluer_internal_models.HTTPError": {

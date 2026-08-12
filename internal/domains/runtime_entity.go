@@ -47,12 +47,13 @@ const (
 	EventTourCompleted   EventType = "tour_completed"
 	EventTourDismissed   EventType = "tour_dismissed"
 	EventGoalReached     EventType = "goal_reached"
+	EventCustom          EventType = "custom"
 )
 
 func (t EventType) Valid() bool {
 	switch t {
 	case EventTourStarted, EventHintShown, EventHintCompleted, EventHintSkipped,
-		EventSelectorMissing, EventTourCompleted, EventTourDismissed, EventGoalReached:
+		EventSelectorMissing, EventTourCompleted, EventTourDismissed, EventGoalReached, EventCustom:
 		return true
 	}
 	return false
@@ -60,7 +61,7 @@ func (t EventType) Valid() bool {
 
 func (t EventType) TourLevel() bool {
 	switch t {
-	case EventTourStarted, EventTourCompleted, EventTourDismissed, EventGoalReached:
+	case EventTourStarted, EventTourCompleted, EventTourDismissed, EventGoalReached, EventCustom:
 		return true
 	}
 	return false

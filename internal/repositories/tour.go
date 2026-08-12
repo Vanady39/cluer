@@ -2,24 +2,29 @@ package repositories
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
 )
 
 type TourRepository struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zerolog.Logger
 }
 
-func NewTourRepository(pool *pgxpool.Pool) *TourRepository {
-	return &TourRepository{pool: pool}
+func NewTourRepository(pool *pgxpool.Pool, logger *zerolog.Logger) *TourRepository {
+	return &TourRepository{pool: pool, logger: logger}
 }
 
 const versionColumns = `id, tour_id, version, status, trigger_type, target_path,
-	audience_show_once, audience_max_shows, audience_only_new,
+	audience_show_once, audience_max_shows, audience_only_new, 
+	audience_rules, trigger_config,
 	created_by, created_at, published_at, archived_at`
 
 func (tr *TourRepository) CreateWithDraft(ctx context.Context, t *domains.Tour) (*domains.Tour, error) {
@@ -39,14 +44,29 @@ func (tr *TourRepository) CreateWithDraft(ctx context.Context, t *domains.Tour) 
 		return nil, wrap(err, domains.ErrTourNotFound, t.Title, domains.Create)
 	}
 
+	triggerConfigBytes, err := marshalJSON(t.TriggerConfig)
+	if err != nil {
+		return nil, wrap(err, domains.ErrVersionNotFound, t.Id.String(), domains.Create)
+	}
+
+	var audienceRulesBytes []byte
+	if t.Audience != nil && len(t.Audience.Rules) > 0 {
+		audienceRulesBytes, err = marshalJSON(t.Audience.Rules)
+		if err != nil {
+			return nil, wrap(err, domains.ErrVersionNotFound, t.Id.String(), domains.Create)
+		}
+	}
+
 	err = tx.QueryRow(ctx, `
 		INSERT INTO tour_versions (
 			tour_id, version, status, trigger_type, target_path,
-			audience_show_once, audience_max_shows, audience_only_new)
-		VALUES ($1, 1, 'draft', $2, $3, $4, $5, $6)
+			audience_show_once, audience_max_shows, audience_only_new,
+			trigger_config, audience_rules)
+		VALUES ($1, 1, 'draft', $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, version`,
 		t.Id, t.TriggerType, t.TargetPath,
 		t.Audience.ShowOnce, t.Audience.MaxShows, t.Audience.OnlyNew,
+		triggerConfigBytes, audienceRulesBytes,
 	).Scan(&t.VersionId, &t.Version)
 	if err != nil {
 		return nil, wrap(err, domains.ErrVersionNotFound, t.Id.String(), domains.Create)
@@ -253,7 +273,24 @@ func (tr *TourRepository) UpdateDraft(ctx context.Context, versionId uuid.UUID, 
 		add("audience_show_once", p.Audience.ShowOnce)
 		add("audience_max_shows", p.Audience.MaxShows)
 		add("audience_only_new", p.Audience.OnlyNew)
+
+		rulesBytes, err := marshalJSON(p.Audience.Rules)
+
+		if err != nil {
+			return nil, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Update)
+		}
+
+		add("audience_rules", rulesBytes)
 	}
+
+	if p.TriggerConfig != nil {
+		configBytes, err := marshalJSON(p.TriggerConfig)
+		if err != nil {
+			return nil, wrap(err, domains.ErrVersionNotFound, versionId.String(), domains.Update)
+		}
+		add("trigger_config", configBytes)
+	}
+
 	if len(set) == 0 {
 		return tr.GetVersion(ctx, versionId)
 	}
@@ -280,11 +317,13 @@ func (tr *TourRepository) CopyToDraft(ctx context.Context, tourId, sourceVersion
 	v, err := scanVersion(tx.QueryRow(ctx, `
 		INSERT INTO tour_versions (
 			tour_id, version, status, trigger_type, target_path,
-			audience_show_once, audience_max_shows, audience_only_new)
+			audience_show_once, audience_max_shows, audience_only_new,
+		    trigger_config, audience_rules)
 		SELECT src.tour_id,
 		       (SELECT COALESCE(MAX(version), 0) + 1 FROM tour_versions WHERE tour_id = $1),
 		       'draft', src.trigger_type, src.target_path,
-		       src.audience_show_once, src.audience_max_shows, src.audience_only_new
+		       src.audience_show_once, src.audience_max_shows, src.audience_only_new,
+		       src.trigger_config, src.audience_rules
 		FROM tour_versions src
 		WHERE src.id = $2 AND src.tour_id = $1
 		RETURNING `+versionColumns, tourId, sourceVersionId))
@@ -344,12 +383,43 @@ func (tr *TourRepository) Publish(ctx context.Context, tourId uuid.UUID) (*domai
 	return v, nil
 }
 
+func marshalJSON(v any) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
+		if rv.IsNil() {
+			return nil, nil
+		}
+	}
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("json marshal: %w", err)
+	}
+	return b, nil
+}
+
+func unmarshalJSONB(data []byte, dst any) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(data, dst); err != nil {
+		return fmt.Errorf("%w: %v", domains.ErrCorruptedData, err)
+	}
+	return nil
+}
+
 func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID) ([]*domains.Tour, error) {
 	rows, err := tr.pool.Query(ctx, `
 		SELECT t.id, t.app_id, t.title, t.description, t.enabled, t.priority,
 		       t.created_at, t.updated_at,
 		       v.id, v.version, v.trigger_type, v.target_path,
-		       v.audience_show_once, v.audience_max_shows, v.audience_only_new
+		       v.audience_show_once, v.audience_max_shows, v.audience_only_new,
+		       v.audience_rules, v.trigger_config
 		FROM tours t
 		JOIN tour_versions v ON v.tour_id = t.id AND v.status = 'published'
 		WHERE t.app_id = $1 AND t.enabled AND t.archived_at IS NULL
@@ -363,14 +433,42 @@ func (tr *TourRepository) ResolveCandidates(ctx context.Context, appId uuid.UUID
 	for rows.Next() {
 		t := new(domains.Tour)
 		t.Audience = new(domains.Audience)
+
+		var audienceRulesBytes []byte
+		var triggerConfigBytes []byte
+
 		if err := rows.Scan(
 			&t.Id, &t.AppId, &t.Title, &t.Description, &t.Enabled, &t.Priority,
 			&t.CreatedAt, &t.UpdatedAt,
 			&t.VersionId, &t.Version, &t.TriggerType, &t.TargetPath,
 			&t.Audience.ShowOnce, &t.Audience.MaxShows, &t.Audience.OnlyNew,
+			&audienceRulesBytes, &triggerConfigBytes,
 		); err != nil {
+			// Ошибка скана — это несовпадение типов или порванное соединение,
+			// а не одна плохая строка: пропустить её значило бы отдать неполный
+			// список как полный.
 			return nil, wrap(err, domains.ErrTourNotFound, appId.String(), domains.Retrieve)
 		}
+		if err := unmarshalJSONB(audienceRulesBytes, &t.Audience.Rules); err != nil {
+			tr.logger.Error().
+				Err(err).
+				Str("tour_id", t.Id.String()).
+				Str("version_id", t.VersionId.String()).
+				Str("app_id", appId.String()).
+				Msg("corrupted audience_rules in published tour, skipping tour")
+			continue
+		}
+
+		if err := unmarshalJSONB(triggerConfigBytes, &t.TriggerConfig); err != nil {
+			tr.logger.Error().
+				Err(err).
+				Str("tour_id", t.Id.String()).
+				Str("version_id", t.VersionId.String()).
+				Str("app_id", appId.String()).
+				Msg("corrupted trigger_config in published tour, skipping tour")
+			continue
+		}
+
 		t.Status = domains.TourPublished
 		t.Hints = []domains.Hint{}
 		tours = append(tours, t)
@@ -384,15 +482,30 @@ type scanner interface {
 
 func scanVersion(row scanner) (*domains.TourVersion, error) {
 	v := new(domains.TourVersion)
+
 	var createdBy *string
+
+	var triggerConfigBytes []byte
+	var audienceRulesBytes []byte
 	err := row.Scan(
 		&v.Id, &v.TourId, &v.Version, &v.Status, &v.TriggerType, &v.TargetPath,
 		&v.Audience.ShowOnce, &v.Audience.MaxShows, &v.Audience.OnlyNew,
+		&audienceRulesBytes,
+		&triggerConfigBytes,
 		&createdBy, &v.CreatedAt, &v.PublishedAt, &v.ArchivedAt,
 	)
+
 	if err != nil {
 		return nil, err
 	}
+
+	if err := unmarshalJSONB(triggerConfigBytes, &v.TriggerConfig); err != nil {
+		return nil, fmt.Errorf("scanVersion trigger_config (version %s): %w", v.Id, err)
+	}
+	if err := unmarshalJSONB(audienceRulesBytes, &v.Audience.Rules); err != nil {
+		return nil, fmt.Errorf("scanVersion audience_rules (version %s): %w", v.Id, err)
+	}
+
 	if createdBy != nil {
 		v.CreatedBy = *createdBy
 	}

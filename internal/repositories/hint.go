@@ -6,14 +6,16 @@ import (
 	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
 )
 
 type HintRepository struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zerolog.Logger
 }
 
-func NewHintRepository(pool *pgxpool.Pool) *HintRepository {
-	return &HintRepository{pool: pool}
+func NewHintRepository(pool *pgxpool.Pool, logger *zerolog.Logger) *HintRepository {
+	return &HintRepository{pool: pool, logger: logger}
 }
 
 const hintColumns = `id, tour_version_id, step, title, content, selector, placement,
@@ -83,6 +85,13 @@ func (hr *HintRepository) Delete(ctx context.Context, versionId, id uuid.UUID) e
 		return wrap(err, domains.ErrHintNotFound, id.String(), domains.Delete)
 	}
 	defer tx.Rollback(ctx)
+
+	// Пересчёт шагов сдвигает хвост на -1, а порядок обработки строк в UPDATE не
+	// определён: без отложенной проверки уникальный (tour_version_id, step) может
+	// сорваться на промежуточном состоянии.
+	if _, err := tx.Exec(ctx, `SET CONSTRAINTS ALL DEFERRED`); err != nil {
+		return wrap(err, domains.ErrHintNotFound, versionId.String(), domains.Update)
+	}
 
 	var step int
 	err = tx.QueryRow(ctx,
