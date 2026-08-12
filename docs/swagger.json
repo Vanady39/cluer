@@ -144,19 +144,45 @@
         },
         "/listings": {
             "get": {
-                "description": "Returns every available listing",
+                "description": "Returns listings, optionally filtering by title or description",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Listings"
                 ],
-                "summary": "Get all listings",
+                "summary": "List and search listings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive text search (up to 200 characters)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Result limit (1-50, default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Result offset (0-100000, default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models_response.GetListingsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Vanady39_cluer_internal_models.HTTPError"
                         }
                     },
                     "500": {

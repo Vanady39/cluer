@@ -38,11 +38,6 @@ func main() {
 	defer cancel()
 
 	dsn := cfg.PostgresConfig.GetDSN()
-
-	if err := storage.Migrate(dsn, defaultLogger); err != nil {
-		defaultLogger.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Migrations failed")
-	}
-
 	pool, err := storage.Connect(ctx, dsn, defaultLogger)
 	if err != nil {
 		defaultLogger.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Database connection failed")

@@ -85,9 +85,6 @@ CREATE TABLE hints (
   content           TEXT        NOT NULL,
   selector          TEXT        NOT NULL DEFAULT '',
   placement         TEXT        NOT NULL,
-  -- Пусто — подсказка живёт на той же странице, где стартовал тур, то есть
-  -- наследует target_path версии. Иначе абсолютный путь: относительный
-  -- никогда не совпадёт с location.pathname.
   page_path         TEXT        NOT NULL DEFAULT '',
   media_url         TEXT        NOT NULL DEFAULT '',
   spotlight         BOOLEAN     NOT NULL DEFAULT false,
@@ -213,3 +210,13 @@ CREATE TABLE reports (
 );
 
 CREATE INDEX reports_tour_created_idx ON reports (tour_id, created_at DESC);
+
+
+CREATE TABLE listings (
+  id          BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title       TEXT        NOT NULL,
+  description TEXT        NOT NULL DEFAULT '',
+  price       BIGINT      NOT NULL CHECK (price >= 0),
+  image_url   TEXT        NOT NULL DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

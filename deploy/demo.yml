@@ -1,6 +1,13 @@
 server:
   address: 0.0.0.0:8080
 
+postgres:
+  address: postgres:5432
+  user: cluer
+  password: cluer_local_dev
+  dbname: cluer
+  sslmode: disable
+
 logger:
   default:
     level: info

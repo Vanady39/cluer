@@ -8,12 +8,14 @@ import (
 )
 
 type listingRepositoryStub struct {
-	listings []Listing
-	err      error
+	page   ListingPage
+	err    error
+	filter ListingFilter
 }
 
-func (s listingRepositoryStub) GetListings(context.Context) ([]Listing, error) {
-	return s.listings, s.err
+func (s *listingRepositoryStub) GetListings(_ context.Context, filter ListingFilter) (ListingPage, error) {
+	s.filter = filter
+	return s.page, s.err
 }
 
 func TestListingServiceGetListings(t *testing.T) {
@@ -26,24 +28,53 @@ func TestListingServiceGetListings(t *testing.T) {
 			ImageURL:    "https://example.com/iphone.png",
 		},
 	}
-	service := NewListingDomain(listingRepositoryStub{listings: expected})
+	repo := &listingRepositoryStub{page: ListingPage{Listings: expected}}
+	service := NewListingDomain(repo)
+	filter := ListingFilter{Query: "iphone", Limit: 5, Offset: 2}
 
-	actual, err := service.GetListings(context.Background())
+	actual, err := service.GetListings(context.Background(), filter)
 	if err != nil {
 		t.Fatalf("GetListings() returned an unexpected error: %v", err)
 	}
 
-	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("GetListings() = %#v, want %#v", actual, expected)
+	if !reflect.DeepEqual(actual.Listings, expected) || len(actual.Listings) != 1 {
+		t.Fatalf("GetListings() = %#v, want listings %#v", actual, expected)
+	}
+	if !reflect.DeepEqual(repo.filter, filter) {
+		t.Fatalf("repository filter = %#v, want %#v", repo.filter, filter)
 	}
 }
 
 func TestListingServiceGetListingsReturnsRepositoryError(t *testing.T) {
 	expectedErr := errors.New("repository error")
-	service := NewListingDomain(listingRepositoryStub{err: expectedErr})
+	service := NewListingDomain(&listingRepositoryStub{err: expectedErr})
 
-	_, err := service.GetListings(context.Background())
+	_, err := service.GetListings(context.Background(), ListingFilter{Limit: 20})
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("GetListings() error = %v, want %v", err, expectedErr)
+	}
+}
+
+func TestListingDomainNormalizesRepositoryFilter(t *testing.T) {
+	repo := &listingRepositoryStub{}
+	service := NewListingDomain(repo)
+
+	_, err := service.GetListings(context.Background(), ListingFilter{Query: "iphone", Offset: -1})
+	if err != nil {
+		t.Fatalf("GetListings() returned an unexpected error: %v", err)
+	}
+
+	want := ListingFilter{Query: "iphone", Limit: DefaultListingsLimit, Offset: 0}
+	if !reflect.DeepEqual(repo.filter, want) {
+		t.Fatalf("repository filter = %#v, want %#v", repo.filter, want)
+	}
+
+	_, err = service.GetListings(context.Background(), ListingFilter{Limit: MaxListingsLimit + 1, Offset: MaxListingsOffset + 1})
+	if err != nil {
+		t.Fatalf("GetListings() returned an unexpected error: %v", err)
+	}
+	want = ListingFilter{Limit: MaxListingsLimit, Offset: MaxListingsOffset}
+	if !reflect.DeepEqual(repo.filter, want) {
+		t.Fatalf("repository filter = %#v, want %#v", repo.filter, want)
 	}
 }

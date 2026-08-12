@@ -15,11 +15,11 @@ type GetListingsResponse struct {
 }
 
 func NewGetListingsResponse(
-	domainListings []domains.Listing,
+	page domains.ListingPage,
 ) GetListingsResponse {
-	listings := make([]Listing, 0, len(domainListings))
+	listings := make([]Listing, 0, len(page.Listings))
 
-	for _, listing := range domainListings {
+	for _, listing := range page.Listings {
 		listings = append(listings, Listing{
 			ID:          listing.ID,
 			Title:       listing.Title,

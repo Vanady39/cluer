@@ -16,14 +16,26 @@ services:
     ports:
       - "5432:5432"
 
+  migrate:
+    build:
+      context: .
+      args:
+        SERVICE: migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./deploy/onboarding.yml:/run/secrets/cluer.yml:ro
+    restart: "no"
+
   onboarding:
     build:
       context: .
       args:
         SERVICE: onboarding
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./deploy/onboarding.yml:/run/secrets/cluer.yml:ro
     ports:
@@ -41,6 +53,9 @@ services:
       context: .
       args:
         SERVICE: demo
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./deploy/demo.yml:/run/secrets/cluer.yml:ro
     ports:

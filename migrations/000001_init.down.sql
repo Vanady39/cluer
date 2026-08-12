@@ -1,3 +1,6 @@
+DROP TABLE IF EXISTS listings;
+DROP TABLE IF EXISTS demo_seed_state;
+
 DROP TABLE IF EXISTS reports;
 DROP TABLE IF EXISTS tour_events;
 DROP TABLE IF EXISTS tour_progress;
