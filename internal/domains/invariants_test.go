@@ -498,3 +498,66 @@ func TestValidateEvent_AppLevelCustom(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestEvaluateOperator(t *testing.T) {
+	t.Run("eq со строками", func(t *testing.T) {
+		assert.True(t, evaluateOperator("eq", "hello", "hello"))
+		assert.False(t, evaluateOperator("eq", "hello", "world"))
+	})
+
+	t.Run("neq", func(t *testing.T) {
+		assert.True(t, evaluateOperator("neq", "a", "b"))
+		assert.False(t, evaluateOperator("neq", "a", "a"))
+	})
+
+	t.Run("числовые операторы", func(t *testing.T) {
+		assert.True(t, evaluateOperator("gt", 10, 5))
+		assert.True(t, evaluateOperator("gte", 10, 10))
+		assert.True(t, evaluateOperator("lt", 5, 10))
+		assert.True(t, evaluateOperator("lte", 10, 10))
+		assert.False(t, evaluateOperator("gt", 5, 10))
+	})
+
+	t.Run("строковые операторы", func(t *testing.T) {
+		assert.True(t, evaluateOperator("contains", "hello world", "world"))
+		assert.False(t, evaluateOperator("contains", "hello", "world"))
+		assert.True(t, evaluateOperator("starts_with", "hello", "hel"))
+		assert.True(t, evaluateOperator("ends_with", "hello", "llo"))
+	})
+
+	t.Run("nil значения", func(t *testing.T) {
+		assert.True(t, evaluateOperator("eq", nil, nil))
+		assert.True(t, evaluateOperator("neq", nil, "value"))
+		assert.True(t, evaluateOperator("neq", "value", nil))
+	})
+}
+
+func TestToFloat64(t *testing.T) {
+	t.Run("разные числовые типы", func(t *testing.T) {
+		v, ok := toFloat64(float64(3.14))
+		assert.True(t, ok)
+		assert.Equal(t, 3.14, v)
+
+		v, ok = toFloat64(42)
+		assert.True(t, ok)
+		assert.Equal(t, float64(42), v)
+
+		v, ok = toFloat64(int64(100))
+		assert.True(t, ok)
+		assert.Equal(t, float64(100), v)
+	})
+
+	t.Run("строка-число", func(t *testing.T) {
+		v, ok := toFloat64("3.14")
+		assert.True(t, ok)
+		assert.Equal(t, 3.14, v)
+	})
+
+	t.Run("не-число", func(t *testing.T) {
+		_, ok := toFloat64("hello")
+		assert.False(t, ok)
+
+		_, ok = toFloat64([]int{1, 2, 3})
+		assert.False(t, ok)
+	})
+}
