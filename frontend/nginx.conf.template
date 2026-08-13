@@ -22,6 +22,27 @@ server {
         proxy_read_timeout    60s;
     }
 
+    # API демо-классифайда. Отдельный префикс, потому что оба сервиса отдают
+    # свои ручки под /v1 и различить их можно только по пути снаружи.
+    #
+    # rewrite снимает /demo, а URI в proxy_pass собирается явно: как только в
+    # proxy_pass появляется переменная, nginx перестает подменять совпавшую
+    # часть пути сам и передает адрес как есть.
+    location /demo/v1/ {
+        rewrite ^/demo(/v1/.*)$ $1 break;
+        proxy_pass ${API_DEMO_UPSTREAM}$uri$is_args$args;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    60s;
+    }
+
     location /assets/ {
         add_header Cache-Control "public, max-age=31536000, immutable";
         try_files  $uri =404;

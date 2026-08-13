@@ -47,6 +47,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # one: unlike VITE_API_URL it is read by nginx, so it can be repointed without
 # rebuilding the image.
 ENV API_UPSTREAM=http://onboarding:8080
+# Demo service, reached under the /demo/v1 prefix. Named API_* so the envsubst
+# filter below picks it up.
+ENV API_DEMO_UPSTREAM=http://demo:8080
 # Restrict envsubst to API_* so nginx's own $variables in the template are left
 # alone.
 ENV NGINX_ENVSUBST_FILTER=API_

@@ -1,5 +1,6 @@
 import axios from "axios";
+import { API_DEMO_URL } from "../Config/env";
 
 export const demoApi = axios.create({
-  baseURL: "http://localhost:8081/v1",
+  baseURL: API_DEMO_URL,
 });
