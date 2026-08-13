@@ -4,12 +4,13 @@ import { Hint } from "./Hint";
 
 interface Props {
   tour: Tour;
+  appKey: string;
   onClose: () => void;
   isPreview?: boolean;
 }
 
-export function TourRunner({ tour, onClose, isPreview = false }: Props) {
-  const { step, element, hint, hints, isHintPage, next, skip, hasHint } = useTourRunner(tour, isPreview, onClose);
+export function TourRunner({ tour, appKey, onClose, isPreview = false }: Props) {
+  const { step, element, hint, hints, isHintPage, next, skip, hasHint } = useTourRunner(tour, appKey, isPreview, onClose);
 
   if (!hint || !isHintPage) return null;
   if (hint.placement !== "center" && !element) return null;

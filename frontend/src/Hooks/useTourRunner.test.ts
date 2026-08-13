@@ -1,7 +1,6 @@
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTourRunner } from "./useTourRunner";
-import { getCurrentApp } from "../Api/Helpers/Helpers";
 import { sendOnboardingEvents } from "../Components/Onboarding/events";
 import type { Tour } from "../types/tour";
 
@@ -15,13 +14,11 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
 }));
 
-vi.mock("../Api/Helpers/Helpers", () => ({
-  getCurrentApp: vi.fn(),
-}));
-
 vi.mock("../Components/Onboarding/events", () => ({
   sendOnboardingEvents: vi.fn(),
 }));
+
+const TEST_APP_KEY = "test-key";
 
 const tour: Tour = {
   id: "tour-1",
@@ -64,12 +61,7 @@ const tour: Tour = {
 describe("useTourRunner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getCurrentApp).mockResolvedValue({
-      id: "app-1",
-      name: "Test app",
-      public_key: "test-key",
-      allowed_origins: [],
-    });
+
     vi.mocked(sendOnboardingEvents).mockResolvedValue({
       accepted: 1,
       duplicates: 0,
@@ -85,7 +77,10 @@ describe("useTourRunner", () => {
   it("пропускает шаг, если DOM-элемент не найден", async () => {
     const onClose = vi.fn();
 
-    const { result } = renderHook(() => useTourRunner(tour, false, onClose));
+    const { result } = renderHook(() =>
+      useTourRunner(tour, TEST_APP_KEY, false, onClose),
+    );
+
     await waitFor(() => {
       expect(result.current.step).toBe(1);
     });
@@ -112,7 +107,6 @@ describe("useTourRunner", () => {
       ]),
     );
 
-    // Один проблемный шаг не должен закрывать весь onboarding
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.hint?.id).toBe("hint-2");
   });
@@ -132,7 +126,7 @@ describe("useTourRunner", () => {
     };
 
     const { result } = renderHook(() =>
-      useTourRunner(tourWithBrokenSelector, false, onClose),
+      useTourRunner(tourWithBrokenSelector, TEST_APP_KEY, false, onClose),
     );
 
     await waitFor(() => {

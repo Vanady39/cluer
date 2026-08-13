@@ -3,16 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLoadTour } from "./useLoadTour";
 import { useManualStart } from "./useManualStart";
 import { resolveTour } from "../Components/Onboarding/client";
-import { getCurrentApp } from "../Api/Helpers/Helpers";
 import type { TriggerConfig, TriggerType } from "../types/tour";
 
 vi.mock("../Components/Onboarding/client", () => ({
   resolveTour: vi.fn(),
 }));
 
-vi.mock("../Api/Helpers/Helpers", () => ({
-  getCurrentApp: vi.fn(),
-}));
+const TEST_APP_KEY = "test-key";
 
 function createTour(triggerType: TriggerType, triggerConfig?: TriggerConfig) {
   return {
@@ -38,12 +35,6 @@ function createTour(triggerType: TriggerType, triggerConfig?: TriggerConfig) {
 describe("триггеры onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getCurrentApp).mockResolvedValue({
-      id: "app-1",
-      name: "Test app",
-      public_key: "test-key",
-      allowed_origins: [],
-    });
   });
 
   afterEach(() => {
@@ -56,7 +47,8 @@ describe("триггеры onboarding", () => {
     vi.mocked(resolveTour).mockResolvedValue(createTour("on_load"));
 
     const setIsOpen = vi.fn();
-    renderHook(() => useLoadTour(false, null, false, setIsOpen));
+
+    renderHook(() => useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen));
 
     await waitFor(() => {
       expect(setIsOpen).toHaveBeenCalledWith(true);
@@ -67,13 +59,15 @@ describe("триггеры onboarding", () => {
     vi.mocked(resolveTour).mockResolvedValue(createTour("manual"));
 
     const setIsOpen = vi.fn();
+
     const { result } = renderHook(() =>
-      useLoadTour(false, null, false, setIsOpen),
+      useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen),
     );
 
     await waitFor(() => {
       expect(result.current.tour).not.toBeNull();
     });
+
     expect(setIsOpen).not.toHaveBeenCalledWith(true);
   });
 
@@ -83,19 +77,61 @@ describe("триггеры onboarding", () => {
     const setIsOpen = vi.fn();
 
     const { result } = renderHook(() => {
-      const loadedTour = useLoadTour(false, null, false, setIsOpen);
+      const loadedTour = useLoadTour(
+        TEST_APP_KEY,
+        false,
+        null,
+        false,
+        setIsOpen,
+      );
+
       useManualStart(loadedTour.tour, false, setIsOpen);
+
       return loadedTour;
     });
 
     await waitFor(() => {
       expect(result.current.tour).not.toBeNull();
     });
+
     expect(setIsOpen).not.toHaveBeenCalledWith(true);
 
     act(() => {
       window.dispatchEvent(new Event("start-onboarding"));
     });
+
+    expect(setIsOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("manual запускается через window.startOnboarding()", async () => {
+    vi.mocked(resolveTour).mockResolvedValue(createTour("manual"));
+
+    const setIsOpen = vi.fn();
+
+    const { result } = renderHook(() => {
+      const loadedTour = useLoadTour(
+        TEST_APP_KEY,
+        false,
+        null,
+        false,
+        setIsOpen,
+      );
+
+      useManualStart(loadedTour.tour, false, setIsOpen);
+
+      return loadedTour;
+    });
+
+    await waitFor(() => {
+      expect(result.current.tour).not.toBeNull();
+    });
+
+    expect(typeof window.startOnboarding).toBe("function");
+
+    act(() => {
+      window.startOnboarding?.();
+    });
+
     expect(setIsOpen).toHaveBeenCalledWith(true);
   });
 
@@ -103,13 +139,15 @@ describe("триггеры onboarding", () => {
     vi.mocked(resolveTour).mockResolvedValue(createTour("exit_intent"));
 
     const setIsOpen = vi.fn();
+
     const { result } = renderHook(() =>
-      useLoadTour(false, null, false, setIsOpen),
+      useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen),
     );
 
     await waitFor(() => {
       expect(result.current.tour).not.toBeNull();
     });
+
     expect(setIsOpen).not.toHaveBeenCalledWith(true);
 
     act(() => {
@@ -119,11 +157,13 @@ describe("триггеры onboarding", () => {
         }),
       );
     });
+
     expect(setIsOpen).toHaveBeenCalledWith(true);
   });
 
   it("delay запускает onboarding через заданное время", async () => {
     vi.useFakeTimers();
+
     vi.mocked(resolveTour).mockResolvedValue(
       createTour("delay", {
         delay_ms: 1000,
@@ -131,11 +171,11 @@ describe("триггеры onboarding", () => {
     );
 
     const setIsOpen = vi.fn();
+
     const { result } = renderHook(() =>
-      useLoadTour(false, null, false, setIsOpen),
+      useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen),
     );
 
-    // Завершаем асинхронную загрузку тура, не двигая виртуальный таймер
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -143,16 +183,19 @@ describe("триггеры onboarding", () => {
     });
 
     expect(result.current.tour).not.toBeNull();
+
     setIsOpen.mockClear();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(999);
     });
+
     expect(setIsOpen).not.toHaveBeenCalledWith(true);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
+
     expect(setIsOpen).toHaveBeenCalledWith(true);
   });
 });

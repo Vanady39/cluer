@@ -5,9 +5,13 @@ import type { EventToSend, PreviewState } from "../types";
 import { sendOnboardingEvents } from "../Components/Onboarding/events";
 import { SELECTOR_MISSING_TIMEOUT } from "../Utils/constants";
 import { API_URL } from "../Config/env";
-import { getCurrentApp } from "../Api/Helpers/Helpers";
 
-export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => void) {
+export function useTourRunner(
+  tour: Tour,
+  appKey: string,
+  isPreview: boolean,
+  onClose: () => void,
+) {
   const navigate = useNavigate();
   const location = useLocation();
   const advancingRef = useRef(false);
@@ -48,12 +52,18 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
   const sendEvents = useCallback(
     async (events: EventToSend[]) => {
       if (isPreview || !tour.version_id) return;
-      const app = await getCurrentApp();
-      const appKey = app.public_key;
+
+      if (!appKey) {
+        console.error("[Onboarding] appKey is not configured");
+        return;
+      }
 
       try {
         await sendOnboardingEvents(
-          { apiUrl: API_URL, appKey },
+          {
+            apiUrl: API_URL,
+            appKey,
+          },
           events.map((event) => ({
             type: event.type,
             tourId: tour.id,
@@ -66,7 +76,7 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
         console.error("[Onboarding] event error", error);
       }
     },
-    [isPreview, tour],
+    [appKey, isPreview, tour],
   );
 
   const skipCurrentStep = useCallback(
@@ -106,7 +116,10 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
         setElement(null);
         setStep(nextStep);
 
-        if (nextPage && normalizePath(nextPage) !== normalizePath(location.pathname)) {
+        if (
+          nextPage &&
+          normalizePath(nextPage) !== normalizePath(location.pathname)
+        ) {
           navigate(
             {
               pathname: nextPage,
@@ -126,7 +139,19 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
         advancingRef.current = false;
       }
     },
-    [hint, step, hints, tour.id, tour.target_path, location.pathname, location.search, isPreview, navigate, sendEvents, onClose],
+    [
+      hint,
+      step,
+      hints,
+      tour.id,
+      tour.target_path,
+      location.pathname,
+      location.search,
+      isPreview,
+      navigate,
+      sendEvents,
+      onClose,
+    ],
   );
 
   useEffect(() => {
@@ -185,7 +210,9 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
 
     if (!hint.wait_for_selector) {
       try {
-        const target = document.querySelector(hint.selector) as HTMLElement | null;
+        const target = document.querySelector(
+          hint.selector,
+        ) as HTMLElement | null;
         if (!target) {
           reportMissing("element_not_found");
           return;
@@ -200,7 +227,9 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
 
     const findElement = () => {
       try {
-        const target = document.querySelector(hint.selector!) as HTMLElement | null;
+        const target = document.querySelector(
+          hint.selector!,
+        ) as HTMLElement | null;
         if (!target) return false;
         setElement(target);
         return true;
@@ -258,7 +287,10 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
       setElement(null);
       setStep(nextStep);
 
-      if (nextPage && normalizePath(nextPage) !== normalizePath(location.pathname)) {
+      if (
+        nextPage &&
+        normalizePath(nextPage) !== normalizePath(location.pathname)
+      ) {
         navigate(
           {
             pathname: nextPage,
@@ -316,6 +348,8 @@ export function useTourRunner(tour: Tour, isPreview: boolean, onClose: () => voi
     isHintPage,
     next: () => void goToNextStep(),
     skip,
-    hasHint: !!hint && (!hint.placement || hint.placement !== "center" ? !!element : true),
+    hasHint:
+      !!hint &&
+      (!hint.placement || hint.placement !== "center" ? !!element : true),
   };
 }

@@ -13,6 +13,8 @@ import { OnboardingProvider } from "../Components/Onboarding/OnboardingProvider"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OidcCallback } from "../Auth/OidcCallback";
 import { RequireAuth } from "../Auth/RequireAuth";
+import { AccessDenied } from "../Auth/AccessDenied";
+import { CLUER_APP_KEY } from "../Config/env";
 
 function App() {
   return (
@@ -21,6 +23,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/callback" element={<OidcCallback />} />
+            <Route path="/admin/access-denied" element={<AccessDenied />} />
             <Route path="/" element={<WrappPages />}>
               <Route index element={<Home />} />
               <Route path="/profile" element={<Profile />} />
@@ -46,7 +49,7 @@ function WrappPages() {
   return (
     <>
       <Header />
-      <OnboardingProvider />
+      <OnboardingProvider appKey={CLUER_APP_KEY}/>
       <Outlet />
     </>
   );

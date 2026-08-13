@@ -1,25 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { resolveTour } from "../Components/Onboarding/client";
-import { getCurrentApp } from "../Api/Helpers/Helpers";
 import { API_URL } from "../Config/env";
 import type { ResolvePayload, Tour } from "../types";
 import { onboardingAPI } from "../Api/onboarding";
 
 export function useLoadTour(
+  appKey: string,
   isPreview: boolean,
   previewTourId: string | null,
   isBuilder: boolean,
   setIsOpen: (open: boolean) => void,
 ) {
   const [tour, setTour] = useState<Tour | null>(null);
-  const [appKey, setAppKey] = useState<string | null>(null);
 
   const loadRuntimeTour = useCallback(async (): Promise<Tour | null> => {
-    const app = await getCurrentApp();
-    setAppKey(app.public_key);
+    if (!appKey) {
+      throw new Error("[Onboarding] appKey is not configured");
+    }
+
     const response = await resolveTour({
       apiUrl: API_URL,
-      appKey: app.public_key,
+      appKey,
       props: { isNewUser: true },
     });
 
@@ -29,7 +30,10 @@ export function useLoadTour(
     const source = raw.tour ?? raw;
     const tourId = source.id ?? raw.tour_id;
 
-    if (!tourId) throw new Error("Resolve response does not contain tour id");
+    if (!tourId) {
+      throw new Error("Resolve response does not contain tour id");
+    }
+
     return {
       id: tourId,
       title: source.title ?? "",
@@ -47,7 +51,7 @@ export function useLoadTour(
       current_hint_id: raw.current_hint_id ?? source.current_hint_id,
       version_id: raw.tour_version_id ?? source.version_id,
     };
-  }, []);
+  }, [appKey]);
 
   const loadPreviewTour = useCallback(
     async (tourId: string | null): Promise<Tour | null> => {
@@ -232,5 +236,5 @@ export function useLoadTour(
     };
   }, [isBuilder, isPreview, previewTourId, loadTour, setIsOpen]);
 
-  return { tour, appKey, loadTour };
+  return { tour, loadTour };
 }

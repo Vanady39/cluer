@@ -6,31 +6,12 @@ export const listingsAPI = {
     demoApi
       .get<{ data: Listing[] }>("/listings", {
         params: {
-          ...(q?.trim() ? { q: q.trim() } : {}),
+          ...(q?.trim()
+            ? { q: Array.from(q.trim()).slice(0, 200).join("") }
+            : {}),
           limit,
           offset,
         },
       })
-      .then((res) => res.data.data),
-
-  getById: (id: number) =>
-    demoApi
-      .get<{ data: Listing }>(`/listings/${id}`)
-      .then((res) => res.data.data),
-
-  create: (data: Omit<Listing, "id">) =>
-    demoApi
-      .post<{ data: Listing }>("/listings", data)
-      .then((res) => res.data.data),
-
-  update: (id: number, data: Partial<Omit<Listing, "id">>) =>
-    demoApi
-      .put<{ data: Listing }>(`/listings/${id}`, data)
-      .then((res) => res.data.data),
-
-  delete: (id: number) =>
-    demoApi
-      .delete<{ data: null }>(`/listings/${id}`)
-      .then((res) => res.data.data),
+      .then((res) => res.data.data)
 };
-

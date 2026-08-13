@@ -5,14 +5,17 @@ import { useLoadTour } from "../../Hooks/useLoadTour";
 import { useOnboardingGoals } from "../../Hooks/useOnboardingGoals";
 import { useManualStart } from "../../Hooks/useManualStart";
 
-export function OnboardingProvider() {
+interface Props {
+  appKey: string;
+}
+
+export function OnboardingProvider({ appKey } : Props) {
   const [isOpen, setIsOpen] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const isPreview = params.get("preview") === "true";
   const isBuilder = params.get("builder") === "true";
   const previewTourId = params.get("tourId");
-
-  const { tour, appKey } = useLoadTour(isPreview, previewTourId, isBuilder, setIsOpen);
+  const { tour } = useLoadTour(appKey, isPreview, previewTourId, isBuilder, setIsOpen);
 
   useOnboardingGoals(tour, appKey, isPreview, isBuilder);
   useManualStart(tour, isBuilder, setIsOpen);
@@ -39,6 +42,7 @@ export function OnboardingProvider() {
   return (
     <TourRunner
       tour={tour}
+      appKey={appKey}
       isPreview={isPreview}
       onClose={() => setIsOpen(false)}
     />

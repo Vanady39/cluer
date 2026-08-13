@@ -21,11 +21,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 403) return Promise.reject(error);
-    if (error.response?.status !== 401 || !originalRequest) return Promise.reject(error);
+    if (error.response?.status === 403) {
+      if (window.location.pathname !== "/admin/access-denied") window.location.replace("/admin/access-denied");
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status !== 401 || !originalRequest)
+      return Promise.reject(error);
 
     if (retriedRequests.has(originalRequest)) return Promise.reject(error);
-
     retriedRequests.add(originalRequest);
 
     try {
@@ -34,7 +38,6 @@ api.interceptors.response.use(
 
       originalRequest.headers.Authorization = `Bearer ${user.id_token}`;
       return api.request(originalRequest);
-
     } catch (renewError) {
       await userManager.signinRedirect({
         state: {

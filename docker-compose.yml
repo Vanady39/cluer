@@ -83,6 +83,7 @@ services:
       args:
         VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
         VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-cluer-admin}
+        VITE_CLUER_APP_KEY: ${VITE_CLUER_APP_KEY}
     environment:
       # nginx forwards /v1 here, so the browser only ever talks to the frontend
       # origin. A runtime value: the same image works against another API

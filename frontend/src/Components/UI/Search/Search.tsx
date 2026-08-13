@@ -37,7 +37,12 @@ function SearchBarComponent() {
           type="text"
           placeholder="Поиск..."
           value={localSearch}
-          onChange={(event) => setLocalSearch(event.target.value)}
+          maxLength={200}
+          onChange={(event) =>
+            setLocalSearch(
+              Array.from(event.target.value).slice(0, 200).join(""),
+            )
+          }
           onKeyDown={handleKeyDown}
           className={styles.search__input}
         />
