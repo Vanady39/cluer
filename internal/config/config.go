@@ -24,7 +24,7 @@ type (
 	Config struct {
 		ServerConfig   *ServerConfig   `mapstructure:"server" validate:"required"`
 		PostgresConfig *PostgresConfig `mapstructure:"postgres" validate:"omitempty"`
-		AuthConfig     *AuthConfig     `mapstructure:"auth" validate:"omitempty"`
+		OIDCConfig     *OIDCConfig     `mapstructure:"oidc" validate:"omitempty"`
 		Logger         LoggerConfig    `mapstructure:"logger" validate:"omitempty"`
 	}
 
@@ -42,11 +42,35 @@ type (
 		SSLMode  string `mapstructure:"sslmode" validate:"omitempty,oneof=disable allow prefer require verify-ca verify-full"`
 	}
 
-	// Admin authentication. Not read by anything yet: user auth is deferred and
-	// the API runs as a single mocked user. Kept so that enabling it later is a
-	// config value and a middleware line rather than a new plumbing pass.
-	AuthConfig struct {
-		AdminToken string `mapstructure:"admin_token" validate:"omitempty,min=16"`
+	// OIDC authentication. No users are created in the database: identity and
+	// roles are read from the token's claims on every request, and
+	// admin_groups lists the IdP groups any one of which grants access to the
+	// whole admin API.
+	//
+	// The section is optional at this level on purpose: cmd/migrate reads the
+	// very same config and has no use for it. Each service that does need it
+	// checks for nil itself, the same way it does for postgres — a `required`
+	// here would take cmd/migrate down with it.
+	OIDCConfig struct {
+		// Issuer must match the token's `iss` byte for byte, trailing slash
+		// included; Authentik publishes it as
+		// https://<host>/application/o/<slug>/.
+		Issuer string `mapstructure:"issuer" validate:"required,url"`
+		// ClientID is checked against the token's `aud` by the verifier.
+		ClientID string `mapstructure:"client_id" validate:"required"`
+		// Only the onboarding service reads this list; the demo storefront
+		// authenticates without it, because there every logged-in visitor is a
+		// user and no group decides anything. Hence omitempty rather than
+		// required: demanding it would force the demo's config to carry an
+		// admin setting it ignores, which reads as if groups gated the
+		// storefront too.
+		//
+		// If present it must be a non-empty list of non-empty names: an empty
+		// string inside would otherwise mean "anyone carrying a blank group is
+		// an admin". If absent, the admin API admits nobody — the failure is
+		// closed, but it is not loud, so the onboarding config must keep this
+		// list filled in.
+		AdminGroups []string `mapstructure:"admin_groups" validate:"omitempty,min=1,dive,required"`
 	}
 
 	LoggerConfig struct {

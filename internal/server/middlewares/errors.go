@@ -6,9 +6,13 @@ import (
 	"github.com/Vanady39/cluer/internal/models"
 )
 
-var errUnauthorized = errors.New("missing or invalid admin credentials")
-
-var ErrEmptyAdminToken = errors.New("admin token must not be empty")
+var (
+	errMissingAuthHeader   = errors.New("missing Authorization header")
+	errMalformedAuthHeader = errors.New("malformed Authorization header")
+	errInvalidToken        = errors.New("invalid or expired id token")
+	errBrokenAuthContext   = errors.New("oidc claims are unreadable")
+	errInsufficientGroups  = errors.New("insufficient permissions")
+)
 
 // Authorization error
 type (

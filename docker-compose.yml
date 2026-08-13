@@ -38,6 +38,16 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./deploy/onboarding.yml:/run/secrets/cluer.yml:ro
+    environment:
+      # Overrides the placeholder in deploy/onboarding.yml, which is committed
+      # and therefore cannot name a real provider. The default points at the
+      # Authentik in this file through the alias both sides resolve — see the
+      # comment on authentik-server. Export CLUER_OIDC_ISSUER to aim elsewhere.
+      #
+      # The service will not start until this issuer answers: create the
+      # application in Authentik first (docs/frontend-auth.md).
+      CLUER_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
+      CLUER_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
     ports:
       - "8080:8080"
     healthcheck:
@@ -58,6 +68,11 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./deploy/demo.yml:/run/secrets/cluer.yml:ro
+    environment:
+      # Same provider and the same client as the admin service: the frontend is
+      # one application holding one token, and both services have to accept it.
+      CLUER_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
+      CLUER_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
     ports:
       - "8081:8080"
     restart: unless-stopped
@@ -83,5 +98,99 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  authentik-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASS:?set AUTHENTIK_PG_PASS in .env}
+      POSTGRES_DB: authentik
+    volumes:
+      - authentik-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik -d authentik"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  authentik-redis:
+    image: redis:alpine
+    command: --save 60 1 --loglevel warning
+    volumes:
+      - authentik-redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.2.4}
+    command: server
+    environment: &authentik-env
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?set AUTHENTIK_SECRET_KEY in .env}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS:?set AUTHENTIK_PG_PASS in .env}
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      # This is a development identity provider on someone's laptop; it has no
+      # business reporting errors or usage anywhere.
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+      AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - authentik-certs:/certs
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    networks:
+      default:
+        aliases:
+          - auth.localhost
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ak", "healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    restart: unless-stopped
+
+  # The worker runs migrations and background jobs. Without it the server comes
+  # up but the database is never migrated, and the setup flow 500s.
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.2.4}
+    command: worker
+    environment: *authentik-env
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - authentik-certs:/certs
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ak", "healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  authentik-pgdata:
+  authentik-redis:
+  authentik-media:
+  authentik-templates:
+  authentik-certs:

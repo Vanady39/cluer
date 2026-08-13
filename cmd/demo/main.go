@@ -14,11 +14,17 @@ import (
 	"github.com/Vanady39/cluer/internal/repositories"
 	"github.com/Vanady39/cluer/internal/server"
 	"github.com/Vanady39/cluer/internal/storage"
+	"github.com/coreos/go-oidc/v3/oidc"
 )
 
 //	@title			Cluer Demo Site
 //	@version		0.1.0
 //	@description	Sample classifieds app the onboarding platform is demonstrated on.
+
+//	@securityDefinitions.apikey	Bearer
+//	@in							header
+//	@name						Authorization
+//	@description				OIDC id token: "Bearer <id_token>".
 
 // @host		localhost:8081
 // @BasePath	/v1
@@ -31,6 +37,27 @@ func main() {
 	if cfg.PostgresConfig == nil {
 		defaultLogger.Fatal().Msg("postgres config is required for the demo service")
 	}
+
+	if cfg.OIDCConfig == nil {
+		defaultLogger.Fatal().Msg("oidc config is required for the demo service")
+	}
+
+	// Same reasoning as in the onboarding service: discovery is a synchronous
+	// network call and there is no verifier without it, so /users/me could only
+	// ever answer 401. Refusing to start says that out loud instead of serving
+	// a storefront where nobody can be logged in. Only the verifier is built
+	// from the config: admin_groups belongs to the admin API and is never read
+	// here, because on the storefront every authenticated visitor is a user.
+	//
+	// context.Background() and not a timed one on purpose: the provider keeps
+	// this context to refresh the JWKS for the life of the process, and a
+	// cancelled one would break key rotation long after a successful start.
+	provider, err := oidc.NewProvider(context.Background(), cfg.OIDCConfig.Issuer)
+	if err != nil {
+		defaultLogger.Fatal().Err(err).Str("issuer", cfg.OIDCConfig.Issuer).
+			Msg("Failed to initialize OIDC provider")
+	}
+	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.OIDCConfig.ClientID})
 
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), time.Minute)
 	defer startupCancel()
@@ -47,13 +74,13 @@ func main() {
 	}
 
 	listingDomain := domains.NewListingDomain(repositories.NewListingRepository(pool))
-	userDomain := domains.NewUserDomain(repositories.NewUserRepository())
 
 	srvLogger := logger.New(cfg.GetLoggerConfig("server").Level)
 	srv := server.NewDemoServer(cfg.ServerConfig, &server.DemoCreateStruct{
 		Logger:            srvLogger,
+		OIDCVerifier:      verifier,
 		ListingController: controllers.NewListingController(listingDomain),
-		UserController:    controllers.NewUserController(userDomain),
+		UserController:    controllers.NewUserController(),
 	})
 
 	go func() {

@@ -8,11 +8,18 @@ postgres:
   dbname: cluer
   sslmode: disable
 
-# User authentication is deferred; nothing reads this yet. Left in place so the
-# shape is ready. In any real deployment the token comes from a secret, not from
-# a file in the repository.
-# auth:
-#   admin_token: dev-admin-token-change-me
+# Authentication of the admin API. These are placeholders: this file is in the
+# repository, so the real values belong in a mounted secret or an override that
+# .gitignore keeps out. The service fetches the discovery document at boot and
+# will not start until the issuer answers.
+#
+# issuer must be copied from Authentik verbatim, trailing slash included, and
+# every name under admin_groups must reach the token as a `groups` claim.
+oidc:
+  issuer: https://auth.example.com/application/o/cluer/
+  client_id: cluer-admin
+  admin_groups:
+    - cluer-admins
 
 logger:
   default:

@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"crypto/subtle"
 	"net/http"
 	"slices"
 	"strings"
@@ -14,31 +13,6 @@ const (
 	ContextApp   = "app"
 	ContextAppId = "app_id"
 )
-
-func AdminAuth(token string) (gin.HandlerFunc, error) {
-	if strings.TrimSpace(token) == "" {
-		return nil, ErrEmptyAdminToken
-	}
-
-	expected := []byte(token)
-
-	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		presented, ok := strings.CutPrefix(header, "Bearer ")
-		presented = strings.TrimSpace(presented)
-
-		if !ok || presented == "" || subtle.ConstantTimeCompare([]byte(presented), expected) != 1 {
-			c.Error(&AuthHeaderError{
-				Code: http.StatusUnauthorized,
-				msg:  "Valid admin bearer token required",
-				Err:  errUnauthorized,
-			})
-			c.Abort()
-			return
-		}
-		c.Next()
-	}, nil
-}
 
 func AppKeyAuth(runtime domains.RuntimeDomainInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
