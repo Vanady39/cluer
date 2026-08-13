@@ -20,7 +20,7 @@ services:
     build:
       context: .
       args:
-        SERVICE: migrate
+        SERVICE_PATH: ./cmd/migrate
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,7 +32,7 @@ services:
     build:
       context: .
       args:
-        SERVICE: onboarding
+        SERVICE_PATH: ./onboarding/cmd
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -62,7 +62,7 @@ services:
     build:
       context: .
       args:
-        SERVICE: demo
+        SERVICE_PATH: ./demo/cmd
     depends_on:
       migrate:
         condition: service_completed_successfully

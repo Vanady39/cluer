@@ -79,38 +79,51 @@ Runtime (для SDK):
 
 ```
 cluer/
-├── cmd/                          # Entry points приложений
-│   ├── onboarding/              # Backend API (Go)
-│   │   └── main.go             # Запуск REST API сервера на порту 8080
-│   └── demo/                    # Demo API классифайда (объявления, пользователи)
-│       └── main.go             # Отдельный сервис на порту 8081
+├── onboarding/                   # Сервис онбординга (подключаемый продукт)
+│   ├── cmd/main.go              # Запуск REST API сервера на порту 8080
+│   ├── docs/                    # Swagger-спецификация онбординга
+│   └── internal/                # Виден только внутри onboarding/ — правило Go
+│       ├── domains/             # Доменные модели и инварианты, без json-тегов
+│       │   ├── tour.go          # Логика сценариев (Tour), версионирование
+│       │   ├── hint.go          # Логика подсказок (Hint)
+│       │   └── runtime.go       # Resolve сценария, прием событий, аналитика
+│       ├── repositories/        # Data access layer
+│       │   ├── tour.go          # Работа с tours и tour_versions
+│       │   ├── hint.go          # Работа с hints
+│       │   ├── runtime.go       # События, прогресс, агрегаты
+│       │   └── jsonb.go         # Формат колонок trigger_config и audience_rules
+│       ├── controllers/         # HTTP обработчики
+│       │   ├── tour.go          # CRUD туров, версии, публикация, откат
+│       │   ├── hint.go          # CRUD подсказок и их порядок
+│       │   ├── runtime.go       # /resolve, /events, /analytics, /apps
+│       │   └── me.go            # Ручка «кто я» для администратора
+│       ├── http/                # Контракт API: то, что реально уходит на провод
+│       │   ├── request/         # Тела запросов + ToDomain
+│       │   └── response/        # Тела ответов + мапперы из домена
+│       ├── middlewares/         # AppKeyAuth: зависит от рантайм-домена
+│       └── server/              # Роутинг onboarding API
 │
-├── internal/                     # Backend бизнес-логика
-│   ├── domains/                 # Доменные модели и инварианты
-│   │   ├── tour.go             # Логика сценариев (Tour), версионирование
-│   │   ├── hint.go             # Логика подсказок (Hint)
-│   │   ├── runtime.go          # Resolve сценария, прием событий, аналитика
-│   │   └── listing.go          # Модель объявления (для демо)
-│   ├── controllers/             # HTTP обработчики
-│   │   ├── tour.go             # CRUD туров, версии, публикация, откат
-│   │   ├── hint.go             # CRUD подсказок и их порядок
-│   │   ├── runtime.go          # /resolve, /events, /analytics, /apps
-│   │   ├── listing.go          # Ручки демо-классифайда
-│   │   └── user.go             # Ручки «кто я»: посетитель витрины и администратор
-│   ├── repositories/           # Data access layer
-│   │   ├── tour.go             # Работа с tours и tour_versions
-│   │   ├── hint.go             # Работа с hints
-│   │   └── runtime.go          # События, прогресс, агрегаты
-│   ├── storage/                # Database operations
-│   │   └── postgres.go         # PostgreSQL клиент и запуск миграций
-│   ├── server/                 # HTTP сервер конфигурация
-│   │   ├── server.go           # Роутинг onboarding API
-│   │   ├── demo.go             # Роутинг демо-сервиса
-│   │   └── middlewares/        # CORS, app-key auth, обработка ошибок
-│   ├── models/                 # DTO (request/response)
-│   │   └── response/
-│   ├── config/                 # Конфигурация из YAML и env
-│   └── logger/                 # Логирование
+├── demo/                         # Демо-классифайд, на котором показывают онбординг
+│   ├── cmd/main.go              # Отдельный сервис на порту 8081
+│   ├── docs/                    # Swagger-спецификация демо
+│   └── internal/
+│       ├── domains/             # Модель объявления
+│       ├── repositories/        # Выборка объявлений
+│       ├── controllers/         # Ручки классифайда и «кто я» для посетителя
+│       ├── http/response/       # Тела ответов демо
+│       ├── seed/                # Наполнение локальной БД объявлениями
+│       └── server/              # Роутинг демо-сервиса
+│
+├── platform/                     # Общая инфраструктура обоих сервисов
+│   ├── config/                  # Конфигурация из YAML и env
+│   ├── logger/                  # Логирование
+│   ├── pg/                      # PostgreSQL клиент и запуск миграций
+│   ├── oidcauth/                # OIDC claims и их перенос через контекст
+│   ├── errs/                    # Ошибки с HTTP-представлением, общий словарь
+│   ├── middlewares/             # OIDC, CORS, обработка ошибок
+│   └── serve/                   # Запуск и остановка HTTP-сервера
+│
+├── cmd/migrate/                  # Накат миграций отдельным бинарём
 │
 ├── frontend/                     # Admin Panel + тестовый классифайд (React)
 │   ├── src/
@@ -143,13 +156,11 @@ cluer/
 │   ├── 000001_init.down.sql     # Откат
 │   └── embed.go                 # Встраивание миграций в бинарь
 │
-├── docs/                         # Сгенерированная Swagger-спецификация
-│
 ├── deploy/                       # Конфиги сервисов для Docker Compose
 ├── .github/workflows/ci.yml      # CI: линтеры, сборка, тесты
 ├── .golangci.yaml                # Конфигурация линтера Go
 ├── docker-compose.yml            # Docker Compose (db + backend + demo + frontend)
-├── Dockerfile                    # Backend образ
+├── Dockerfile                    # Backend образ (SERVICE_PATH выбирает бинарь)
 ├── go.mod / go.sum              # Go dependencies
 └── README.md
 
@@ -158,10 +169,12 @@ cluer/
 ### Ключевые компоненты
 
 **Backend (Go + PostgreSQL)**
-- `cmd/onboarding/main.go` — точка входа API сервера
-- `internal/domains/` — бизнес-логика (tour versioning, validation)
-- `internal/controllers/` — HTTP endpoints
-- `internal/repositories/` — работа с БД
+- `onboarding/cmd/main.go` — точка входа API сервера
+- `onboarding/internal/domains/` — бизнес-логика (tour versioning, validation)
+- `onboarding/internal/controllers/` — HTTP endpoints
+- `onboarding/internal/http/{request,response}/` — контракт API, отдельный от домена
+- `onboarding/internal/repositories/` — работа с БД
+- `platform/` — то, что делят оба сервиса: конфиг, логгер, пул БД, OIDC, ошибки
 - `migrations/` — SQL схема и триггеры для гарантий иммутабельности
 
 **Frontend Admin (React)**
@@ -183,9 +196,10 @@ cluer/
 
 ## Тесты
 Юнит-тесты закрывают участки, где ошибка стоит дороже всего — инварианты домена и разбор HTTP-запросов. Запуск: go test ./..., БД для них не нужна.
-- `internal/domains/` — инварианты версионирования, сущности туров, подсказок, пользователей и объявлений
-- `internal/controllers/` — обработчики запросов и коды ошибок
-- `internal/server/middlewares/` — проверка app-key и CORS
+- `onboarding/internal/domains/` — инварианты версионирования, сущности туров и подсказок
+- `onboarding/internal/repositories/` — формат JSONB-колонок, закреплённый отдельно от домена
+- `demo/internal/domains/`, `demo/internal/controllers/` — объявления и обработчики витрины
+- `platform/errs/`, `platform/middlewares/` — коды ошибок и проверка Authorization
 
 ## Линтеры
 Оба линтера запускаются в CI (.github/workflows/ci.yml) вместе со сборкой и тестами.

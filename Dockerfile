@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
 
-# Which binary to build. Both services live in one module and share the domain
+# Which binary to build. Both services live in one module and share the platform
 # packages, so one Dockerfile with an argument beats two that drift apart.
-ARG SERVICE=onboarding
+#
+# A path rather than a name: the services own their subtree (onboarding/cmd,
+# demo/cmd) while the migrator stays at the module root, so there is no single
+# prefix that would cover all three.
+ARG SERVICE_PATH=./onboarding/cmd
 
 # ---------------------------------------------------------------- build
 FROM golang:1.26-alpine AS build
@@ -16,12 +20,12 @@ RUN go mod download
 
 COPY . .
 
-ARG SERVICE
+ARG SERVICE_PATH
 # CGO off gives a static binary, which is what makes the scratch-like runtime
 # stage below possible.
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w" \
-    -o /out/service ./cmd/${SERVICE}
+    -o /out/service ${SERVICE_PATH}
 
 # ---------------------------------------------------------------- runtime
 FROM alpine:3.22

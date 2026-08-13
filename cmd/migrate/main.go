@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/Vanady39/cluer/internal/config"
-	"github.com/Vanady39/cluer/internal/logger"
-	"github.com/Vanady39/cluer/internal/storage"
+	"github.com/Vanady39/cluer/platform/config"
+	"github.com/Vanady39/cluer/platform/logger"
+	"github.com/Vanady39/cluer/platform/pg"
 )
 
 func main() {
@@ -21,13 +21,13 @@ func main() {
 	defer cancel()
 
 	dsn := cfg.PostgresConfig.GetDSN()
-	pool, err := storage.Connect(ctx, dsn, log)
+	pool, err := pg.Connect(ctx, dsn, log)
 	if err != nil {
 		log.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Database connection failed")
 	}
 	pool.Close()
 
-	if err := storage.Migrate(dsn, log); err != nil {
+	if err := pg.Migrate(dsn, log); err != nil {
 		log.Fatal().Err(err).Str("dsn", cfg.PostgresConfig.SafeDSN()).Msg("Migrations failed")
 	}
 }
