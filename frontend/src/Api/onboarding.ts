@@ -21,6 +21,11 @@ export const onboardingAPI = {
       .get<App[]>("/apps")
       .then((res) => res.data),
       
+  createApp: (data: { name: string; allowed_origins: string[] }) =>
+  api
+    .post<App>("/apps", data)
+    .then((res) => res.data),
+      
   getTours: (appId: string) =>
     api
       .get<TourListItem[]>("/tours", {

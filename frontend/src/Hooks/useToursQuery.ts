@@ -6,10 +6,11 @@ import { getCurrentApp } from "../Api/Helpers/Helpers";
 export function useToursQuery() {
   return useQuery({
     queryKey: ["tours"],
-    queryFn: async () => {
-      const app = await getCurrentApp();
-      const tours = await onboardingAPI.getTours(app.id);
 
+    queryFn: async () => {
+      const app =  await getCurrentApp ();
+
+      const tours = await onboardingAPI.getTours(app.id);
       const enrichedTours = await Promise.all(
         tours.map(async (tour: TourListItem) => {
           try {
@@ -23,6 +24,7 @@ export function useToursQuery() {
             };
           } catch (error: unknown) {
             console.error(`Failed to load tour ${tour.id}`, error);
+
             return {
               ...tour,
               draft: null,
@@ -34,7 +36,6 @@ export function useToursQuery() {
           }
         }),
       );
-
       return enrichedTours;
     },
   });

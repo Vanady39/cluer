@@ -80,6 +80,9 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-cluer-admin}
     environment:
       # nginx forwards /v1 here, so the browser only ever talks to the frontend
       # origin. A runtime value: the same image works against another API
@@ -91,7 +94,7 @@ services:
     ports:
       - "5173:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 5

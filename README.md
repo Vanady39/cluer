@@ -16,8 +16,8 @@ Cluer - это централизованная платформа для соз
    git clone https://github.com/Vanady39/cluer.git && cd cluer
 2) docker compose up -d --build
 3) Что поднимается и на каких портах:
-   - http://localhost:3000 — тестовый сайт классифайда (он же точка входа SDK)
-   - http://localhost:3000/admin/scenarios — админка онбординга
+   - http://localhost:5173 — тестовый сайт классифайда (он же точка входа SDK)
+   - http://localhost:5173/admin/scenarios — админка онбординга
    - http://localhost:8080/v1 — API онбординга, проверка живости GET /v1/health
    - http://localhost:8081/v1 — API демо-классифайда (объявления, профиль)
    - localhost:5432 — PostgreSQL (cluer / cluer_local_dev)

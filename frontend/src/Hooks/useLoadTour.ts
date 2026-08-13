@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { resolveTour } from "../Components/Onboarding/client";
 import { getCurrentApp } from "../Api/Helpers/Helpers";
 import { API_URL } from "../Config/env";
-import type { PreviewTourCard, ResolvePayload, Tour } from "../types";
+import type { ResolvePayload, Tour } from "../types";
+import { onboardingAPI } from "../Api/onboarding";
 
 export function useLoadTour(
   isPreview: boolean,
@@ -52,11 +53,7 @@ export function useLoadTour(
     async (tourId: string | null): Promise<Tour | null> => {
       if (!tourId) return null;
 
-      const response = await fetch(`${API_URL}/tours/${tourId}`);
-      if (!response.ok)
-        throw new Error(`Preview request failed: ${response.status}`);
-
-      const card = (await response.json()) as PreviewTourCard;
+      const card = await onboardingAPI.getTour(tourId);
       const source = card.draft ?? card.published;
 
       if (!source) {
@@ -66,20 +63,21 @@ export function useLoadTour(
         return null;
       }
 
-      const hints = [...(source.hints ?? [])].sort((a, b) => a.step - b.step);
+      const hints = [...(card.hints ?? [])].sort((a, b) => a.step - b.step);
       return {
-        id: card.tour.id,
-        title: card.tour.title ?? "",
-        description: card.tour.description ?? "",
-        target_path: source.target_path ?? "/",
-        priority: card.tour.priority ?? 0,
-        trigger_type: source.trigger_type ?? "on_load",
-        trigger_config: source.trigger_config,
-        audience: source.audience ?? {
-          show_once: false,
-          max_shows: 0,
-          only_new: false,
-        },
+        id: card.id,
+        title: card.title ?? "",
+        description: card.description ?? "",
+        target_path: source.target_path ?? card.target_path ?? "/",
+        priority: card.priority ?? 0,
+        trigger_type: source.trigger_type ?? card.trigger_type ?? "on_load",
+        trigger_config: source.trigger_config ?? card.trigger_config,
+        audience: source.audience ??
+          card.audience ?? {
+            show_once: false,
+            max_shows: 0,
+            only_new: false,
+          },
         hints,
         current_hint_id: hints[0]?.id,
         version_id: source.id,
@@ -153,7 +151,9 @@ export function useLoadTour(
 
             const handleScroll = () => {
               const currentDepth =
-                ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100;
+                ((window.scrollY + window.innerHeight) /
+                  document.documentElement.scrollHeight) *
+                100;
 
               if (currentDepth >= requiredDepth) {
                 startTour();

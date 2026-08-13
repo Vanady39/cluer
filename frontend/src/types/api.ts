@@ -100,9 +100,11 @@ export interface Listing {
 }
 
 export interface User {
-  id: number;
+  subject: string;
+  email: string;
   name: string;
-  avatarUrl?: string;
+  username: string;
+  avatarUrl: string;
 }
 
 export interface ListingsQuery {

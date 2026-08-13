@@ -26,7 +26,12 @@ COPY . .
 # API address stays in nginx's hands (API_UPSTREAM below). Override this only to
 # build a bundle that bypasses the proxy and calls an API elsewhere.
 ARG VITE_API_URL=/v1
+ARG VITE_OIDC_ISSUER=http://auth.localhost:9000/application/o/cluer/
+ARG VITE_OIDC_CLIENT_ID=cluer-admin
+
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_OIDC_ISSUER=${VITE_OIDC_ISSUER}
+ENV VITE_OIDC_CLIENT_ID=${VITE_OIDC_CLIENT_ID}
 
 
 RUN npm run build

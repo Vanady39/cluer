@@ -28,7 +28,6 @@ function createTour(triggerType: TriggerType, triggerConfig?: TriggerConfig) {
       show_once: false,
       max_shows: 0,
       only_new: false,
-      rules: []
     },
 
     hints: [],

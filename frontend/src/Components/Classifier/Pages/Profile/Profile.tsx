@@ -7,7 +7,6 @@ import styles from "./Styles.module.scss";
 
 function ProfileComponent() {
   const [avatarError, setAvatarError] = useState(false);
-
   const {
     data: user,
     isLoading,
@@ -40,21 +39,17 @@ function ProfileComponent() {
       <div className={styles.profile__card}>
         <div className={styles.profile__avatar}>
           {user.avatarUrl && !avatarError ? (
-            <img
-              src={user.avatarUrl}
-              alt=""
-              onError={() => setAvatarError(true)}
-            />
-          ) : (
-            <Icon size={40} />
-          )}
+            <img src={user.avatarUrl} onError={() => setAvatarError(true)} />
+          ) : (<Icon size={40} />)}
         </div>
 
         <div className={styles.profile__info}>
-          <h1 className={styles.profile__name}>{user.name}</h1>
+          <h1 className={styles.profile__name}>
+            {user.name || user.username || user.email || "Пользователь"}
+          </h1>
           <div className={styles.profile__field}>
             <span>ID пользователя</span>
-            <strong>{user.id}</strong>
+            <strong>{user.subject}</strong>
           </div>
         </div>
       </div>

@@ -11,10 +11,7 @@ interface ScenarioMainFieldsProps {
   errors: FieldErrors<InferType<typeof scenarioSchema>>;
 }
 
-function ScenarioMainFieldsComponent({
-  control,
-  errors,
-}: ScenarioMainFieldsProps) {
+function ScenarioMainFieldsComponent({control, errors}: ScenarioMainFieldsProps) {
   const triggerType = useWatch({
     control,
     name: "trigger_type",
@@ -23,19 +20,13 @@ function ScenarioMainFieldsComponent({
   return (
     <section className={styles.card}>
       <h2>Основная информация</h2>
-
       <Controller
         name="title"
         control={control}
         render={({ field }) => (
           <>
             <label className={styles.card__label}>Название сценария</label>
-
-            <Input
-              {...field}
-              placeholder="Например: Первое объявление"
-              error={errors.title?.message}
-            />
+            <Input {...field} placeholder="Например: Первое объявление" error={errors.title?.message} />
           </>
         )}
       />
@@ -46,17 +37,10 @@ function ScenarioMainFieldsComponent({
         render={({ field }) => (
           <>
             <label className={styles.card__label}>Описание</label>
-
-            <textarea
-              {...field}
-              className={styles.card__textarea}
-              placeholder="Зачем нужен этот сценарий"
-            />
+            <textarea {...field} className={styles.card__textarea} placeholder="Зачем нужен этот сценарий" />
 
             {errors.description?.message && (
-              <span className={styles.card__error}>
-                {errors.description.message}
-              </span>
+              <span className={styles.card__error}>{errors.description.message}</span>
             )}
           </>
         )}
@@ -68,28 +52,19 @@ function ScenarioMainFieldsComponent({
           control={control}
           render={({ field }) => (
             <>
-              <label className={styles.card__settingsGroup__label}>
-                Тип запуска
-              </label>
+              <label className={styles.card__settingsGroup__label}>Тип запуска</label>
 
               <select {...field} className={styles.card__settingsGroup__select}>
                 <option value="on_load">При загрузке</option>
-
                 <option value="delay">С задержкой</option>
-
                 <option value="exit_intent">При выходе</option>
-
                 <option value="manual">Вручную</option>
-
                 <option value="scroll_depth">По глубине прокрутки</option>
-
                 <option value="inactivity">При бездействии</option>
               </select>
 
               {errors.trigger_type?.message && (
-                <span className={styles.card__settingsGroup__error}>
-                  {errors.trigger_type.message}
-                </span>
+                <span className={styles.card__settingsGroup__error}>{errors.trigger_type.message}</span>
               )}
             </>
           )}
@@ -101,19 +76,13 @@ function ScenarioMainFieldsComponent({
             control={control}
             render={({ field }) => (
               <>
-                <label className={styles.card__label}>
-                  Задержка перед показом, мс
-                </label>
-
+                <label className={styles.card__label}>Задержка перед показом, мс</label>
                 <Input
                   className={styles.card__numberInput}
                   value={field.value === undefined ? "" : String(field.value)}
                   onChange={(value) => {
                     const stringValue = String(value);
-
-                    field.onChange(
-                      stringValue === "" ? undefined : Number(stringValue),
-                    );
+                    field.onChange(stringValue === "" ? undefined : Number(stringValue),);
                   }}
                   error={errors.trigger_config?.delay_ms?.message}
                 />
@@ -128,19 +97,13 @@ function ScenarioMainFieldsComponent({
             control={control}
             render={({ field }) => (
               <>
-                <label className={styles.card__label}>
-                  Глубина прокрутки, %
-                </label>
-
+                <label className={styles.card__label}>Глубина прокрутки, %</label>
                 <Input
                   className={styles.card__numberInput}
                   value={field.value === undefined ? "" : String(field.value)}
                   onChange={(value) => {
                     const stringValue = String(value);
-
-                    field.onChange(
-                      stringValue === "" ? undefined : Number(stringValue),
-                    );
+                    field.onChange(stringValue === "" ? undefined : Number(stringValue),);
                   }}
                   error={errors.trigger_config?.scroll_depth?.message}
                 />
@@ -155,19 +118,13 @@ function ScenarioMainFieldsComponent({
             control={control}
             render={({ field }) => (
               <>
-                <label className={styles.card__label}>
-                  Время бездействия, сек.
-                </label>
-
+                <label className={styles.card__label}>Время бездействия, сек.</label>
                 <Input
                   className={styles.card__numberInput}
                   value={field.value === undefined ? "" : String(field.value)}
                   onChange={(value) => {
                     const stringValue = String(value);
-
-                    field.onChange(
-                      stringValue === "" ? undefined : Number(stringValue),
-                    );
+                    field.onChange(stringValue === "" ? undefined : Number(stringValue),);
                   }}
                   error={errors.trigger_config?.inactivity_secs?.message}
                 />
@@ -211,19 +168,13 @@ function ScenarioMainFieldsComponent({
           control={control}
           render={({ field }) => (
             <>
-              <label className={styles.card__label}>
-                Максимальное количество показов
-              </label>
-
+              <label className={styles.card__label}>Максимальное количество показов</label>
               <Input
                 className={styles.card__numberInput}
                 value={field.value === undefined ? "" : String(field.value)}
                 onChange={(value) => {
                   const stringValue = String(value);
-
-                  field.onChange(
-                    stringValue === "" ? undefined : Number(stringValue),
-                  );
+                  field.onChange(stringValue === "" ? undefined : Number(stringValue),);
                 }}
                 error={errors.audience?.max_shows?.message}
               />

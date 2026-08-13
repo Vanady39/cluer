@@ -11,6 +11,8 @@ import { Scenarios } from "../Components/Admin/Pages/Scenarios";
 import { AddScenarios } from "../Components/Admin/Pages/AddScenarios/AddScenarios";
 import { OnboardingProvider } from "../Components/Onboarding/OnboardingProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { OidcCallback } from "../Auth/OidcCallback";
+import { RequireAuth } from "../Auth/RequireAuth";
 
 function App() {
   return (
@@ -18,13 +20,17 @@ function App() {
       <QueryClientProvider client={new QueryClient()}>
         <BrowserRouter>
           <Routes>
+            <Route path="/callback" element={<OidcCallback />} />
             <Route path="/" element={<WrappPages />}>
               <Route index element={<Home />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/addItem" element={<AddItem />} />
             </Route>
 
-            <Route path="/admin" element={<Admin />}>
+            <Route path="/admin" element={
+              <RequireAuth>
+                <Admin />
+              </RequireAuth>}>
               <Route path="scenarios" element={<Scenarios />} />
               <Route path="scenarios/create" element={<AddScenarios />} />
               <Route path="analytics" element={<Analytics />} />
