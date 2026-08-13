@@ -10,7 +10,6 @@ vi.mock("react-router-dom", () => ({
     search: "",
     state: null,
   }),
-
   useNavigate: () => vi.fn(),
 }));
 
@@ -19,7 +18,6 @@ vi.mock("../Components/Onboarding/events", () => ({
 }));
 
 const TEST_APP_KEY = "test-key";
-
 const tour: Tour = {
   id: "tour-1",
   title: "Тестовый сценарий",
@@ -28,7 +26,6 @@ const tour: Tour = {
   priority: 0,
   trigger_type: "on_load",
   version_id: "version-1",
-
   audience: {
     show_once: false,
     max_shows: 0,
@@ -61,7 +58,6 @@ const tour: Tour = {
 describe("useTourRunner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
     vi.mocked(sendOnboardingEvents).mockResolvedValue({
       accepted: 1,
       duplicates: 0,
@@ -76,7 +72,6 @@ describe("useTourRunner", () => {
 
   it("пропускает шаг, если DOM-элемент не найден", async () => {
     const onClose = vi.fn();
-
     const { result } = renderHook(() =>
       useTourRunner(tour, TEST_APP_KEY, false, onClose),
     );
@@ -113,7 +108,6 @@ describe("useTourRunner", () => {
 
   it("продолжает onboarding при некорректном селекторе", async () => {
     const onClose = vi.fn();
-
     const tourWithBrokenSelector: Tour = {
       ...tour,
       hints: [
@@ -157,5 +151,40 @@ describe("useTourRunner", () => {
 
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.hint?.id).toBe("hint-2");
+  });
+
+  it("передаёт appKey при отправке событий", async () => {
+    const onClose = vi.fn();
+    renderHook(() => useTourRunner(tour, "test-key", false, onClose));
+
+    await waitFor(() => {
+      expect(sendOnboardingEvents).toHaveBeenCalled();
+    });
+
+    expect(sendOnboardingEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appKey: "test-key",
+      }),
+      expect.any(Array),
+    );
+  });
+
+  it("отправляет tour_started при запуске", async () => {
+    const onClose = vi.fn();
+    renderHook(() => useTourRunner(tour, "test-key", false, onClose));
+
+    await waitFor(() => {
+      const events = vi
+        .mocked(sendOnboardingEvents)
+        .mock.calls.flatMap((call) => call[1]);
+
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "tour_started",
+          }),
+        ]),
+      );
+    });
   });
 });
