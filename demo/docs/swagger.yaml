@@ -1,0 +1,117 @@
+basePath: /v1
+definitions:
+  errs.HTTPError:
+    properties:
+      error:
+        description: Shorthand error
+        type: string
+      message:
+        description: Pretty error message
+        type: string
+    type: object
+  response.GetCurrentUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/response.User'
+    type: object
+  response.GetListingsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/response.Listing'
+        type: array
+    type: object
+  response.Listing:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      imageUrl:
+        type: string
+      price:
+        type: integer
+      title:
+        type: string
+    type: object
+  response.User:
+    properties:
+      avatarUrl:
+        type: string
+      email:
+        type: string
+      name:
+        type: string
+      subject:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: Sample classifieds app the onboarding platform is demonstrated on.
+  title: Cluer Demo Site
+  version: 0.1.0
+paths:
+  /listings:
+    get:
+      description: Returns listings, optionally filtering by title or description
+      parameters:
+      - description: Case-insensitive text search (up to 200 characters)
+        in: query
+        name: q
+        type: string
+      - description: Result limit (1-50, default 20)
+        in: query
+        name: limit
+        type: integer
+      - description: Result offset (0-100000, default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.GetListingsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.HTTPError'
+      summary: List and search listings
+      tags:
+      - Listings
+  /users/me:
+    get:
+      description: 'Returns the identity behind the presented id token: subject and
+        profile fields. Any authenticated visitor qualifies, no group is required.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.GetCurrentUserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.HTTPError'
+      security:
+      - Bearer: []
+      summary: Get the current user
+      tags:
+      - Users
+securityDefinitions:
+  Bearer:
+    description: 'OIDC id token: "Bearer <id_token>".'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
