@@ -14,8 +14,6 @@ const (
 	ConfigType        = "yml"
 	DefaultConfigPath = "/run/secrets"
 	DefaultConfigName = "cluer"
-	EnvConfigPath     = "CONFIG_PATH"
-	EnvConfigName     = "CONFIG_NAME"
 	EnvPrefix         = "cluer"
 )
 
@@ -98,11 +96,6 @@ func Load() *Config {
 	yaml_config.AutomaticEnv()
 	yaml_config.SetEnvPrefix(EnvPrefix)
 	yaml_config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// if err := yaml_config.ReadInConfig(); err != nil {
-	// 	log.Fatal().Err(err).Msg("Failed to read config")
-	// 	return nil
-	// }
 
 	log.Debug().Any("path", yaml_config.GetString(("config.path"))).Msg("")
 	log.Debug().Any("name", yaml_config.GetString(("config.name"))).Msg("")
