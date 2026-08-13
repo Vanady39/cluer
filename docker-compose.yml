@@ -25,7 +25,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./deploy/onboarding.yml:/run/secrets/cluer.yml:ro
+      - ./deploy/cluer.yml:/run/secrets/cluer.yml:ro
     restart: "no"
 
   onboarding:
@@ -37,15 +37,8 @@ services:
       migrate:
         condition: service_completed_successfully
     volumes:
-      - ./deploy/onboarding.yml:/run/secrets/cluer.yml:ro
+      - ./deploy/cluer.yml:/run/secrets/cluer.yml:ro
     environment:
-      # Overrides the placeholder in deploy/onboarding.yml, which is committed
-      # and therefore cannot name a real provider. The default points at the
-      # Authentik in this file through the alias both sides resolve — see the
-      # comment on authentik-server. Export CLUER_OIDC_ISSUER to aim elsewhere.
-      #
-      # The service will not start until this issuer answers: create the
-      # application in Authentik first (docs/frontend-auth.md).
       CLUER_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
       CLUER_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
     ports:
@@ -67,10 +60,8 @@ services:
       migrate:
         condition: service_completed_successfully
     volumes:
-      - ./deploy/demo.yml:/run/secrets/cluer.yml:ro
+      - ./deploy/cluer.yml:/run/secrets/cluer.yml:ro
     environment:
-      # Same provider and the same client as the admin service: the frontend is
-      # one application holding one token, and both services have to accept it.
       CLUER_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
       CLUER_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
     ports:
@@ -85,9 +76,6 @@ services:
         VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-cluer-admin}
         VITE_CLUER_APP_KEY: ${VITE_CLUER_APP_KEY}
     environment:
-      # nginx forwards /v1 here, so the browser only ever talks to the frontend
-      # origin. A runtime value: the same image works against another API
-      # without a rebuild.
       API_UPSTREAM: ${API_UPSTREAM:-http://onboarding:8080}
     depends_on:
       onboarding:
@@ -139,8 +127,6 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS:?set AUTHENTIK_PG_PASS in .env}
       AUTHENTIK_REDIS__HOST: authentik-redis
-      # This is a development identity provider on someone's laptop; it has no
-      # business reporting errors or usage anywhere.
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
       AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
@@ -148,6 +134,9 @@ services:
       - authentik-media:/media
       - authentik-templates:/templates
       - authentik-certs:/certs
+      # The same file the services read. Authentik takes the version/metadata/
+      # entries part and ignores the rest; the services do the opposite.
+      - ./deploy/cluer.yml:/blueprints/custom/cluer.yaml:ro
     ports:
       - "9000:9000"
       - "9443:9443"
@@ -168,8 +157,6 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # The worker runs migrations and background jobs. Without it the server comes
-  # up but the database is never migrated, and the setup flow 500s.
   authentik-worker:
     image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.2.4}
     command: worker
@@ -178,6 +165,9 @@ services:
       - authentik-media:/media
       - authentik-templates:/templates
       - authentik-certs:/certs
+      # The worker is what actually applies blueprints, so it needs the same
+      # mount as the server.
+      - ./deploy/cluer.yml:/blueprints/custom/cluer.yaml:ro
     depends_on:
       authentik-postgres:
         condition: service_healthy

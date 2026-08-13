@@ -25,13 +25,12 @@ go.work.sum
 .env
 
 # Configuration files
-# cluer.yml is the config the service actually reads (CLUER_CONFIG_NAME).
-# It carries the real issuer, database password and anything else that differs
-# per machine, so it stays out of the repository; deploy/*.yml and
-# sample_config.yml hold the committed placeholders instead.
-cluer.yml
-*.local.yml
-deploy/*.local.yml
+# deploy/cluer.yml is the one config the services actually read: compose mounts
+# it into every container as /run/secrets/cluer.yml. It carries the real issuer,
+# the database password and anything else that differs per machine, so it stays
+# out of the repository. sample_config.yml in the root is the committed template
+# it is copied from.
+deploy/cluer.yml
 
 # IDE metadata
 .[Vv][Ss][Cc]ode*

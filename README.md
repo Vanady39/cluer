@@ -14,8 +14,11 @@ Cluer - это централизованная платформа для соз
 Для запуска достаточно Docker и Docker Compose. Go (1.26+) и Node.js (22+) нужны только для разработки без контейнеров.
 1) Клонирование репозитория
    git clone https://github.com/Vanady39/cluer.git && cd cluer
-2) docker compose up -d --build
-3) Что поднимается и на каких портах:
+2) Создание конфигурации из шаблона
+   cp sample_config.yml deploy/cluer.yml
+   Файла нет в репозитории, и без него compose создаст на его месте каталог, а сервисы упадут на чтении конфига. Заполнить нужно пароль базы и секцию oidc.
+3) docker compose up -d --build
+4) Что поднимается и на каких портах:
    - http://localhost:5173 — тестовый сайт классифайда (он же точка входа SDK)
    - http://localhost:5173/admin/scenarios — админка онбординга
    - http://localhost:8080/v1 — API онбординга, проверка живости GET /v1/health
@@ -23,7 +26,11 @@ Cluer - это централизованная платформа для соз
    - localhost:5432 — PostgreSQL (cluer / cluer_local_dev)
 
 Миграции применяются автоматически при старте сервиса onboarding, отдельная команда не нужна.
-Конфигурация сервисов лежит в deploy/onboarding.yml и deploy/demo.yml и монтируется в контейнер как /run/secrets/cluer.yml. Переменные окружения с префиксом CLUER_ перекрывают значения из файла.
+Конфигурация одна на всё: deploy/cluer.yml. Файл не в репозитории — он копируется из sample_config.yml и несет реальные пароль базы и issuer. Его читают две системы, каждая берет свою часть и игнорирует чужую:
+- Go-сервисы (migrate, onboarding, demo) — секции server/postgres/oidc/logger, файл монтируется как /run/secrets/cluer.yml;
+- Authentik — секции version/metadata/entries, это blueprint. Монтируется в authentik-server и authentik-worker как /blueprints/custom/cluer.yaml и применяется автоматически при старте, так что группа cluer-admins, OAuth2-провайдер и приложение заводятся сами — руками в UI ничего создавать не нужно. Остается только завести администратора Authentik через /if/flow/initial-setup/.
+
+Переменные окружения с префиксом CLUER_ перекрывают значения из файла: точка в пути ключа становится подчеркиванием (postgres.address → CLUER_POSTGRES_ADDRESS).
 Swagger UI собирается только с тегом debug (go build -tags debug), в обычной сборке ручка /swagger отключена.
 
 ## Пользовательский путь и точки входа
@@ -156,7 +163,7 @@ cluer/
 │   ├── 000001_init.down.sql     # Откат
 │   └── embed.go                 # Встраивание миграций в бинарь
 │
-├── deploy/                       # Конфиги сервисов для Docker Compose
+├── deploy/                       # cluer.yml: конфиг сервисов и blueprint Authentik (вне репозитория)
 ├── .github/workflows/ci.yml      # CI: линтеры, сборка, тесты
 ├── .golangci.yaml                # Конфигурация линтера Go
 ├── docker-compose.yml            # Docker Compose (db + backend + demo + frontend)
@@ -222,7 +229,7 @@ Frontend — ESLint 10 (flat config, frontend/eslint.config.js): рекомен�
 - SDK загружает сценарий админской ручкой GET /v1/tours/published, а не рантаймовой POST /v1/resolve, поэтому проверка ключа приложения и allowed_origins на этом пути пока не работает.
 - Админские ручки закрыты OIDC: нужен заголовок `Authorization: Bearer <id_token>` и членство в одной из групп `oidc.admin_groups`. Роли живут в провайдере, таблицы пользователей у сервиса нет. Сервис не стартует, пока issuer не отвечает на discovery-запрос.
 - `tour_versions.created_by` пока не заполняется: колонка есть и читается, но кто создал версию — не записывается.
-- Демо-классифайд (порт 8081) аутентифицирует только GET /v1/users/me и тем же провайдером, что и админка, но без проверки групп. Лента объявлений остается публичной. Сервис не стартует, пока issuer не отвечает на discovery-запрос, поэтому в deploy/demo.yml тоже нужна секция oidc.
+- Демо-классифайд (порт 8081) аутентифицирует только GET /v1/users/me и тем же провайдером, что и админка, но без проверки групп. Лента объявлений остается публичной. Сервис не стартует, пока issuer не отвечает на discovery-запрос, поэтому секция oidc обязательна и для него. Ключ admin_groups в общем конфиге демо-сервис не читает.
 
 ## Распределение ответственности в команде:
 Frontend (React / Typescript)
