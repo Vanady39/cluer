@@ -5,11 +5,39 @@ import { Button } from "../../../UI/Button/Button";
 import { useCreateScenario } from "../../../../Hooks/useCreateScenario";
 import { ScenarioMainFields } from "./Components/ScenarioMainFields/ScenarioMainFields";
 import { ScenarioStep } from "./Components/ScenarioStep/ScenarioStep";
+import { DragDropProvider } from "@dnd-kit/react";
+import { isSortable } from "@dnd-kit/react/sortable";
 
 function AddScenariosComponent() {
   const navigate = useNavigate();
   const editId = new URLSearchParams(window.location.search).get("id");
-  const { createForm, saveDraft, onSubmit, addHint, removeHint, selectElement, isPending, errors } = useCreateScenario(editId);
+  const {
+    createForm,
+    saveDraft,
+    onSubmit,
+    addHint,
+    removeHint,
+    reorderHint,
+    selectElement,
+    isPending,
+    isTourLoading,
+    isTourLoadError,
+    tourLoadError,
+    errors,
+  } = useCreateScenario(editId);
+
+  const hints = createForm.watch("hints") ?? [];
+
+  if (editId && isTourLoading) return <div>Подготовка сценария к редактированию...</div>;
+
+  if (editId && isTourLoadError) {
+    return (
+      <div>
+        Не удалось подготовить сценарий к редактированию:{" "}
+        {tourLoadError instanceof Error ? tourLoadError.message : "Неизвестная ошибка"}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -33,16 +61,29 @@ function AddScenariosComponent() {
               <span className={styles.page__error}>{errors.hints.message}</span>
             )}
 
-            {createForm.watch("hints").map((hint, index) => (
-              <ScenarioStep
-                key={hint.id}
-                index={index}
-                control={createForm.control}
-                errors={createForm.formState.errors}
-                onRemove={removeHint}
-                onSelectElement={selectElement}
-              />
-            ))}
+            <DragDropProvider
+              onDragEnd={(event) => {
+                if (event.canceled) return;
+
+                const { source } = event.operation;
+                if (!isSortable(source)) return;
+
+                const { initialIndex, index } = source;
+                if (initialIndex !== index) reorderHint(initialIndex, index);
+              }}
+            >
+              {hints.map((hint, index) => (
+                <ScenarioStep
+                  key={hint.id}
+                  id={hint.id}
+                  index={index}
+                  control={createForm.control}
+                  errors={createForm.formState.errors}
+                  onRemove={removeHint}
+                  onSelectElement={selectElement}
+                />
+              ))}
+            </DragDropProvider>
 
             <div>
               <Button size="main" color="primary" onClick={addHint}>
@@ -58,7 +99,13 @@ function AddScenariosComponent() {
           <Button size="main" onClick={saveDraft} disabled={isPending}>
             {isPending ? "Сохранение..." : "Сохранить черновик"}
           </Button>
-          <Button type="submit" size="main" color="primary" className={styles.page__save} disabled={isPending}>
+          <Button
+            type="submit"
+            size="main"
+            color="primary"
+            className={styles.page__save}
+            disabled={isPending}
+          >
             {isPending ? "Сохранение..." : "Опубликовать"}
           </Button>
         </div>

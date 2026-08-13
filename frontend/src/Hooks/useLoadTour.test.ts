@@ -33,6 +33,7 @@ function createTour(triggerType: TriggerType, triggerConfig?: TriggerConfig) {
 describe("триггеры onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -178,7 +179,30 @@ describe("триггеры onboarding", () => {
     expect(setIsOpen).toHaveBeenCalledWith(true);
   });
 
-    it("scroll_depth запускается после достижения нужной глубины", async () => {
+  it("delay не запускается без delay_ms", async () => {
+    vi.useFakeTimers();
+    vi.mocked(resolveTour).mockResolvedValue(createTour("delay", {}));
+
+    const setIsOpen = vi.fn();
+    const { result } = renderHook(() =>
+      useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.tour).not.toBeNull();
+    setIsOpen.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(setIsOpen).not.toHaveBeenCalledWith(true);
+  });
+
+  it("scroll_depth запускается только после достижения нужной глубины", async () => {
     vi.mocked(resolveTour).mockResolvedValue(
       createTour("scroll_depth", {
         scroll_depth: 75,
@@ -186,7 +210,7 @@ describe("триггеры onboarding", () => {
     );
 
     Object.defineProperty(window, "scrollY", {
-      value: 1000,
+      value: 0,
       writable: true,
       configurable: true,
     });
@@ -210,8 +234,21 @@ describe("триггеры onboarding", () => {
     await waitFor(() => {
       expect(result.current.tour).not.toBeNull();
     });
+    setIsOpen.mockClear();
 
+    // 25%
     act(() => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(setIsOpen).not.toHaveBeenCalledWith(true);
+
+    // 75%
+    act(() => {
+      Object.defineProperty(window, "scrollY", {
+        value: 1000,
+        writable: true,
+        configurable: true,
+      });
       window.dispatchEvent(new Event("scroll"));
     });
     expect(setIsOpen).toHaveBeenCalledWith(true);
@@ -221,7 +258,7 @@ describe("триггеры onboarding", () => {
     vi.useFakeTimers();
     vi.mocked(resolveTour).mockResolvedValue(
       createTour("inactivity", {
-        inactivity_secs: 2,
+        inactivity_secs: 3,
       }),
     );
 
@@ -240,7 +277,7 @@ describe("триггеры onboarding", () => {
     setIsOpen.mockClear();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1999);
+      await vi.advanceTimersByTimeAsync(2999);
     });
     expect(setIsOpen).not.toHaveBeenCalledWith(true);
 
@@ -248,5 +285,85 @@ describe("триггеры onboarding", () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(setIsOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("inactivity сбрасывает таймер при активности пользователя", async () => {
+    vi.useFakeTimers();
+    vi.mocked(resolveTour).mockResolvedValue(
+      createTour("inactivity", {
+        inactivity_secs: 3,
+      }),
+    );
+
+    const setIsOpen = vi.fn();
+    const { result } = renderHook(() =>
+      useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.tour).not.toBeNull();
+    setIsOpen.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(setIsOpen).not.toHaveBeenCalledWith(true);
+
+    act(() => {
+      window.dispatchEvent(new Event("mousemove"));
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(setIsOpen).not.toHaveBeenCalledWith(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(setIsOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("передаёт isNewUser true для нового пользователя", async () => {
+    vi.mocked(resolveTour).mockResolvedValue(createTour("manual"));
+
+    const setIsOpen = vi.fn();
+    renderHook(() => useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen));
+
+    await waitFor(() => {
+      expect(resolveTour).toHaveBeenCalled();
+    });
+
+    expect(resolveTour).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: {
+          isNewUser: true,
+        },
+      }),
+    );
+  });
+
+  it("передаёт isNewUser false для существующего пользователя", async () => {
+    localStorage.setItem("onboarding_subject_id", "anon-test");
+    vi.mocked(resolveTour).mockResolvedValue(createTour("manual"));
+
+    const setIsOpen = vi.fn();
+    renderHook(() => useLoadTour(TEST_APP_KEY, false, null, false, setIsOpen));
+
+    await waitFor(() => {
+      expect(resolveTour).toHaveBeenCalled();
+    });
+
+    expect(resolveTour).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: {
+          isNewUser: false,
+        },
+      }),
+    );
   });
 });

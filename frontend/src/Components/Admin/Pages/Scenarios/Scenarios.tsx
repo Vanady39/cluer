@@ -15,8 +15,13 @@ import { ToggleSwitch } from "../../../UI/ToggleSwitch/ToggleSwitch";
 function ScenariosComponent() {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [updatingEnabledId, setUpdatingEnabledId] = useState<string | null>(null);
-  const [showVersions, setShowVersions] = useState<{ id: string; title: string } | null>(null);
+  const [updatingEnabledId, setUpdatingEnabledId] = useState<string | null>(
+    null,
+  );
+  const [showVersions, setShowVersions] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const { data: scenarios = [], isLoading, error, refetch } = useToursQuery();
   const deleteMutation = useDeleteTourMutation();
 
@@ -38,17 +43,8 @@ function ScenariosComponent() {
     }
   };
 
-  const handleEdit = async (id: string) => {
-    try {
-      const tour = await onboardingAPI.getTour(id);
-      if (tour.published && !tour.draft) {
-        await onboardingAPI.createDraft(id);
-      }
-      navigate(`/admin/scenarios/create?id=${id}`);
-    } catch (error) {
-      console.error("EDIT TOUR ERROR", error);
-      alert("Не удалось открыть сценарий");
-    }
+  const handleEdit = (id: string) => {
+    navigate(`/admin/scenarios/create?id=${id}`);
   };
 
   const handlePreview = async (tourId: string) => {
@@ -102,7 +98,9 @@ function ScenariosComponent() {
 
           return (
             <div className={styles.page__table__row} key={item.id}>
-              <span className={styles.page__table__row__name}>{item.title}</span>
+              <span className={styles.page__table__row__name}>
+                {item.title}
+              </span>
 
               <span>
                 <span
@@ -110,13 +108,17 @@ function ScenariosComponent() {
                     styles.page__table__row__status,
                     status.type === "published"
                       ? styles.page__table__row__status__success
-                      : styles.page__table__row__status__warning
+                      : styles.page__table__row__status__warning,
                   )}
                 />
                 {status.label}
               </span>
 
-              <span>{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "—"}</span>
+              <span>
+                {item.updated_at
+                  ? new Date(item.updated_at).toLocaleDateString()
+                  : "—"}
+              </span>
 
               <span>{item.hints?.length || 0}</span>
 
@@ -136,29 +138,41 @@ function ScenariosComponent() {
                   <Button
                     size="min"
                     className={styles.page__table__row__menuWrapper__more}
-                    onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
+                    onClick={() =>
+                      setOpenMenu(openMenu === item.id ? null : item.id)
+                    }
                   >
                     ⋮
                   </Button>
                   {openMenu === item.id && (
-                    <div className={styles.page__table__row__menuWrapper__dropdown}>
+                    <div
+                      className={styles.page__table__row__menuWrapper__dropdown}
+                    >
                       <button
                         type="button"
-                        className={styles.page__table__row__menuWrapper__dropdown__menuButton}
-                        onClick={() => setShowVersions({ id: item.id, title: item.title })}
+                        className={
+                          styles.page__table__row__menuWrapper__dropdown__menuButton
+                        }
+                        onClick={() =>
+                          setShowVersions({ id: item.id, title: item.title })
+                        }
                       >
                         История версий
                       </button>
                       <button
                         type="button"
-                        className={styles.page__table__row__menuWrapper__dropdown__menuButton}
+                        className={
+                          styles.page__table__row__menuWrapper__dropdown__menuButton
+                        }
                         onClick={() => handleEdit(item.id)}
                       >
                         Редактировать
                       </button>
                       <button
                         type="button"
-                        className={styles.page__table__row__menuWrapper__dropdown__deleteButton}
+                        className={
+                          styles.page__table__row__menuWrapper__dropdown__deleteButton
+                        }
                         onClick={() => handleDelete(item.id)}
                       >
                         Удалить

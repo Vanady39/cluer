@@ -6,6 +6,10 @@ function createId(prefix: string): string {
   return `${prefix}_${uuid}`;
 }
 
+export function hasSubjectId() {
+  return localStorage.getItem(SUBJECT_KEY) !== null;
+}
+
 export function getSubjectId(providedSubjectId?: string) {
   if (providedSubjectId) return providedSubjectId;
 

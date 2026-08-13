@@ -4,7 +4,7 @@ interface SearchState {
   search: string;
 }
 
-export const initialState: SearchState = {
+const initialState: SearchState = {
   search: "",
 };
 

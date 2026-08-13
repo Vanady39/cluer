@@ -3,6 +3,7 @@ import { resolveTour } from "../Components/Onboarding/client";
 import { API_URL } from "../Config/env";
 import type { ResolvePayload, Tour } from "../types";
 import { onboardingAPI } from "../Api/onboarding";
+import { getSubjectId, hasSubjectId } from "../Components/Onboarding/storage";
 
 export function useLoadTour(
   appKey: string,
@@ -14,14 +15,15 @@ export function useLoadTour(
   const [tour, setTour] = useState<Tour | null>(null);
 
   const loadRuntimeTour = useCallback(async (): Promise<Tour | null> => {
-    if (!appKey) {
-      throw new Error("[Onboarding] appKey is not configured");
-    }
+    if (!appKey) throw new Error("[Onboarding] appKey is not configured");
 
+    const isNewUser = !hasSubjectId();
+    const subjectId = getSubjectId();
     const response = await resolveTour({
       apiUrl: API_URL,
       appKey,
-      props: { isNewUser: true },
+      subjectId,
+      props: { isNewUser },
     });
 
     if (!response) return null;
@@ -122,10 +124,18 @@ export function useLoadTour(
             break;
 
           case "delay": {
-            const delay = resolvedTour.trigger_config?.delay_ms ?? 3000;
-            const timer = setTimeout(() => {
+            const delay = resolvedTour.trigger_config?.delay_ms;
+            if (delay === undefined) {
+              console.error(
+                "[Onboarding] delay trigger requires trigger_config.delay_ms",
+              );
+              break;
+            }
+
+            const timer = window.setTimeout(() => {
               startTour();
             }, delay);
+
             cleanupTrigger = () => {
               window.clearTimeout(timer);
             };
@@ -177,13 +187,30 @@ export function useLoadTour(
             const inactivitySecs = resolvedTour.trigger_config?.inactivity_secs;
             if (inactivitySecs === undefined) break;
 
-            let timer: number;
-            const resetTimer = () => {
-              window.clearTimeout(timer);
-              timer = window.setTimeout(startTour, inactivitySecs * 1000);
-            };
-
+            const inactivityMs = inactivitySecs * 1000;
+            let timer: number | undefined;
+            let fired = false;
             const events = ["mousemove", "keydown", "scroll"] as const;
+
+            function cleanupInactivity() {
+              if (timer !== undefined) window.clearTimeout(timer);
+              events.forEach((eventName) => {
+                window.removeEventListener(eventName, resetTimer);
+              });
+            }
+
+            function fire() {
+              if (fired) return;
+              fired = true;
+              cleanupInactivity();
+              startTour();
+            }
+
+            function resetTimer() {
+              if (fired) return;
+              if (timer !== undefined) window.clearTimeout(timer);
+              timer = window.setTimeout(fire, inactivityMs);
+            }
             events.forEach((eventName) => {
               window.addEventListener(eventName, resetTimer, {
                 passive: true,
@@ -191,33 +218,7 @@ export function useLoadTour(
             });
 
             resetTimer();
-            cleanupTrigger = () => {
-              window.clearTimeout(timer);
-              events.forEach((eventName) => {
-                window.removeEventListener(eventName, resetTimer);
-              });
-            };
-            break;
-          }
-
-          case "element_visible": {
-            const selector = resolvedTour.trigger_config?.element_selector;
-            if (!selector) break;
-
-            const element = document.querySelector(selector);
-            if (!element) break;
-
-            const observer = new IntersectionObserver((entries) => {
-              if (entries.some((entry) => entry.isIntersecting)) {
-                startTour();
-                observer.disconnect();
-              }
-            });
-            observer.observe(element);
-
-            cleanupTrigger = () => {
-              observer.disconnect();
-            };
+            cleanupTrigger = cleanupInactivity;
             break;
           }
         }

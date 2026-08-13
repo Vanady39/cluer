@@ -1,6 +1,20 @@
 import * as yup from "yup";
 import type { TriggerType } from "../../../../types/tour";
 
+const optionalNumber = () =>
+  yup.number().transform((value, originalValue) => {
+    if (
+      originalValue === "" ||
+      originalValue === null ||
+      originalValue === undefined ||
+      Number.isNaN(originalValue)
+    ) {
+      return undefined;
+    }
+
+    return value;
+  });
+
 export const scenarioSchema = yup.object({
   title: yup
     .string()
@@ -24,16 +38,15 @@ export const scenarioSchema = yup.object({
 
   trigger_config: yup
     .object({
-      delay_ms: yup.number().optional(),
-      scroll_depth: yup.number().optional(),
-      inactivity_secs: yup.number().optional(),
+      delay_ms: optionalNumber().optional(),
+      scroll_depth: optionalNumber().optional(),
+      inactivity_secs: optionalNumber().optional(),
     })
     .when("trigger_type", {
       is: "delay",
       then: (schema) =>
         schema.shape({
-          delay_ms: yup
-            .number()
+          delay_ms: optionalNumber()
             .typeError("Введите задержку")
             .integer("Задержка должна быть целым числом")
             .min(100, "Минимум 100 мс")
@@ -45,8 +58,7 @@ export const scenarioSchema = yup.object({
       is: "scroll_depth",
       then: (schema) =>
         schema.shape({
-          scroll_depth: yup
-            .number()
+          scroll_depth: optionalNumber()
             .typeError("Введите процент прокрутки")
             .integer("Процент должен быть целым числом")
             .min(1, "Минимум 1%")
@@ -58,8 +70,7 @@ export const scenarioSchema = yup.object({
       is: "inactivity",
       then: (schema) =>
         schema.shape({
-          inactivity_secs: yup
-            .number()
+          inactivity_secs: optionalNumber()
             .typeError("Введите время бездействия")
             .integer("Время должно быть целым числом")
             .min(3, "Минимум 3 секунды")
@@ -72,8 +83,7 @@ export const scenarioSchema = yup.object({
     .object({
       show_once: yup.boolean().required(),
 
-      max_shows: yup
-        .number()
+      max_shows: optionalNumber()
         .typeError("Введите количество показов")
         .integer("Количество показов должно быть целым числом")
         .min(1, "Минимум 1 показ")

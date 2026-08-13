@@ -1,31 +1,25 @@
 import { api } from "./api";
 import type { App } from "../types";
-import type { CreateHintRequest, CreateTourRequest, TourAnalytics, TourListItem, UpdateTourRequest, UpdateTourMetaRequest, 
+import type { CreateHintRequest, CreateTourRequest, TourAnalytics, TourListItem, UpdateTourRequest, UpdateTourMetaRequest,
               AnalyticsQuery } from "../types";
-import type { TourVersion  } from "../types";
+import type { TourVersion } from "../types";
 import { normalizeTour } from "./Mappers/tourMapper";
-
 
 function getIdFromLocation(location?: string): string {
   if (!location) throw new Error("Location header is missing");
 
   const id = location.split("/").pop();
-  
+
   if (!id) throw new Error("Invalid Location header format");
   return id;
 }
 
 export const onboardingAPI = {
-  getApps: () =>
-    api
-      .get<App[]>("/apps")
-      .then((res) => res.data),
-      
+  getApps: () => api.get<App[]>("/apps").then((res) => res.data),
+
   createApp: (data: { name: string; allowed_origins: string[] }) =>
-  api
-    .post<App>("/apps", data)
-    .then((res) => res.data),
-      
+    api.post<App>("/apps", data).then((res) => res.data),
+
   getTours: (appId: string) =>
     api
       .get<TourListItem[]>("/tours", {
@@ -99,6 +93,13 @@ export const onboardingAPI = {
 
   deleteHint: (tourId: string, hintId: string) =>
     api.delete(`/tours/${tourId}/hints/${hintId}`),
+
+  reorderHints: (tourId: string, hintIds: string[]) =>
+    api
+      .put(`/tours/${tourId}/hints/order`, {
+        hint_ids: hintIds,
+      })
+      .then((res) => res.data),
 
   getAnalytics: (tourId: string, params?: AnalyticsQuery) =>
     api

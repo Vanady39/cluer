@@ -14,6 +14,7 @@ interface InputProps {
   name?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onClick?: (e: React.MouseEvent<HTMLInputElement>) => void;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
 }
 
 function InputComponent({ 
@@ -27,6 +28,7 @@ function InputComponent({
   className,
   onKeyDown,
   onClick,
+  inputMode,
   ...props
 }: InputProps) {
   return (
@@ -47,6 +49,7 @@ function InputComponent({
         }}
         onKeyDown={onKeyDown}
         onClick={onClick}
+        inputMode={inputMode}
         disabled={disabled}
         {...props}
       />

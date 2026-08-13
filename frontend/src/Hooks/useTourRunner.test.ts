@@ -187,4 +187,102 @@ describe("useTourRunner", () => {
       );
     });
   });
+
+  it("сортирует подсказки по step независимо от порядка в массиве", async () => {
+    const onClose = vi.fn();
+    const reorderedTour: Tour = {
+      ...tour,
+      hints: [
+        {
+          id: "hint-3",
+          step: 3,
+          title: "Третий шаг",
+          content: "Шаг 3",
+          placement: "center",
+          spotlight: false,
+          wait_for_selector: false,
+        },
+        {
+          id: "hint-1",
+          step: 1,
+          title: "Первый шаг",
+          content: "Шаг 1",
+          placement: "center",
+          spotlight: false,
+          wait_for_selector: false,
+        },
+        {
+          id: "hint-2",
+          step: 2,
+          title: "Второй шаг",
+          content: "Шаг 2",
+          placement: "center",
+          spotlight: false,
+          wait_for_selector: false,
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useTourRunner(reorderedTour, TEST_APP_KEY, false, onClose),
+    );
+
+    expect(result.current.hints.map((hint) => hint.id)).toEqual([
+      "hint-1",
+      "hint-2",
+      "hint-3",
+    ]);
+    expect(result.current.step).toBe(0);
+    expect(result.current.hint?.id).toBe("hint-1");
+  });
+
+  it("правильно определяет текущий шаг по current_hint_id после перестановки", () => {
+    const onClose = vi.fn();
+    const reorderedTour: Tour = {
+      ...tour,
+      current_hint_id: "hint-2",
+
+      hints: [
+        {
+          id: "hint-3",
+          step: 3,
+          title: "Третий шаг",
+          content: "Шаг 3",
+          placement: "center",
+          spotlight: false,
+          wait_for_selector: false,
+        },
+        {
+          id: "hint-2",
+          step: 2,
+          title: "Второй шаг",
+          content: "Шаг 2",
+          placement: "center",
+          spotlight: false,
+          wait_for_selector: false,
+        },
+        {
+          id: "hint-1",
+          step: 1,
+          title: "Первый шаг",
+          content: "Шаг 1",
+          placement: "center",
+          spotlight: false,
+          wait_for_selector: false,
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useTourRunner(reorderedTour, TEST_APP_KEY, false, onClose),
+    );
+
+    expect(result.current.hints.map((hint) => hint.id)).toEqual([
+      "hint-1",
+      "hint-2",
+      "hint-3",
+    ]);
+    expect(result.current.step).toBe(1);
+    expect(result.current.hint?.id).toBe("hint-2");
+  });
 });

@@ -1,6 +1,11 @@
 import type { User } from "../types";
-import { demoApi } from "./constants";
+import { API_DEMO_URL } from "../Config/env";
 import { userManager } from "../Auth/oidc";
+import axios from "axios";
+
+export const demoApi = axios.create({
+  baseURL: API_DEMO_URL,
+});
 
 export const usersAPI = {
   getMe: async (): Promise<User> => {

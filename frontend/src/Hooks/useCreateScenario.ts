@@ -23,10 +23,15 @@ const createEmptyHint = (step: number): ScenarioHint => ({
 });
 
 export function useCreateScenario(editId: string | null) {
-  const { data: loadedTour } = useTourLoader(editId);
+  const {
+    data: loadedTour,
+    isLoading: isTourLoading,
+    isError: isTourLoadError,
+    error: tourLoadError,
+  } = useTourLoader(editId);
+
   const [hasLoaded, setHasLoaded] = useState(false);
   const selectedHintIndex = useRef<number | null>(null);
-  const saveMutation = useSaveScenario(editId);
 
   const createForm = useForm<InferType<typeof scenarioSchema>>({
     resolver: yupResolver(scenarioSchema),
@@ -44,6 +49,13 @@ export function useCreateScenario(editId: string | null) {
     },
   });
 
+  const saveMutation = useSaveScenario(editId, (field, message) => {
+    createForm.setError(field, {
+      type: "server",
+      message,
+    });
+  });
+
   if (loadedTour && !hasLoaded) {
     const loadedHints: ScenarioHint[] = loadedTour.hints?.length
       ? loadedTour.hints.map((hint: TourHint) => ({
@@ -53,7 +65,7 @@ export function useCreateScenario(editId: string | null) {
           content: hint.content ?? "",
           selector: hint.selector ?? "",
           placement: hint.placement ?? "bottom",
-          page_path: loadedTour.target_path || "/",
+          page_path: hint.page_path ?? loadedTour.target_path ?? "/",
           spotlight: hint.spotlight ?? true,
           wait_for_selector: hint.wait_for_selector ?? false,
           media_url: hint.media_url ?? "",
@@ -65,6 +77,11 @@ export function useCreateScenario(editId: string | null) {
       description: loadedTour.description || "",
       trigger_type: loadedTour.trigger_type || "on_load",
       trigger_config: loadedTour.trigger_config || {},
+      audience: loadedTour.audience ?? {
+        show_once: true,
+        max_shows: 1,
+        only_new: false,
+      },
       hints: loadedHints,
     });
 
@@ -118,7 +135,12 @@ export function useCreateScenario(editId: string | null) {
   };
 
   const saveDraft = async () => {
-    if (!(await createForm.trigger("title"))) return;
+    const valid = await createForm.trigger([
+      "title",
+      "trigger_type",
+      "trigger_config",
+    ]);
+    if (!valid) return;
     saveScenario(createForm.getValues(), "draft");
   };
 
@@ -150,6 +172,27 @@ export function useCreateScenario(editId: string | null) {
     );
   };
 
+  const reorderHint = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const hints = [...createForm.getValues("hints")];
+    const [movedHint] = hints.splice(fromIndex, 1);
+    if (!movedHint) return;
+
+    hints.splice(toIndex, 0, movedHint);
+    createForm.setValue(
+      "hints",
+      hints.map((hint, hintIndex) => ({
+        ...hint,
+        step: hintIndex + 1,
+      })),
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    );
+  };
+
   const selectElement = (index: number) => {
     selectedHintIndex.current = index;
     const page = createForm.getValues(`hints.${index}.page_path`) || "/";
@@ -162,8 +205,12 @@ export function useCreateScenario(editId: string | null) {
     onSubmit,
     addHint,
     removeHint,
+    reorderHint,
     selectElement,
     isPending: saveMutation.isPending,
+    isTourLoading,
+    isTourLoadError,
+    tourLoadError,
     errors: createForm.formState.errors,
   };
 }

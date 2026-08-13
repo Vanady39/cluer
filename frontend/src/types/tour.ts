@@ -25,6 +25,9 @@ export interface TourHint {
   spotlight: boolean;
   wait_for_selector: boolean;
   media_url?: string;
+  required?: boolean;
+  input_placeholder?: string;
+  expected_input?: string;
 }
 
 export interface Tour {

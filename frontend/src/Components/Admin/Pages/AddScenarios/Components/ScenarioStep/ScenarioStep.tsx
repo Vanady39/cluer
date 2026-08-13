@@ -7,8 +7,10 @@ import { Button } from "../../../../../UI/Button/Button";
 import { scenarioSchema } from "../../schema";
 import styles from "./Styles.module.scss";
 import cn from "classnames";
+import { useSortable } from "@dnd-kit/react/sortable";
 
 interface ScenarioStepProps {
+  id: string;
   index: number;
   control: Control<InferType<typeof scenarioSchema>>;
   errors: FieldErrors<InferType<typeof scenarioSchema>>;
@@ -16,11 +18,28 @@ interface ScenarioStepProps {
   onSelectElement: (index: number) => void;
 }
 
-function ScenarioStepComponent({ index, control, errors, onRemove, onSelectElement }: ScenarioStepProps) {
+function ScenarioStepComponent({ id, index, control, errors, onRemove, onSelectElement }: ScenarioStepProps) {
+  const { ref, handleRef, isDragging } = useSortable({ id, index });
   return (
-    <div className={styles.step}>
+    <div ref={ref} className={cn(styles.step, isDragging && styles.step_dragging)}>
       <div className={styles.step__stepTitle}>
-        Шаг {index + 1}
+        <div className={styles.step__titleLeft}>
+          <button
+            type="button"
+            ref={handleRef}
+            className={styles.step__dragHandle}
+            aria-label={`Перетащить шаг ${index + 1}`}
+            title="Перетащите, чтобы изменить порядок"
+          >
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </button>
+          <span>Шаг {index + 1}</span>
+        </div>
         <Button
           size="min"
           color="transparent"
@@ -54,11 +73,17 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
             <label className={styles.step__label}>Текст подсказки</label>
             <textarea
               {...field}
-              className={cn(styles.step__textarea,errors.hints?.[index]?.content?.message && styles.step__textarea__error)}
+              className={cn(
+                styles.step__textarea,
+                errors.hints?.[index]?.content?.message &&
+                  styles.step__textarea__error,
+              )}
               placeholder="Нажмите сюда..."
             />
             {errors.hints?.[index]?.content?.message && (
-              <span className={styles.step__error}>{errors.hints[index]?.content?.message}</span>
+              <span className={styles.step__error}>
+                {errors.hints[index]?.content?.message}
+              </span>
             )}
           </>
         )}
@@ -76,7 +101,9 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
               <option value="/profile">Профиль</option>
             </select>
             {errors.hints?.[index]?.page_path?.message && (
-              <span className={styles.step__error}>{errors.hints[index]?.page_path?.message}</span>
+              <span className={styles.step__error}>
+                {errors.hints[index]?.page_path?.message}
+              </span>
             )}
           </>
         )}
@@ -95,7 +122,9 @@ function ScenarioStepComponent({ index, control, errors, onRemove, onSelectEleme
               <option value="right">Справа</option>
             </select>
             {errors.hints?.[index]?.placement?.message && (
-              <span className={styles.step__error}>{errors.hints[index]?.placement?.message}</span>
+              <span className={styles.step__error}>
+                {errors.hints[index]?.placement?.message}
+              </span>
             )}
           </>
         )}

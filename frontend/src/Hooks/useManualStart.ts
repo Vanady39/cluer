@@ -7,7 +7,11 @@ declare global {
   }
 }
 
-export function useManualStart(tour: Tour | null, isBuilder: boolean, setIsOpen: (open: boolean) => void) {
+export function useManualStart(
+  tour: Tour | null,
+  isBuilder: boolean,
+  setIsOpen: (open: boolean) => void,
+) {
   useEffect(() => {
     if (isBuilder) return;
 
@@ -26,10 +30,11 @@ export function useManualStart(tour: Tour | null, isBuilder: boolean, setIsOpen:
     window.startOnboarding = () => {
       window.dispatchEvent(new CustomEvent("start-onboarding"));
     };
-    
+
     window.addEventListener("start-onboarding", handleManualStart);
     return () => {
       window.removeEventListener("start-onboarding", handleManualStart);
+      delete window.startOnboarding;
     };
   }, [isBuilder, tour, setIsOpen]);
 }

@@ -39,26 +39,6 @@ export type ResolvePayload = Partial<Tour> & {
   tour?: Partial<Tour>;
 };
 
-export interface PreviewVersion {
-  id: string;
-  trigger_type?: Tour["trigger_type"];
-  trigger_config?: Tour["trigger_config"];
-  target_path?: string;
-  audience?: Tour["audience"];
-  hints?: Tour["hints"];
-}
-
-export interface PreviewTourCard {
-  tour: {
-    id: string;
-    title?: string;
-    description?: string;
-    priority?: number;
-  };
-  draft?: PreviewVersion | null;
-  published?: PreviewVersion | null;
-}
-
 export interface PreviewState {
   onboardingPreviewTourId?: string;
   onboardingPreviewHintId?: string;

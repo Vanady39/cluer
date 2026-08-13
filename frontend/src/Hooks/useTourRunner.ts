@@ -48,7 +48,7 @@ export function useTourRunner(
   const hintPage = normalizePath(hint?.page_path || tour.target_path);
   const currentPage = normalizePath(location.pathname);
   const isHintPage = !hintPage || hintPage === currentPage;
-
+  
   const sendEvents = useCallback(
     async (events: EventToSend[]) => {
       if (isPreview || !tour.version_id) return;
@@ -112,6 +112,13 @@ export function useTourRunner(
 
         const nextHint = hints[nextStep];
         const nextPage = nextHint.page_path || tour.target_path;
+        console.log("[TourRunner] NEXT target", {
+          nextStep,
+          nextHintId: nextHint.id,
+          nextHintTitle: nextHint.title,
+          nextPage,
+          currentPage: location.pathname,
+        });
 
         setElement(null);
         setStep(nextStep);
@@ -209,20 +216,65 @@ export function useTourRunner(
     };
 
     if (!hint.wait_for_selector) {
-      try {
-        const target = document.querySelector(
-          hint.selector,
-        ) as HTMLElement | null;
-        if (!target) {
-          reportMissing("element_not_found");
-          return;
+      let cancelled = false;
+      let frameId: number | undefined;
+
+      const startedAt = performance.now();
+      const SELECTOR_GRACE_MS = 500;
+
+      const findElementWithGrace = () => {
+        if (cancelled) return;
+
+        try {
+          const target = document.querySelector(
+            hint.selector!,
+          ) as HTMLElement | null;
+
+          if (target) {
+            console.log("[TourRunner] ELEMENT found", {
+              step,
+              hintId: hint.id,
+              selector: hint.selector,
+              page: location.pathname,
+            });
+
+            setElement(target);
+            return;
+          }
+
+          if (performance.now() - startedAt >= SELECTOR_GRACE_MS) {
+            console.warn("[TourRunner] ELEMENT not found after grace period", {
+              step,
+              hintId: hint.id,
+              selector: hint.selector,
+              page: location.pathname,
+            });
+
+            reportMissing("element_not_found");
+            return;
+          }
+
+          frameId = requestAnimationFrame(findElementWithGrace);
+        } catch {
+          console.error("[TourRunner] invalid selector", {
+            step,
+            hintId: hint.id,
+            selector: hint.selector,
+          });
+
+          reportMissing("invalid_selector");
         }
-        const frameId = requestAnimationFrame(() => setElement(target));
-        return () => cancelAnimationFrame(frameId);
-      } catch {
-        reportMissing("invalid_selector");
-      }
-      return;
+      };
+
+      frameId = requestAnimationFrame(findElementWithGrace);
+
+      return () => {
+        cancelled = true;
+
+        if (frameId !== undefined) {
+          cancelAnimationFrame(frameId);
+        }
+      };
     }
 
     const findElement = () => {
@@ -262,11 +314,10 @@ export function useTourRunner(
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, [hint, isHintPage, sendEvents, skipCurrentStep, hint.wait_for_selector]);
+  }, [hint, isHintPage, sendEvents, skipCurrentStep, step, location.pathname]);
 
   const goToNextStep = useCallback(async () => {
     if (!hint || advancingRef.current) return;
-
     advancingRef.current = true;
 
     try {
