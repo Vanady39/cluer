@@ -33,8 +33,11 @@
 # oidc.admin_groups, иначе токен пройдёт проверку подписи, но не даст доступа к
 # админскому API.
 #
-# redirect_uris — адрес, куда Authentik возвращает браузер после логина. Для
-# другого домена или порта фронтенда его нужно поменять здесь же.
+# redirect_uris — адрес, куда Authentik возвращает браузер после логина, и
+# сверяется он строго. Значение берётся из переменной CLUER_REDIRECT_URI (см.
+# .env.example), потому что на каждой машине оно своё: локально это
+# http://localhost:5173/callback, на сервере — его публичный адрес. Правьте
+# .env, а не этот файл.
 version: 1
 metadata:
   name: cluer
@@ -61,9 +64,14 @@ entries:
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
         - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+        # offline_access — это refresh-токен. Фронтенд запрашивает такой scope и
+        # включает automaticSilentRenew; без этого маппинга Authentik молча не
+        # выдаёт refresh-токен, и через час (access_token_validity) админа
+        # выкидывает на логин посреди работы.
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, offline_access]]
       redirect_uris:
         - matching_mode: strict
-          url: http://localhost:5173/callback
+          url: !Env [CLUER_REDIRECT_URI, "http://localhost:5173/callback"]
 
   - model: authentik_core.application
     identifiers:
@@ -79,10 +87,25 @@ server:
 # Требуется всем трём бинарникам: без этой секции migrate, onboarding и demo
 # останавливаются на старте. address — адрес в сети docker-compose; с хоста
 # перекрывается через CLUER_POSTGRES_ADDRESS.
+#
+# Пароль живёт в .env как CLUER_POSTGRES_PASSWORD: той же переменной
+# docker-compose создаёт базу, и ей же viper перекрывает postgres.password в
+# сервисах — один источник вместо двух копий, которые разъезжаются.
+#
+# Пустую строку password ниже удалять нельзя: viper подставляет переменные
+# окружения только для ключей, известных ему из файла. Без неё переменная будет
+# проигнорирована, и сервис остановится на валидации.
+#
+# Для запуска с хоста переменную нужно передать явно:
+#
+#   CLUER_CONFIG_PATH=./deploy CLUER_POSTGRES_ADDRESS=127.0.0.1:5432 \
+#     CLUER_POSTGRES_PASSWORD=... go run ./onboarding/cmd
+#
+# Без неё сервис остановится на валидации с сообщением про обязательное поле.
 postgres:
   address: postgres:5432
   user: cluer
-  password: ЗАПОЛНИТЬ
+  password: ""
   dbname: cluer
   sslmode: disable
 

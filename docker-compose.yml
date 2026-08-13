@@ -3,7 +3,11 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: cluer
-      POSTGRES_PASSWORD: cluer_local_dev
+      # One variable feeds both sides: the database is created with it here, and
+      # the services below receive it as CLUER_POSTGRES_PASSWORD, which viper
+      # maps onto postgres.password. A second copy in deploy/cluer.yml would be
+      # one more thing to keep in sync.
+      POSTGRES_PASSWORD: ${CLUER_POSTGRES_PASSWORD:?set CLUER_POSTGRES_PASSWORD in .env}
       POSTGRES_DB: cluer
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -13,8 +17,13 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+    # Loopback only. A published port bypasses ufw entirely — docker's DNAT runs
+    # in PREROUTING and the traffic is forwarded, never touching the INPUT rules
+    # ufw writes — so binding the address is what actually keeps the database
+    # off the network. Nothing outside the compose network needs it anyway;
+    # the services reach it as `postgres`.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   migrate:
     build:
@@ -26,6 +35,8 @@ services:
         condition: service_healthy
     volumes:
       - ./deploy/cluer.yml:/run/secrets/cluer.yml:ro
+    environment:
+      CLUER_POSTGRES_PASSWORD: ${CLUER_POSTGRES_PASSWORD:?set CLUER_POSTGRES_PASSWORD in .env}
     restart: "no"
 
   onboarding:
@@ -41,8 +52,12 @@ services:
     environment:
       CLUER_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
       CLUER_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
+      CLUER_POSTGRES_PASSWORD: ${CLUER_POSTGRES_PASSWORD:?set CLUER_POSTGRES_PASSWORD in .env}
+    # Loopback only: the browser reaches this API through the frontend's nginx
+    # under /v1, so the port needs to be open for debugging on the host, not to
+    # the network.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/v1/health || exit 1"]
       interval: 5s
@@ -64,19 +79,30 @@ services:
     environment:
       CLUER_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
       CLUER_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
+      CLUER_POSTGRES_PASSWORD: ${CLUER_POSTGRES_PASSWORD:?set CLUER_POSTGRES_PASSWORD in .env}
+    # Loopback only: since the frontend proxies this API under /demo/v1, the
+    # browser no longer talks to it directly.
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080"
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       args:
-        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
-        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-cluer-admin}
+        # The same variables the backend services read, not VITE_-prefixed twins
+        # of them: the issuer the browser is redirected to and the one the API
+        # validates tokens against have to be the same string, and two variables
+        # holding one value drift the moment somebody edits only .env's half.
+        #
+        # Vite inlines these at build time, so changing them requires
+        # `docker compose up -d --build frontend`, not a restart.
+        VITE_OIDC_ISSUER: ${CLUER_OIDC_ISSUER:-http://auth.localhost:9000/application/o/cluer/}
+        VITE_OIDC_CLIENT_ID: ${CLUER_OIDC_CLIENT_ID:-cluer-admin}
         VITE_CLUER_APP_KEY: ${VITE_CLUER_APP_KEY}
     environment:
       API_UPSTREAM: ${API_UPSTREAM:-http://onboarding:8080}
+      API_DEMO_UPSTREAM: ${API_DEMO_UPSTREAM:-http://demo:8080}
     depends_on:
       onboarding:
         condition: service_healthy
@@ -127,6 +153,11 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS:?set AUTHENTIK_PG_PASS in .env}
       AUTHENTIK_REDIS__HOST: authentik-redis
+      # Read by the blueprint in deploy/cluer.yml through its !Env tag. Authentik
+      # matches redirect_uris strictly, so this has to be the exact origin the
+      # browser loads the frontend from — localhost only works when the browser
+      # runs on this machine.
+      CLUER_REDIRECT_URI: ${CLUER_REDIRECT_URI:-http://localhost:5173/callback}
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
       AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
@@ -137,9 +168,11 @@ services:
       # The same file the services read. Authentik takes the version/metadata/
       # entries part and ignores the rest; the services do the opposite.
       - ./deploy/cluer.yml:/blueprints/custom/cluer.yaml:ro
+    # Stays public: the browser is redirected here to log in, so it has to be
+    # reachable from wherever the user sits. 9443 is dropped — the stack runs
+    # over plain http and nothing terminates TLS here.
     ports:
       - "9000:9000"
-      - "9443:9443"
     networks:
       default:
         aliases:
