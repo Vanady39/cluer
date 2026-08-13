@@ -8,6 +8,7 @@ import (
 	"github.com/Vanady39/cluer/internal/controllers"
 	"github.com/Vanady39/cluer/internal/domains"
 	"github.com/Vanady39/cluer/internal/server/middlewares"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
@@ -28,9 +29,12 @@ type (
 	CreateStruct struct {
 		Logger            *zerolog.Logger
 		RuntimeDomain     domains.RuntimeDomainInterface
+		OIDCVerifier      *oidc.IDTokenVerifier
+		AdminGroups       []string
 		TourController    controllers.TourControllerInterface
 		HintController    controllers.HintControllerInterface
 		RuntimeController controllers.RuntimeControllerInterface
+		MeController      controllers.MeControllerInterface
 	}
 )
 
@@ -60,7 +64,13 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *Server {
 		}
 
 		admin := v1.Group("")
+		admin.Use(
+			middlewares.OIDCAuth(createStruct.OIDCVerifier),
+			middlewares.RequireGroups(createStruct.AdminGroups),
+		)
 		{
+			admin.GET("/users/me", createStruct.MeController.GetCurrentAdmin)
+
 			admin.POST("/apps", createStruct.RuntimeController.CreateApp)
 			admin.GET("/apps", createStruct.RuntimeController.ListApps)
 

@@ -25,7 +25,13 @@ go.work.sum
 .env
 
 # Configuration files
-gin-template.yml
+# cluer.yml is the config the service actually reads (CLUER_CONFIG_NAME).
+# It carries the real issuer, database password and anything else that differs
+# per machine, so it stays out of the repository; deploy/*.yml and
+# sample_config.yml hold the committed placeholders instead.
+cluer.yml
+*.local.yml
+deploy/*.local.yml
 
 # IDE metadata
 .[Vv][Ss][Cc]ode*
@@ -34,3 +40,4 @@ gin-template.yml
 docs/*
 !docs/swagger.json
 !docs/superpowers/
+!docs/frontend-auth.md

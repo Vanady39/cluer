@@ -1,6 +1,14 @@
 server:
   address: 0.0.0.0:8080
 
+# Admin API authentication. Placeholders — the onboarding service reads the real
+# values from an untracked cluer.yml or from a mounted secret.
+oidc:
+  issuer: https://auth.example.com/application/o/cluer/
+  client_id: cluer-admin
+  admin_groups:
+    - cluer-admins
+
 logger:
   default:
     level: info
