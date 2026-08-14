@@ -45,7 +45,7 @@ func AppKeyAuth(runtime domains.RuntimeDomainInterface) gin.HandlerFunc {
 
 		origin := c.GetHeader("Origin")
 		if origin != "" {
-			if !originAllowed(app.AllowedOrigins, origin) {
+			if !domains.OriginAllowed(app.AllowedOrigins, origin) {
 				c.Error(platform.NewAuthHeaderError(
 					http.StatusForbidden,
 					"Origin is not allowed for this application",

@@ -3,11 +3,12 @@ package domains
 import (
 	"context"
 	"fmt"
-	"github.com/Vanady39/cluer/platform/errs"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Vanady39/cluer/platform/errs"
 
 	"github.com/google/uuid"
 )
@@ -30,6 +31,7 @@ type (
 		Ingest(ctx context.Context, appId uuid.UUID, subjectId, sessionId string, events []Event) (*EventBatchResult, error)
 		Analytics(ctx context.Context, tourId, versionId uuid.UUID, from, to time.Time) (*Analytics, error)
 		Ping(ctx context.Context) error
+		UpdateApp(ctx context.Context, id uuid.UUID, name *string, allowedOrigins []string) (*App, error)
 	}
 
 	RuntimeRepositoryInterface interface {
@@ -44,7 +46,7 @@ type (
 		Funnel(ctx context.Context, versionId uuid.UUID, from, to time.Time) ([]FunnelStep, error)
 		Totals(ctx context.Context, versionId uuid.UUID, from, to time.Time) (AnalyticsTotals, error)
 		GetSubjectEvents(ctx context.Context, appId uuid.UUID, subjectId string, minSince time.Time, limit int) ([]Event, error)
-
+		UpdateApp(ctx context.Context, id uuid.UUID, name *string, allowedOrigins []string) (*App, error)
 		Ping(ctx context.Context) error
 	}
 )
@@ -65,16 +67,30 @@ func (rd *RuntimeDomain) CreateApp(ctx context.Context, a *App) (*App, error) {
 	if a.Name == "" {
 		return nil, logicErr(ErrTitleRequired, "app validation", http.StatusBadRequest)
 	}
+	origins, err := ValidateOrigins(a.AllowedOrigins)
+	if err != nil {
+		return nil, logicErr(err, "app validation", http.StatusBadRequest)
+	}
+	a.AllowedOrigins = origins
 	if a.PublicKey == "" {
 		a.PublicKey = "pk_" + uuid.NewString()
-	}
-	if a.AllowedOrigins == nil {
-		a.AllowedOrigins = []string{}
 	}
 	if err := rd.runtime.CreateApp(ctx, a); err != nil {
 		return nil, err
 	}
 	return a, nil
+}
+
+func (rd *RuntimeDomain) UpdateApp(ctx context.Context, id uuid.UUID, name *string, allowedOrigins []string) (*App, error) {
+	var normalized []string
+	if allowedOrigins != nil {
+		var err error
+		normalized, err = ValidateOrigins(allowedOrigins)
+		if err != nil {
+			return nil, logicErr(err, "app update", http.StatusBadRequest)
+		}
+	}
+	return rd.runtime.UpdateApp(ctx, id, name, normalized)
 }
 
 func (rd *RuntimeDomain) ListApps(ctx context.Context) ([]*App, error) {

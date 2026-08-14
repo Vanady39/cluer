@@ -32,7 +32,12 @@ type EventBatchRequest struct {
 
 type CreateAppRequest struct {
 	Name           string   `json:"name" binding:"required"`
-	AllowedOrigins []string `json:"allowed_origins"`
+	AllowedOrigins []string `json:"allowed_origins" binding:"required,min=1,dive,required"`
+}
+
+type UpdateAppRequest struct {
+	Name           *string  `json:"name,omitempty"`
+	AllowedOrigins []string `json:"allowed_origins,omitempty"`
 }
 
 // ToDomain fills only what the client is allowed to state. AppId, SubjectId and

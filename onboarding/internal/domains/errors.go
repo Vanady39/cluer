@@ -110,6 +110,8 @@ var (
 	ErrContentRequired    = errors.New("content is required")
 	ErrTargetPathRequired = errors.New("target_path is required")
 	ErrPriorityNegative   = errors.New("priority must be >= 0")
+	ErrOriginRequired     = errors.New("allowed_origins must not be empty")
+	ErrInvalidOrigin      = errors.New("invalid origin format")
 )
 
 var (
