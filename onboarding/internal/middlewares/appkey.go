@@ -6,8 +6,6 @@ package middlewares
 
 import (
 	"net/http"
-	"slices"
-	"strings"
 
 	"github.com/Vanady39/cluer/onboarding/internal/domains"
 	platform "github.com/Vanady39/cluer/platform/middlewares"
@@ -62,14 +60,4 @@ func AppKeyAuth(runtime domains.RuntimeDomainInterface) gin.HandlerFunc {
 		c.Set(ContextAppId, app.Id)
 		c.Next()
 	}
-}
-
-func originAllowed(allowed []string, origin string) bool {
-	if len(allowed) == 0 {
-		return false
-	}
-	if slices.Contains(allowed, "*") {
-		return true
-	}
-	return slices.Contains(allowed, strings.TrimSuffix(origin, "/"))
 }

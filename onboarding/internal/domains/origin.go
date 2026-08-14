@@ -38,7 +38,13 @@ func ValidateOrigins(raw []string) ([]string, error) {
 	seen := make(map[string]struct{}, len(raw))
 	result := make([]string, 0, len(raw))
 	for _, r := range raw {
-		norm := NormalizeOrigin(r)
+		// Вайлдкард не origin и нормализации не поддаётся, но OriginAllowed на
+		// него опирается. Без этой ветки записать "*" можно было бы только
+		// руками в базу, а ветка в проверке осталась бы недостижимой.
+		norm := strings.TrimSpace(r)
+		if norm != "*" {
+			norm = NormalizeOrigin(r)
+		}
 		if norm == "" {
 			return nil, ErrInvalidOrigin
 		}

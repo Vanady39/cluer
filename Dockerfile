@@ -21,6 +21,17 @@ RUN go mod download
 COPY . .
 
 ARG SERVICE_PATH
+
+# How many packages the compiler builds at once. Empty by default, which Go
+# reads as "one per core" — the fast path on a machine with memory to spare.
+# Set it to 1 or 2 on a small VPS: each parallel compile holds its own working
+# set, and it is that concurrency, not the build itself, that runs the box out
+# of memory.
+#
+#   docker compose build --build-arg GOMAXPROCS=1 onboarding
+ARG GOMAXPROCS
+ENV GOMAXPROCS=${GOMAXPROCS}
+
 # CGO off gives a static binary, which is what makes the scratch-like runtime
 # stage below possible.
 RUN CGO_ENABLED=0 GOOS=linux go build \

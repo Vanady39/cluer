@@ -99,11 +99,25 @@ export function useTourRunner(
         const nextStep = step + 1;
 
         if (nextStep >= hints.length) {
-          await sendEvents([
-            {
-              type: "tour_completed",
-            },
-          ]);
+          // Тур, у которого рантайм пропустил все шаги, пользователю не
+          // показали вообще — это не прохождение, а несостоявшийся показ.
+          // tour_completed здесь ставит прогрессу статус completed на бэкенде,
+          // и при show_once тур больше никогда не выдастся этому subject.
+          // Молчим: selector_missing уже уехал в аналитику, а прогресс
+          // остаётся in_progress, чтобы следующая загрузка страницы дала туру
+          // второй шанс.
+          if (shownRef.current.size > 0) {
+            await sendEvents([
+              {
+                type: "tour_completed",
+              },
+            ]);
+          } else {
+            console.warn(
+              "[TourRunner] тур закрыт без единой показанной подсказки",
+              { tourId: tour.id, hints: hints.length },
+            );
+          }
 
           setElement(null);
           onClose();
@@ -198,10 +212,11 @@ export function useTourRunner(
       return;
     }
 
-    const reportMissing = (reason: string) => {
+    const reportMissing = (reason: string, andSkip = true) => {
       if (missingRef.current.has(hint.id)) return;
       missingRef.current.add(hint.id);
-      void sendEvents([
+
+      const sent = sendEvents([
         {
           type: "selector_missing",
           hintId: hint.id,
@@ -210,72 +225,14 @@ export function useTourRunner(
             reason,
           },
         },
-      ]).then(() => {
-        void skipCurrentStep(reason);
-      });
+      ]);
+
+      if (andSkip) {
+        void sent.then(() => {
+          void skipCurrentStep(reason);
+        });
+      }
     };
-
-    if (!hint.wait_for_selector) {
-      let cancelled = false;
-      let frameId: number | undefined;
-
-      const startedAt = performance.now();
-      const SELECTOR_GRACE_MS = 500;
-
-      const findElementWithGrace = () => {
-        if (cancelled) return;
-
-        try {
-          const target = document.querySelector(
-            hint.selector!,
-          ) as HTMLElement | null;
-
-          if (target) {
-            console.log("[TourRunner] ELEMENT found", {
-              step,
-              hintId: hint.id,
-              selector: hint.selector,
-              page: location.pathname,
-            });
-
-            setElement(target);
-            return;
-          }
-
-          if (performance.now() - startedAt >= SELECTOR_GRACE_MS) {
-            console.warn("[TourRunner] ELEMENT not found after grace period", {
-              step,
-              hintId: hint.id,
-              selector: hint.selector,
-              page: location.pathname,
-            });
-
-            reportMissing("element_not_found");
-            return;
-          }
-
-          frameId = requestAnimationFrame(findElementWithGrace);
-        } catch {
-          console.error("[TourRunner] invalid selector", {
-            step,
-            hintId: hint.id,
-            selector: hint.selector,
-          });
-
-          reportMissing("invalid_selector");
-        }
-      };
-
-      frameId = requestAnimationFrame(findElementWithGrace);
-
-      return () => {
-        cancelled = true;
-
-        if (frameId !== undefined) {
-          cancelAnimationFrame(frameId);
-        }
-      };
-    }
 
     const findElement = () => {
       try {
@@ -286,11 +243,25 @@ export function useTourRunner(
         setElement(target);
         return true;
       } catch {
+        // Синтаксически невалидный селектор не появится никогда, ждать его
+        // нет смысла ни в одном режиме.
+        console.error("[TourRunner] invalid selector", {
+          step,
+          hintId: hint.id,
+          selector: hint.selector,
+        });
         reportMissing("invalid_selector");
         return true;
       }
     };
 
+    if (findElement()) return;
+
+    // Ждём якорь одинаково независимо от wait_for_selector. Раньше при
+    // выключенном флаге на поиск отводилось 500 мс — меньше, чем хост-странице
+    // нужно на собственную загрузку данных, поэтому подсказка на on_load
+    // появлялась через раз: выигрывал тот, чей запрос вернулся первым. Флаг
+    // теперь решает единственное — сдаваться ли по истечении срока.
     const interval = window.setInterval(() => {
       if (findElement()) {
         window.clearInterval(interval);
@@ -299,16 +270,30 @@ export function useTourRunner(
     }, 200);
 
     const timeout = window.setTimeout(() => {
-      window.clearInterval(interval);
-      if (!findElement()) {
-        reportMissing("element_not_found");
+      if (findElement()) {
+        window.clearInterval(interval);
+        return;
       }
-    }, SELECTOR_MISSING_TIMEOUT);
 
-    if (findElement()) {
+      console.warn("[TourRunner] ELEMENT not found", {
+        step,
+        hintId: hint.id,
+        selector: hint.selector,
+        page: location.pathname,
+        waitForSelector: !!hint.wait_for_selector,
+      });
+
+      // wait_for_selector означает «элемент появится по действию пользователя,
+      // когда — неизвестно». Такой шаг не пропускаем: сообщаем о проблеме в
+      // аналитику и продолжаем ждать, пока не сменится шаг или страница.
+      if (hint.wait_for_selector) {
+        reportMissing("element_not_found", false);
+        return;
+      }
+
       window.clearInterval(interval);
-      window.clearTimeout(timeout);
-    }
+      reportMissing("element_not_found");
+    }, SELECTOR_MISSING_TIMEOUT);
 
     return () => {
       window.clearInterval(interval);

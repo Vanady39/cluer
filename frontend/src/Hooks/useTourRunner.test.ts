@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTourRunner } from "./useTourRunner";
 import { sendOnboardingEvents } from "../Components/Onboarding/events";
 import type { Tour } from "../types/tour";
+import { SELECTOR_MISSING_TIMEOUT } from "../Utils/constants";
 
 vi.mock("react-router-dom", () => ({
   useLocation: () => ({
@@ -76,9 +77,15 @@ describe("useTourRunner", () => {
       useTourRunner(tour, TEST_APP_KEY, false, onClose),
     );
 
-    await waitFor(() => {
-      expect(result.current.step).toBe(1);
-    });
+    // Шаг пропускается только после того, как истечёт окно ожидания якоря:
+    // до этого рантайм обязан ждать, иначе он проигрывает гонку с рендером
+    // хост-страницы.
+    await waitFor(
+      () => {
+        expect(result.current.step).toBe(1);
+      },
+      { timeout: SELECTOR_MISSING_TIMEOUT + 1000 },
+    );
 
     const sentEvents = vi
       .mocked(sendOnboardingEvents)
@@ -104,7 +111,7 @@ describe("useTourRunner", () => {
 
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.hint?.id).toBe("hint-2");
-  });
+  }, SELECTOR_MISSING_TIMEOUT + 5000);
 
   it("продолжает onboarding при некорректном селекторе", async () => {
     const onClose = vi.fn();
@@ -123,9 +130,15 @@ describe("useTourRunner", () => {
       useTourRunner(tourWithBrokenSelector, TEST_APP_KEY, false, onClose),
     );
 
-    await waitFor(() => {
-      expect(result.current.step).toBe(1);
-    });
+    // Шаг пропускается только после того, как истечёт окно ожидания якоря:
+    // до этого рантайм обязан ждать, иначе он проигрывает гонку с рендером
+    // хост-страницы.
+    await waitFor(
+      () => {
+        expect(result.current.step).toBe(1);
+      },
+      { timeout: SELECTOR_MISSING_TIMEOUT + 1000 },
+    );
 
     const sentEvents = vi
       .mocked(sendOnboardingEvents)
@@ -151,7 +164,7 @@ describe("useTourRunner", () => {
 
     expect(onClose).not.toHaveBeenCalled();
     expect(result.current.hint?.id).toBe("hint-2");
-  });
+  }, SELECTOR_MISSING_TIMEOUT + 5000);
 
   it("передаёт appKey при отправке событий", async () => {
     const onClose = vi.fn();
@@ -285,4 +298,85 @@ describe("useTourRunner", () => {
     expect(result.current.step).toBe(1);
     expect(result.current.hint?.id).toBe("hint-2");
   });
+});
+
+describe("useTourRunner: якорь появляется позже первого кадра", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(sendOnboardingEvents).mockResolvedValue({
+      accepted: 1,
+      duplicates: 0,
+      rejected: 0,
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    document.body.innerHTML = "";
+    vi.restoreAllMocks();
+  });
+
+  // Хост-страница рисует якорь после своей загрузки данных, а тур стартует
+  // сразу по on_load. Ждать элемент — работа рантайма, а не повод считать
+  // селектор сломанным.
+  it("дожидается элемента, который появился через 800 мс, и показывает подсказку", async () => {
+    const onClose = vi.fn();
+    const lateTour: Tour = {
+      ...tour,
+      hints: [{ ...tour.hints[0], selector: "#late-anchor" }],
+    };
+
+    setTimeout(() => {
+      const anchor = document.createElement("div");
+      anchor.id = "late-anchor";
+      document.body.appendChild(anchor);
+    }, 800);
+
+    const { result } = renderHook(() =>
+      useTourRunner(lateTour, TEST_APP_KEY, false, onClose),
+    );
+
+    await waitFor(() => expect(result.current.element).not.toBeNull(), {
+      timeout: 4000,
+    });
+
+    const sentEvents = vi
+      .mocked(sendOnboardingEvents)
+      .mock.calls.flatMap((call) => call[1]);
+
+    expect(sentEvents.map((event) => event.type)).not.toContain(
+      "selector_missing",
+    );
+    expect(sentEvents.map((event) => event.type)).not.toContain(
+      "tour_completed",
+    );
+    expect(onClose).not.toHaveBeenCalled();
+  }, SELECTOR_MISSING_TIMEOUT + 5000);
+
+  // Тур, у которого рантайм пропустил все шаги, пользователю не показали
+  // вообще. Записывать это как tour_completed нельзя: бэкенд ставит прогрессу
+  // статус completed, и при show_once тур больше никогда не выдастся.
+  it("не отмечает тур пройденным, если ни одной подсказки не показали", async () => {
+    const onClose = vi.fn();
+    const unreachableTour: Tour = {
+      ...tour,
+      hints: [{ ...tour.hints[0], selector: "#never-appears" }],
+    };
+
+    renderHook(() =>
+      useTourRunner(unreachableTour, TEST_APP_KEY, false, onClose),
+    );
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled(), {
+      timeout: SELECTOR_MISSING_TIMEOUT + 2000,
+    });
+
+    const sentTypes = vi
+      .mocked(sendOnboardingEvents)
+      .mock.calls.flatMap((call) => call[1])
+      .map((event) => event.type);
+
+    expect(sentTypes).toContain("selector_missing");
+    expect(sentTypes).not.toContain("tour_completed");
+  }, SELECTOR_MISSING_TIMEOUT + 5000);
 });
