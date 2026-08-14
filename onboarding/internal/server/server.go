@@ -60,6 +60,7 @@ func NewServer(cfg *config.ServerConfig, createStruct *CreateStruct) *serve.Serv
 			admin.GET("/apps", createStruct.RuntimeController.ListApps)
 
 			admin.GET("/versions/:versionId", createStruct.TourController.GetVersion)
+			admin.PATCH("/apps/:appId", createStruct.RuntimeController.UpdateApp)
 
 			tours := admin.Group("/tours")
 			{

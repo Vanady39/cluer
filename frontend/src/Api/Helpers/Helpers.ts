@@ -1,23 +1,34 @@
 import { onboardingAPI } from "../onboarding";
+import { CLUER_APP_KEY } from "../../Config/env";
 import type { App } from "../../types";
 
-let currentAppPromise: Promise<App> | null = null;
-
 export async function getCurrentApp(): Promise<App> {
-  if (!currentAppPromise) {
-    currentAppPromise = (async () => {
-      const apps = await onboardingAPI.getApps();
-      if (apps[0]) return apps[0];
+  const apps = await onboardingAPI.getApps();
 
-      return onboardingAPI.createApp({
-        name: "Cluer",
-        allowed_origins: [window.location.origin],
-      });
-    })().catch((error) => {
-      currentAppPromise = null;
-      throw error;
-    });
+  if (CLUER_APP_KEY) {
+    const match = apps.find((a) => a.public_key === CLUER_APP_KEY);
+
+    if (!match) {
+      throw new Error(
+          "VITE_CLUER_APP_KEY не совпадает ни с одним приложением — туры создадутся под чужим app_id"
+      );
+    }
+
+    return match;
   }
 
-  return currentAppPromise;
+  if (apps.length === 0) {
+    const created = await onboardingAPI.createApp({
+      name: "cluer-demo",
+      allowed_origins: [window.location.origin],
+    });
+
+    console.info("[Onboarding] created app public_key:", created.public_key);
+
+    return created;
+  }
+
+  throw new Error(
+      "VITE_CLUER_APP_KEY не задан, а в системе уже есть приложения. Задайте VITE_CLUER_APP_KEY, чтобы админка работала с нужным приложением."
+  );
 }

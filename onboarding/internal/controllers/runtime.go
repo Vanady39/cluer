@@ -23,6 +23,7 @@ type (
 		Analytics(ctx *gin.Context)
 		CreateApp(ctx *gin.Context)
 		ListApps(ctx *gin.Context)
+		UpdateApp(ctx *gin.Context)
 	}
 )
 
@@ -67,6 +68,38 @@ func (rc *RuntimeController) Resolve(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, response.NewResolveResult(result))
+}
+
+// UpdateApp godoc
+// @Summary		Update an application
+// @Tags		Apps
+// @Accept		json
+// @Produce	json
+// @Param		appId	path		string						true	"App ID"	format(uuid)
+// @Param		body	body		request.UpdateAppRequest	true	"Fields to update"
+// @Success	200		{object}	response.App
+// @Failure	400		{object}	errs.HTTPError
+// @Failure	404		{object}	errs.HTTPError
+// @Router		/apps/{appId} [patch]
+func (rc *RuntimeController) UpdateApp(ctx *gin.Context) {
+	appId, err := pathUUID(ctx, "appId")
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+
+	body := new(request.UpdateAppRequest)
+	if err := ctx.ShouldBindJSON(body); err != nil {
+		ctx.Error(&errs.BindingError{Err: err, Zone: errs.Body, Code: http.StatusBadRequest})
+		return
+	}
+
+	updated, err := rc.domain.UpdateApp(ctx.Request.Context(), appId, body.Name, body.AllowedOrigins)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(http.StatusOK, response.NewApp(updated))
 }
 
 // Ingest godoc

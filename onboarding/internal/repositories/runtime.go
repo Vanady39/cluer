@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Vanady39/cluer/platform/errs"
+	"strings"
 	"time"
+
+	"github.com/Vanady39/cluer/platform/errs"
 
 	"github.com/Vanady39/cluer/onboarding/internal/domains"
 	"github.com/google/uuid"
@@ -47,6 +49,38 @@ func (rr *RuntimeRepository) AppByKey(ctx context.Context, key string) (*domains
 	).Scan(&a.Id, &a.Name, &a.PublicKey, &a.AllowedOrigins, &a.CreatedAt, &a.ArchivedAt)
 	if err != nil {
 		return nil, wrap(err, domains.ErrAppNotFound, key, errs.Retrieve)
+	}
+	return a, nil
+}
+
+func (rr *RuntimeRepository) UpdateApp(ctx context.Context, id uuid.UUID, name *string, allowedOrigins []string) (*domains.App, error) {
+	set := make([]string, 0, 2)
+	args := make([]any, 0, 3)
+
+	if name != nil {
+		args = append(args, *name)
+		set = append(set, fmt.Sprintf("name = $%d", len(args)))
+	}
+	if allowedOrigins != nil {
+		args = append(args, allowedOrigins)
+		set = append(set, fmt.Sprintf("allowed_origins = $%d", len(args)))
+	}
+	if len(set) == 0 {
+		return rr.AppByKey(ctx, "")
+	}
+
+	args = append(args, id)
+	query := fmt.Sprintf(`
+		UPDATE apps SET %s
+		WHERE id = $%d AND archived_at IS NULL
+		RETURNING id, name, public_key, allowed_origins, created_at, archived_at`,
+		strings.Join(set, ", "), len(args))
+
+	a := new(domains.App)
+	err := rr.pool.QueryRow(ctx, query, args...).Scan(
+		&a.Id, &a.Name, &a.PublicKey, &a.AllowedOrigins, &a.CreatedAt, &a.ArchivedAt)
+	if err != nil {
+		return nil, wrap(err, domains.ErrAppNotFound, id.String(), errs.Update)
 	}
 	return a, nil
 }
